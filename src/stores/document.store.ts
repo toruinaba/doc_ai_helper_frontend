@@ -1,7 +1,7 @@
 /**
  * ドキュメントストア
  * 
- * ドキュメントとリポジトリの状態を管理するPiniaストア
+ * ドキュメントの状態を管理するPiniaストア
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
@@ -11,10 +11,9 @@ import { types } from '../services/api';
 export const useDocumentStore = defineStore('document', () => {
   // 状態
   const currentDocument = ref<types.DocumentResponse | null>(null);
-  const repositoryStructure = ref<types.FileTreeItem[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
-  const currentService = ref<string>('mock'); // デフォルトはmock
+  const currentService = ref<string>('mock'); // デフォルトサービス
   const currentOwner = ref<string>('example');
   const currentRepo = ref<string>('docs-project');
   const currentPath = ref<string>('');
@@ -36,41 +35,45 @@ export const useDocumentStore = defineStore('document', () => {
     isLoading.value = true;
     error.value = null;
     
+    console.log(`Fetching document: ${path}`, {
+      timestamp: new Date().toISOString(),
+      service: currentService.value,
+      owner: currentOwner.value,
+      repo: currentRepo.value,
+      ref: ref
+    });
+    
     try {
+      // 実際のAPIを使用
+      console.log(`Using API for document fetch: ${currentService.value}/${currentOwner.value}/${currentRepo.value}/${path}`);
+      
+      // バックエンドのURLを環境変数から取得
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      // API部分を削除して、ドメイン部分だけにする
+      const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?$/, '');
+      console.log(`Using backend URL for links: ${baseUrlForLinks} (original: ${backendUrl})`);
+      
       currentDocument.value = await apiClient.getDocument(
         currentService.value,
         currentOwner.value,
         currentRepo.value,
         path,
         ref,
-        true
+        true,
+        baseUrlForLinks
       );
+      console.log('Document fetched successfully:', {
+        path,
+        name: currentDocument.value.name,
+        type: currentDocument.value.type,
+        contentLength: currentDocument.value.content.content.length,
+        hasLinks: currentDocument.value.links?.length || 0,
+        timestamp: new Date().toISOString()
+      });
       currentPath.value = path;
     } catch (err: any) {
       error.value = err.message || 'ドキュメントの取得に失敗しました';
       console.error('ドキュメント取得エラー:', err);
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // リポジトリ構造取得
-  async function fetchRepositoryStructure(path: string = '', ref: string = currentRef.value) {
-    isLoading.value = true;
-    error.value = null;
-    
-    try {
-      const response = await apiClient.getRepositoryStructure(
-        currentService.value,
-        currentOwner.value,
-        currentRepo.value,
-        ref,
-        path
-      );
-      repositoryStructure.value = response.tree;
-    } catch (err: any) {
-      error.value = err.message || 'リポジトリ構造の取得に失敗しました';
-      console.error('リポジトリ構造取得エラー:', err);
     } finally {
       isLoading.value = false;
     }
@@ -82,8 +85,6 @@ export const useDocumentStore = defineStore('document', () => {
     currentOwner.value = owner;
     currentRepo.value = repo;
     currentRef.value = ref;
-    // リポジトリを変更したら構造を再取得
-    fetchRepositoryStructure();
   }
 
   // ドキュメントのリンクをクリックしたときの処理
@@ -101,7 +102,6 @@ export const useDocumentStore = defineStore('document', () => {
   return {
     // 状態
     currentDocument,
-    repositoryStructure,
     isLoading,
     error,
     currentService,
@@ -116,7 +116,6 @@ export const useDocumentStore = defineStore('document', () => {
     
     // アクション
     fetchDocument,
-    fetchRepositoryStructure,
     setRepository,
     navigateToLink
   };

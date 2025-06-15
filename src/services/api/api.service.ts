@@ -1,10 +1,22 @@
+// Add metadata type to the axios config
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    metadata?: {
+      startTime?: number;
+      endTime?: number;
+      [key: string]: any;
+    };
+  }
+}
+
 /**
  * API Service
  * 
  * doc_ai_helper_backendとの通信を担当するサービス
  */
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import {
+import axios from 'axios';
+import type { AxiosInstance, AxiosRequestConfig } from 'axios';
+import type {
   DocumentResponse,
   RepositoryStructureResponse,
   RepositoryResponse,
@@ -25,8 +37,20 @@ export class ApiClient {
    * コンストラクタ
    * @param baseUrl APIのベースURL
    */
-  constructor(baseUrl: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl: string = '') {
+    // Get the base URL from environment variable or use default
+    const apiBaseFromEnv = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    
+    // Make sure the URL doesn't have a trailing slash
+    const baseUrlWithoutTrailingSlash = (baseUrl || apiBaseFromEnv).replace(/\/$/, '');
+    
+    // Add /api/v1 to the base URL if it doesn't already have it
+    this.baseUrl = baseUrlWithoutTrailingSlash.endsWith('/api/v1') 
+      ? baseUrlWithoutTrailingSlash 
+      : `${baseUrlWithoutTrailingSlash}/api/v1`;
+    
+    console.log(`API Client initialized with baseURL: ${this.baseUrl} (from env: ${import.meta.env.VITE_API_BASE_URL || 'not defined, using default'})`);
+    
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -34,11 +58,43 @@ export class ApiClient {
       },
     });
 
+    // リクエストインターセプター
+    this.client.interceptors.request.use(
+      (config) => {
+        const fullUrl = `${config.baseURL}${config.url}`;
+        console.log(`API Request: ${config.method?.toUpperCase()} ${fullUrl}`, {
+          params: config.params || {},
+          headers: config.headers || {},
+          data: config.data || {}
+        });
+        return config;
+      },
+      (error) => {
+        console.error('API Request Error:', error);
+        return Promise.reject(error);
+      }
+    );
+
     // レスポンスインターセプター
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        const fullUrl = `${response.config.baseURL}${response.config.url}`;
+        console.log(`API Response (${response.status}) from ${fullUrl}:`, {
+          data: response.data,
+          headers: response.headers,
+          timing: `${(response.config.metadata?.endTime || 0) - (response.config.metadata?.startTime || 0)}ms`
+        });
+        return response;
+      },
       (error) => {
-        console.error('API Error:', error.response || error);
+        const config = error.config || {};
+        const fullUrl = config.baseURL && config.url ? `${config.baseURL}${config.url}` : 'unknown URL';
+        console.error(`API Error (${error.response?.status || 'network error'}) from ${fullUrl}:`, {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+          stack: error.stack
+        });
         return Promise.reject(error);
       }
     );
@@ -93,7 +149,7 @@ export class ApiClient {
    * @returns ヘルスチェック結果
    */
   async healthCheck(): Promise<Record<string, string>> {
-    return this.get<Record<string, string>>('/api/v1/health/');
+    return this.get<Record<string, string>>('/health/');
   }
 
   /**
@@ -122,11 +178,15 @@ export class ApiClient {
     };
 
     if (baseUrl) {
-      params.base_url = baseUrl;
+      // Make sure the base URL doesn't have /api/v1 at the end
+      // Backend expects just the domain part of the URL
+      const cleanedBaseUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+      params.base_url = cleanedBaseUrl;
+      console.log(`Using cleaned base URL for links: ${cleanedBaseUrl}`);
     }
 
     return this.get<DocumentResponse>(
-      `/api/v1/documents/contents/${service}/${owner}/${repo}/${path}`,
+      `/documents/contents/${service}/${owner}/${repo}/${path}`,
       { params }
     );
   }
@@ -148,7 +208,7 @@ export class ApiClient {
     path: string = ''
   ): Promise<RepositoryStructureResponse> {
     return this.get<RepositoryStructureResponse>(
-      `/api/v1/documents/structure/${service}/${owner}/${repo}`,
+      `/documents/structure/${service}/${owner}/${repo}`,
       {
         params: {
           ref,
@@ -168,7 +228,7 @@ export class ApiClient {
     skip: number = 0,
     limit: number = 100
   ): Promise<RepositoryResponse[]> {
-    return this.get<RepositoryResponse[]>('/api/v1/repositories/', {
+    return this.get<RepositoryResponse[]>('/repositories/', {
       params: {
         skip,
         limit,
@@ -182,7 +242,7 @@ export class ApiClient {
    * @returns 作成されたリポジトリレスポンス
    */
   async createRepository(data: RepositoryCreate): Promise<RepositoryResponse> {
-    return this.post<RepositoryResponse>('/api/v1/repositories/', data);
+    return this.post<RepositoryResponse>('/repositories/', data);
   }
 
   /**
@@ -191,7 +251,7 @@ export class ApiClient {
    * @returns リポジトリレスポンス
    */
   async getRepository(repositoryId: number): Promise<RepositoryResponse> {
-    return this.get<RepositoryResponse>(`/api/v1/repositories/${repositoryId}`);
+    return this.get<RepositoryResponse>(`/repositories/${repositoryId}`);
   }
 
   /**
@@ -204,7 +264,7 @@ export class ApiClient {
     repositoryId: number,
     data: RepositoryUpdate
   ): Promise<RepositoryResponse> {
-    return this.put<RepositoryResponse>(`/api/v1/repositories/${repositoryId}`, data);
+    return this.put<RepositoryResponse>(`/repositories/${repositoryId}`, data);
   }
 
   /**
@@ -212,7 +272,7 @@ export class ApiClient {
    * @param repositoryId リポジトリID
    */
   async deleteRepository(repositoryId: number): Promise<void> {
-    return this.delete(`/api/v1/repositories/${repositoryId}`);
+    return this.delete(`/repositories/${repositoryId}`);
   }
 
   /**
@@ -230,7 +290,7 @@ export class ApiClient {
     query: SearchQuery
   ): Promise<SearchResponse> {
     return this.post<SearchResponse>(
-      `/api/v1/search/${service}/${owner}/${repo}`,
+      `/search/${service}/${owner}/${repo}`,
       query
     );
   }

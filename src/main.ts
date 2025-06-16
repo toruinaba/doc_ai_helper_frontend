@@ -14,6 +14,7 @@ import Splitter from 'primevue/splitter'
 import SplitterPanel from 'primevue/splitterpanel'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import Tooltip from 'primevue/tooltip'
 
 // PrimeVueスタイル
 // import 'primevue/resources/themes/lara-light-blue/theme.css'
@@ -27,6 +28,9 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(PrimeVue)
+
+// ディレクティブ登録
+app.directive('tooltip', Tooltip)
 
 // コンポーネント登録
 app.component('Card', Card)

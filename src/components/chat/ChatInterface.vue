@@ -47,6 +47,8 @@
           icon="pi pi-send" 
           @click="sendMessage" 
           :disabled="!newMessage.trim() || isLoading"
+          class="send-button"
+          v-tooltip.bottom="!newMessage.trim() ? '質問を入力してください' : isLoading ? '処理中です' : '送信'"
         />
       </div>
       <div v-if="error" class="chat-error">
@@ -255,6 +257,30 @@ onMounted(() => {
   align-self: stretch;
   display: flex;
   align-items: center;
+  transition: all 0.2s ease;
+}
+
+/* 送信ボタンの状態をより明確に */
+.chat-input .p-inputgroup .send-button {
+  width: 3rem;
+  background-color: #ffffff;
+  border-color: #ced4da;
+  color: #495057;
+  border-radius: 0;
+}
+
+.chat-input .p-inputgroup .send-button:enabled:hover {
+  background-color: #f0f0f0;
+  border-color: #ced4da;
+  color: #212529;
+}
+
+.chat-input .p-inputgroup .send-button:disabled {
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
+  color: #a0a0a0;
+  cursor: not-allowed;
+  opacity: 0.8;
 }
 
 .chat-loading {

@@ -12,6 +12,7 @@ import Tree from 'primevue/tree'
 import Button from 'primevue/button'
 import Splitter from 'primevue/splitter'
 import SplitterPanel from 'primevue/splitterpanel'
+import InputText from 'primevue/inputtext'
 
 // PrimeVueスタイル
 // import 'primevue/resources/themes/lara-light-blue/theme.css'
@@ -34,5 +35,6 @@ app.component('Tree', Tree)
 app.component('Button', Button)
 app.component('Splitter', Splitter)
 app.component('SplitterPanel', SplitterPanel)
+app.component('InputText', InputText)
 
 app.mount('#app')

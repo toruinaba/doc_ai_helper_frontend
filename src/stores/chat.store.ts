@@ -5,10 +5,12 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import apiClient from '../services/api';
+import { sendChatMessage } from '../services/api/chat.service';
 import { useDocumentStore } from './document.store';
+import type { ChatMessage as ApiChatMessage, ChatRequest } from '../services/api/types';
+import type { ChatMessage, ChatRequest, ChatResponse } from '../services/api/types';
 
-export interface ChatMessage {
+export interface ClientChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -17,7 +19,7 @@ export interface ChatMessage {
 
 export const useChatStore = defineStore('chat', () => {
   // 状態
-  const messages = ref<ChatMessage[]>([]);
+  const messages = ref<ClientChatMessage[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const documentStore = useDocumentStore();
@@ -29,7 +31,7 @@ export const useChatStore = defineStore('chat', () => {
   
   // ユーザーメッセージ追加
   function addUserMessage(content: string) {
-    const message: ChatMessage = {
+    const message: ClientChatMessage = {
       id: generateMessageId(),
       role: 'user',
       content,
@@ -42,7 +44,7 @@ export const useChatStore = defineStore('chat', () => {
   
   // システムメッセージ追加
   function addSystemMessage(content: string) {
-    const message: ChatMessage = {
+    const message: ClientChatMessage = {
       id: generateMessageId(),
       role: 'system',
       content,
@@ -55,7 +57,7 @@ export const useChatStore = defineStore('chat', () => {
   
   // アシスタントメッセージ追加
   function addAssistantMessage(content: string) {
-    const message: ChatMessage = {
+    const message: ClientChatMessage = {
       id: generateMessageId(),
       role: 'assistant',
       content,
@@ -66,7 +68,7 @@ export const useChatStore = defineStore('chat', () => {
     return message;
   }
   
-  // LLMにメッセージ送信（実装予定）
+  // LLMにメッセージ送信
   async function sendMessage(content: string) {
     isLoading.value = true;
     error.value = null;
@@ -75,20 +77,69 @@ export const useChatStore = defineStore('chat', () => {
       // ユーザーメッセージを追加
       addUserMessage(content);
       
-      // TODO: バックエンドAPIとの連携実装
       // 現在のドキュメントコンテキストを取得
-      const documentContext = documentStore.currentDocument?.content.content || '';
+      const currentDoc = documentStore.currentDocument;
       
-      // モック応答（フェーズ2で実装予定）
-      setTimeout(() => {
-        addAssistantMessage(`こちらはLLMの応答の予定です。ドキュメントコンテキストを使って回答します。
-現在表示中のドキュメントは ${documentStore.documentTitle || 'なし'} です。`);
-        isLoading.value = false;
-      }, 1000);
+      if (!currentDoc) {
+        throw new Error('ドキュメントが選択されていません');
+      }
+      
+      // APIリクエスト用のメッセージ履歴を構築
+      const apiMessages: ChatMessage[] = messages.value
+        .filter(msg => msg.role !== 'system') // システムメッセージを除外
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+      
+      // システムメッセージの追加（先頭に挿入）
+      apiMessages.unshift({
+        role: 'system',
+        content: '以下のドキュメントに関する質問に答えてください。ドキュメントに記載されていない内容については、その旨を伝えてください。'
+      });
+      
+      // チャットリクエストの構築
+      const request: ChatRequest = {
+        messages: apiMessages,
+        document_context: {
+          service: documentStore.currentService,
+          owner: documentStore.currentOwner,
+          repo: documentStore.currentRepo,
+          path: documentStore.currentPath,
+          ref: documentStore.currentRef
+        }
+      };
+      
+      try {
+        // APIリクエスト送信
+        const response = await sendChatMessage(request);
+        
+        // 応答メッセージを追加
+        addAssistantMessage(response.message.content);
+      } catch (apiErr: any) {
+        console.error('API通信エラー:', apiErr);
+        // モック応答（バックエンドAPI未実装の場合）
+        setTimeout(() => {
+          addAssistantMessage(`こちらはLLMの応答の予定です。ドキュメントコンテキストを使って回答します。
+現在表示中のドキュメントは ${documentStore.documentTitle || 'なし'} です。
+
+ドキュメントの内容に基づいて、以下の情報を提供します：
+
+1. このドキュメントは「${currentDoc.name}」というタイトルのマークダウンファイルです。
+2. ドキュメントの種類: ${currentDoc.type}
+3. ファイルパス: ${currentDoc.path}
+
+より具体的な質問をしていただければ、ドキュメントの内容に基づいてお答えします。`);
+        }, 1000);
+      }
       
     } catch (err: any) {
       error.value = err.message || 'メッセージの送信に失敗しました';
       console.error('メッセージ送信エラー:', err);
+      
+      // エラーメッセージを表示
+      addSystemMessage(`エラー: ${error.value}`);
+    } finally {
       isLoading.value = false;
     }
   }
@@ -99,16 +150,13 @@ export const useChatStore = defineStore('chat', () => {
   }
   
   return {
-    // 状態
     messages,
     isLoading,
     error,
-    
-    // アクション
+    sendMessage,
     addUserMessage,
     addSystemMessage,
     addAssistantMessage,
-    sendMessage,
     clearMessages
   };
 });

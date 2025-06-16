@@ -154,16 +154,33 @@ export function getMockDocument(path: string): DocumentResponse {
   return mockDocuments['index.md'];
 }
 
+// モックデータにパスが存在しない場合は404エラーを模擬
+throw new Error('Document not found: ' + path);
+
 /**
- * モックリポジトリ構造取得
+ * モックチャットレスポンス取得
  */
-export function getMockRepositoryStructure(): RepositoryStructureResponse {
+export function getMockChatResponse(messages: any[], documentContext: any): any {
+  // 最後のユーザーメッセージ
+  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+  
+  // モックレスポンス
   return {
-    service: 'mock',
-    owner: 'example',
-    repo: 'docs-project',
-    ref: 'main',
-    tree: mockRepoStructure,
-    last_updated: new Date().toISOString()
+    message: {
+      role: 'assistant',
+      content: `これはモックLLMレスポンスです。あなたの質問: "${lastUserMessage?.content}" について、表示中のドキュメントの内容に基づいて回答します。
+
+実際のバックエンドが実装されると、このモックレスポンスは本物のLLMの応答に置き換えられます。
+
+現在表示しているドキュメント: ${documentContext.path}
+リポジトリ: ${documentContext.service}/${documentContext.owner}/${documentContext.repo}
+`
+    },
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 150,
+      total_tokens: 250
+    },
+    execution_time_ms: 120
   };
 }

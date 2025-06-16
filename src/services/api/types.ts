@@ -48,6 +48,37 @@ export interface DocumentResponse {
   transformed_content?: string | null;
 }
 
+// LLMチャット関連の型定義
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[];
+  context?: string;
+  document_context?: {
+    service: string;
+    owner: string;
+    repo: string;
+    path: string;
+    ref?: string;
+  };
+  model?: string;
+  temperature?: number;
+  max_tokens?: number;
+}
+
+export interface ChatResponse {
+  message: ChatMessage;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  execution_time_ms: number;
+}
+
 // リポジトリ構造関連の型定義
 export interface FileTreeItem {
   path: string;
@@ -58,6 +89,7 @@ export interface FileTreeItem {
   download_url?: string | null;
   html_url?: string | null;
   git_url?: string | null;
+  children?: FileTreeItem[]; // ディレクトリの場合の子要素
 }
 
 export interface RepositoryStructureResponse {

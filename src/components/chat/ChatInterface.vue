@@ -35,11 +35,13 @@
     
     <div class="chat-input">
       <div class="p-inputgroup">
-        <InputText 
+        <Textarea 
           v-model="newMessage" 
           placeholder="ドキュメントについて質問する..." 
-          @keyup.enter="sendMessage"
+          @keydown.enter.exact.prevent="sendMessage"
           :disabled="isLoading"
+          rows="3"
+          autoResize
         />
         <Button 
           icon="pi pi-send" 
@@ -60,7 +62,7 @@ import { useChatStore } from '@/stores/chat.store';
 import { useDocumentStore } from '@/stores/document.store';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
-import InputText from 'primevue/inputtext';
+import Textarea from 'primevue/textarea';
 import Button from 'primevue/button';
 import ProgressSpinner from 'primevue/progressspinner';
 
@@ -134,14 +136,14 @@ onMounted(() => {
   flex-direction: column;
   height: 100%;
   background-color: #f9f9f9;
-  border-radius: 4px;
+  /*border-radius: 0px;*/
   overflow: hidden;
 }
 
 .chat-header {
   padding: 0.75rem 1rem;
-  background-color: #1976d2;
-  color: white;
+  background-color: #e0e0e0;
+  color: black;
 }
 
 .chat-header h2 {
@@ -225,6 +227,34 @@ onMounted(() => {
   padding: 1rem;
   background-color: white;
   border-top: 1px solid #e0e0e0;
+}
+
+/* 入力フォームの幅を拡張 */
+.chat-input .p-inputgroup {
+  width: 100%;
+  display: flex;
+}
+
+.chat-input .p-inputtext,
+.chat-input .p-textarea {
+  width: 100%;
+  flex: 1;
+}
+
+/* テキストエリアのスタイル調整 */
+.chat-input .p-inputgroup .p-inputtextarea {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  resize: none;
+}
+
+/* 送信ボタンのスタイル調整 */
+.chat-input .p-inputgroup .p-button {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
 }
 
 .chat-loading {

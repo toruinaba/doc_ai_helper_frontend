@@ -13,6 +13,7 @@ import Button from 'primevue/button'
 import Splitter from 'primevue/splitter'
 import SplitterPanel from 'primevue/splitterpanel'
 import InputText from 'primevue/inputtext'
+import Textarea from 'primevue/textarea'
 
 // PrimeVueスタイル
 // import 'primevue/resources/themes/lara-light-blue/theme.css'
@@ -36,5 +37,6 @@ app.component('Button', Button)
 app.component('Splitter', Splitter)
 app.component('SplitterPanel', SplitterPanel)
 app.component('InputText', InputText)
+app.component('Textarea', Textarea)
 
 app.mount('#app')

@@ -11,6 +11,7 @@ import { types } from '../services/api';
 export const useDocumentStore = defineStore('document', () => {
   // 状態
   const currentDocument = ref<types.DocumentResponse | null>(null);
+  const repositoryStructure = ref<types.FileTreeItem[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const currentService = ref<string>('mock'); // デフォルトサービス
@@ -87,6 +88,37 @@ export const useDocumentStore = defineStore('document', () => {
     currentRef.value = ref;
   }
 
+  // リポジトリ構造取得
+  async function fetchRepositoryStructure() {
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      console.log(`Fetching repository structure: ${currentService.value}/${currentOwner.value}/${currentRepo.value}`);
+      
+      const response = await apiClient.getRepositoryStructure(
+        currentService.value,
+        currentOwner.value,
+        currentRepo.value,
+        currentRef.value
+      );
+      
+      repositoryStructure.value = response.tree;
+      console.log('Repository structure fetched successfully:', {
+        service: currentService.value,
+        owner: currentOwner.value,
+        repo: currentRepo.value,
+        itemCount: repositoryStructure.value.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      error.value = err.message || 'リポジトリ構造の取得に失敗しました';
+      console.error('リポジトリ構造取得エラー:', err);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   // ドキュメントのリンクをクリックしたときの処理
   async function navigateToLink(link: types.LinkInfo) {
     if (link.is_external) {
@@ -102,6 +134,7 @@ export const useDocumentStore = defineStore('document', () => {
   return {
     // 状態
     currentDocument,
+    repositoryStructure,
     isLoading,
     error,
     currentService,
@@ -117,6 +150,7 @@ export const useDocumentStore = defineStore('document', () => {
     // アクション
     fetchDocument,
     setRepository,
-    navigateToLink
+    navigateToLink,
+    fetchRepositoryStructure
   };
 });

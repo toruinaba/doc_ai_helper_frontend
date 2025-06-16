@@ -11,7 +11,14 @@
     </header>
 
     <main class="app-content">
-      <DocumentViewer />
+      <Splitter class="main-splitter">
+        <SplitterPanel :size="20" :minSize="10">
+          <RepositoryNavigator />
+        </SplitterPanel>
+        <SplitterPanel :size="80">
+          <DocumentViewer />
+        </SplitterPanel>
+      </Splitter>
     </main>
 
     <footer class="app-footer">
@@ -25,6 +32,9 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import DocumentViewer from '@/components/document/DocumentViewer.vue';
+import RepositoryNavigator from '@/components/repository/RepositoryNavigator.vue';
+import Splitter from 'primevue/splitter';
+import SplitterPanel from 'primevue/splitterpanel';
 import { useDocumentStore } from '@/stores/document.store';
 
 const documentStore = useDocumentStore();
@@ -33,6 +43,7 @@ const documentStore = useDocumentStore();
 onMounted(() => {
   // デフォルトリポジトリとドキュメントを設定
   documentStore.setRepository('mock', 'example', 'docs-project', 'main');
+  documentStore.fetchRepositoryStructure();
   documentStore.fetchDocument('index.md');
 });
 </script>
@@ -73,9 +84,15 @@ onMounted(() => {
 
 .app-content {
   flex: 1;
-  overflow: auto;
-  padding: 1rem;
+  overflow: hidden;
   background-color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-splitter {
+  height: 100%;
+  border: none;
 }
 
 .app-footer {
@@ -92,5 +109,13 @@ onMounted(() => {
 
 .footer-content p {
   margin: 0;
+}
+
+:deep(.p-splitter) {
+  border: none;
+}
+
+:deep(.p-splitter-panel) {
+  overflow: auto;
 }
 </style>

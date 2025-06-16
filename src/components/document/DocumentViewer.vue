@@ -303,6 +303,15 @@ watch(
   padding: 1rem;
   overflow-y: auto;
   background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.document-content {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .loading-container {
@@ -321,7 +330,8 @@ watch(
 
 .empty-state-card {
   margin: 2rem auto;
-  max-width: 600px;
+  max-width: 800px;
+  width: 100%;
 }
 
 .empty-state-content {

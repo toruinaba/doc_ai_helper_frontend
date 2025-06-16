@@ -106,9 +106,14 @@ watch(repositoryStructure, (newStructure) => {
  * リポジトリ構造からツリーノードを構築
  */
 function buildTreeNodes(items: types.FileTreeItem[]): any[] {
-  const nodes: any[] = [];
+  if (!items || items.length === 0) return [];
   
-  items.sort((a, b) => {
+  // パスの区切りで分解してディレクトリ構造を構築
+  const rootNodes: any[] = [];
+  const nodeMap: Record<string, any> = {};
+  
+  // まずはディレクトリとファイルを分ける
+  const sortedItems = [...items].sort((a, b) => {
     // ディレクトリを先に、ファイルを後に
     if (a.type !== b.type) {
       return a.type === 'directory' ? -1 : 1;
@@ -117,20 +122,79 @@ function buildTreeNodes(items: types.FileTreeItem[]): any[] {
     return a.name.localeCompare(b.name);
   });
   
-  for (const item of items) {
+  // ディレクトリ構造を構築
+  for (const item of sortedItems) {
+    const pathParts = item.path.split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    
+    // ノードの作成
     const node: any = {
       key: item.path,
-      label: item.name,
+      label: fileName || item.name,
       data: item,
       type: item.type,
       leaf: item.type === 'file',
       children: []
     };
     
-    nodes.push(node);
+    // パスの階層構造を管理するマップに追加
+    nodeMap[item.path] = node;
+    
+    if (pathParts.length === 1 || item.path.indexOf('/') === -1) {
+      // ルートレベルのファイルまたはディレクトリ
+      rootNodes.push(node);
+    } else {
+      // 親ディレクトリのパスを取得
+      const parentPath = pathParts.slice(0, -1).join('/');
+      
+      // 親ディレクトリが既にマップにあれば子として追加
+      if (nodeMap[parentPath]) {
+        nodeMap[parentPath].children.push(node);
+      } else {
+        // 親ディレクトリがない場合は、親ディレクトリを作成して追加
+        const parentNode = {
+          key: parentPath,
+          label: pathParts[pathParts.length - 2],
+          type: 'directory',
+          leaf: false,
+          children: [node]
+        };
+        nodeMap[parentPath] = parentNode;
+        
+        // 親の親を探索して、適切な位置に配置
+        if (pathParts.length === 2) {
+          rootNodes.push(parentNode);
+        } else {
+          const grandParentPath = pathParts.slice(0, -2).join('/');
+          if (nodeMap[grandParentPath]) {
+            nodeMap[grandParentPath].children.push(parentNode);
+          }
+          // 以下、再帰的に親の構築が必要な場合の処理を追加...
+        }
+      }
+    }
   }
   
-  return nodes;
+  // 各ディレクトリの子要素をソート
+  const sortNodes = (nodes: any[]) => {
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        node.children.sort((a: any, b: any) => {
+          // ディレクトリを先に、ファイルを後に
+          if (a.type !== b.type) {
+            return a.type === 'directory' ? -1 : 1;
+          }
+          // 同じタイプなら名前でソート
+          return a.label.localeCompare(b.label);
+        });
+        // 再帰的に子ノードもソート
+        sortNodes(node.children);
+      }
+    }
+  };
+  
+  sortNodes(rootNodes);
+  return rootNodes;
 }
 
 /**

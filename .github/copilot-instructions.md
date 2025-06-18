@@ -11,28 +11,28 @@
 
 ### 主なユースケース
 
-1. **ドキュメント表示**: Markdownドキュメントのレンダリングとナビゲーション
-2. **リポジトリナビゲーション**: Gitリポジトリのファイル構造表示と閲覧
-3. **LLM質問応答**: 表示中のドキュメントコンテキストを用いたLLMとの対話
+1. **ドキュメント表示**: Markdownドキュメントのレンダリングと表示
+2. **LLM質問応答**: ドキュメントコンテキストを用いたLLMとの対話
+3. **将来的な拡張**: リポジトリナビゲーションなど
 
 ### 実装アプローチ
 
 段階的な実装アプローチを採用しています：
 
-1. **基本的なUI構築（フェーズ1）**: まずMarkdownドキュメント表示とリポジトリナビゲーションを完全に実装 [🔄進行中]
+1. **基本的なドキュメント表示（フェーズ1）**: まずMarkdownドキュメント表示機能を実装 [✅完了]
    - ドキュメントビューアの実装
-   - リポジトリナビゲータの実装
-   - レイアウト統合
+   - APIとの連携
 
-2. **LLM対話機能（フェーズ2）**: LLMとの対話機能を追加 [⏱️計画中]
-   - チャットインターフェースの実装
-   - ドキュメントコンテキスト連携
-   - 対話履歴管理
+2. **LLM対話機能（フェーズ2）**: LLMとの対話機能を追加 [🔄進行中]
+   - チャットインターフェースの実装 [✅完了]
+   - ドキュメントコンテキスト連携の実装 [✅基本実装完了]
+   - 対話履歴管理の実装 [✅完了]
+   - バックエンドLLM APIとの連携 [🔄進行中]
 
 3. **拡張機能（フェーズ3）**: 機能拡張と最適化 [⏱️将来対応]
+   - リポジトリナビゲーションの実装
    - 検索機能の実装
    - パフォーマンス最適化
-   - ユーザー設定と拡張機能
 
 このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
 
@@ -48,26 +48,58 @@
 - Marked (Markdownレンダリング)
 - Highlight.js (シンタックスハイライト)
 
-## 利用可能なモックデータ
+## 現在の開発状況
 
-### リポジトリ
+### 実装済み機能
+- プロジェクト初期設定完了
+- 開発環境構築完了
+- 基本的なVue 3コンポーネント構造の設定
+- ドキュメントビューアの実装
+- APIサービスの実装
+- チャットインターフェースの実装
+  - メッセージ表示とスタイリング
+  - 入力フォームとボタン
+  - ツールチップとUI改善
+- チャット対話履歴管理の実装
+- ドキュメントコンテキスト連携の基本実装
+- モックAPIサービスによるダミー応答表示機能
 
-現在、以下のモックリポジトリが利用可能です：
+### 実装中の機能
+- バックエンドLLM API連携の強化
+- 対話応答の表示改善
+- エラーハンドリングの強化
 
-1. `octocat/Hello-World` - 基本的なサンプルリポジトリ
-2. `example/docs-project` - 複雑なドキュメントプロジェクト（リンク、フロントマター、コードブロックなど）
+### 未着手の機能
+- リポジトリナビゲーションの実装
+- 検索機能の実装
+- GitHub連携機能の実装
+- テスト実装
 
-### ドキュメントタイプ
+### 開発ステップ
+1. **基本コンポーネントの実装** [✅完了]
+   - ドキュメントビューアの実装
+   - APIサービスの実装
 
-以下のドキュメントタイプがテスト可能です：
+2. **LLMチャットインターフェースの実装** [🔄進行中]
+   - チャットUIの構築 [✅完了]
+   - ドキュメントコンテキスト連携機能の実装 [✅基本実装完了]
+   - 対話履歴管理の実装 [✅完了]
+   - バックエンドLLM APIとの連携 [🔄進行中]
+     - 現在はモックサービスを使用中
+     - 実際のLLM APIとの連携を実装予定
 
-1. フロントマター付きMarkdown
-2. 相互リンクを含むMarkdown
-3. コードブロックを含むMarkdown
-4. 画像参照を含むMarkdown
-5. 複雑な構造（テーブル、リスト、引用など）を持つMarkdown
+3. **リポジトリナビゲーションの実装** [⏱️将来対応]
+   - ファイル構造表示の実装
+   - ナビゲーション機能の実装
+
+4. **拡張機能の実装** [⏱️将来対応]
+   - 検索機能の実装
+   - パフォーマンス最適化
+   - ユーザー設定と拡張機能
 
 ## API エンドポイント
+
+現在のアプリケーションは以下のAPIエンドポイントを使用します：
 
 ### ドキュメント取得
 
@@ -80,26 +112,33 @@ GET /api/v1/documents/contents/{service}/{owner}/{repo}/{path}?ref={ref}&transfo
 GET /api/v1/documents/contents/mock/example/docs-project/index.md?ref=main&transform_links=true
 ```
 
-### リポジトリ構造取得
+### チャットメッセージ送信
 
 ```
-GET /api/v1/repositories/structure/{service}/{owner}/{repo}?ref={ref}&path={path}
+POST /api/v1/chat/message
 ```
 
-例：
-```
-GET /api/v1/repositories/structure/mock/example/docs-project?ref=main
-```
-
-### 検索
-
-```
-GET /api/v1/search/{service}/{owner}/{repo}?query={query}&limit={limit}
-```
-
-例：
-```
-GET /api/v1/search/mock/example/docs-project?query=api&limit=10
+リクエストボディ:
+```json
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "以下のドキュメントに関する質問に答えてください。"
+    },
+    {
+      "role": "user",
+      "content": "ユーザーの質問内容"
+    }
+  ],
+  "document_context": {
+    "service": "mock",
+    "owner": "example",
+    "repo": "docs-project",
+    "path": "index.md",
+    "ref": "main"
+  }
+}
 ```
 
 ## ブランチ戦略
@@ -120,22 +159,23 @@ GET /api/v1/search/mock/example/docs-project?query=api&limit=10
 
 ### コンポーネント構成
 
-1. **ドキュメントビューア**
+1. **ドキュメントビューア** [✅完了]
    - PrimeVueのCardコンポーネントを使用
    - Markdownレンダリングとシンタックスハイライト
    - フロントマター表示
 
-2. **リポジトリナビゲータ**
+2. **LLMチャットインターフェース** [✅基本実装完了]
+   - PrimeVueのUIコンポーネントを使用
+   - メッセージ表示とスタイリング
+   - 入力フォームとボタン
+   - ツールチップと UI 改善
+
+3. **将来実装予定: リポジトリナビゲータ**
    - PrimeVueのTreeコンポーネントを活用
    - ファイル構造の階層表示
    - フォルダの展開/折りたたみ機能
 
-3. **LLMチャットインターフェース**
-   - PrimeVueのChat UIコンポーネントを使用
-   - メッセージ表示とスタイリング
-   - 入力フォームとボタン
-
-4. **統合レイアウト**
+4. **統合レイアウト** [✅基本実装完了]
    - PrimeVueのSplitterコンポーネントで画面分割
    - レスポンシブデザイン対応
 
@@ -179,9 +219,11 @@ GET /api/v1/search/mock/example/docs-project?query=api&limit=10
 
 現在表示しているドキュメントの内容をLLMに送信し、そのコンテキストに基づいて質問応答を行う機能を実装します：
 
-- 現在表示中のドキュメントをコンテキストとして送信
-- ユーザーの質問と組み合わせてLLMに問い合わせ
-- 返答の表示とフォーマット
+- 現在表示中のドキュメントをコンテキストとして送信 [✅基本実装完了]
+- ユーザーの質問と組み合わせてLLMに問い合わせ [🔄進行中]
+  - 現在はモックサービスを使用
+  - 実際のLLM APIとの連携を実装予定
+- 返答の表示とフォーマット [✅基本実装完了]
 
 ### 5. コードブロックのシンタックスハイライト
 
@@ -383,10 +425,10 @@ import { useDocumentStore } from '@/stores/document.store';
 
 ## 使用方法
 
-1. リポジトリナビゲーターからドキュメントを選択
+1. アプリケーションを起動してドキュメントを表示
 2. ドキュメントの内容を閲覧
 3. チャットインターフェースでドキュメントに関する質問を入力
-4. AIからの回答を確認
+4. AIからの回答を確認（現在はダミー応答が表示されます）
 
 ## 環境設定
 
@@ -394,8 +436,33 @@ import { useDocumentStore } from '@/stores/document.store';
 
 ```
 # .env.local
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+# API Base URL (without /api/v1 at the end)
+VITE_API_BASE_URL=http://localhost:8000
+
+# Backend Base URL (for link transformations, without /api/v1 at the end)
+VITE_BACKEND_URL=http://localhost:8000
+
+# Always use real API
+VITE_USE_MOCK_API=false
+
+# Default repository settings
+VITE_DEFAULT_SERVICE=mock
+VITE_DEFAULT_OWNER=example
+VITE_DEFAULT_REPO=docs-project
+VITE_DEFAULT_REF=main
+VITE_DEFAULT_PATH=index.md
 ```
+
+これらの環境変数の説明：
+
+- `VITE_API_BASE_URL` - バックエンドAPIのベースURL (/api/v1は自動的に追加されます)
+- `VITE_BACKEND_URL` - リンク変換用のバックエンドURL
+- `VITE_USE_MOCK_API` - モックAPIを使用するかどうか（`true`または`false`）
+- `VITE_DEFAULT_SERVICE` - デフォルトのGitサービス（`github`, `gitlab`, `mock`など）
+- `VITE_DEFAULT_OWNER` - デフォルトのリポジトリ所有者
+- `VITE_DEFAULT_REPO` - デフォルトのリポジトリ名
+- `VITE_DEFAULT_REF` - デフォルトのブランチまたはタグ名
+- `VITE_DEFAULT_PATH` - デフォルトのドキュメントパス
 
 ## コーディングガイドライン
 
@@ -434,7 +501,19 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
    - LLMチャット機能は次のフェーズで実装
    - 検索機能は将来の拡張として位置付ける
 
-## IDEの推奨設定
+## ブランチ戦略
+
+このプロジェクトでは、GitHub Flowを採用しています：
+
+- `main`: 常に安定しており、デプロイ可能な状態を維持するブランチ
+- `feature/*`: 機能開発用の短期ブランチ（mainから分岐し、完了後にmainにマージ）
+- `fix/*`: バグ修正用の短期ブランチ（mainから分岐し、完了後にmainにマージ）
+
+開発は以下のフローで行います：
+1. mainブランチから新しいブランチを作成（例: `feature/document-viewer`）
+2. 変更をコミット
+3. GitHubにプッシュしてプルリクエストを作成
+4. コードレビュー後、mainブランチにマージ
 
 [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (Veturは無効化してください)
 

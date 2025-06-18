@@ -25,7 +25,9 @@ import type {
   SearchQuery,
   SearchResponse,
   ChatRequest,
-  ChatResponse
+  ChatResponse,
+  LLMQueryRequest,
+  LLMResponse
 } from './types';
 import { getApiConfig } from '../../utils/config.util';
 
@@ -300,23 +302,55 @@ export class ApiClient {
   }
 
   /**
-     /**
    * LLMとのチャット
    * @param request チャットリクエスト
    * @returns チャットレスポンス
    */
   async sendChatMessage(request: ChatRequest): Promise<ChatResponse> {
-    try {
-      return await this.post<ChatResponse>('/chat/message', request);
-    } catch (error) {
-      console.error('Chat API error, using mock response:', error);
-      // モックデータを返す（開発用）
-      const { getMockChatResponse } = await import('./mock.service');
-      return getMockChatResponse(
-        request.messages, 
-        request.document_context
-      ) as ChatResponse;
-    }
+    return this.post<ChatResponse>('/chat/message', request);
+  }
+
+  /**
+   * LLMにクエリを送信
+   * @param request LLMクエリリクエスト
+   * @returns LLMレスポンス
+   */
+  async sendLLMQuery(request: LLMQueryRequest): Promise<LLMResponse> {
+    return this.post<LLMResponse>('/llm/query', request);
+  }
+
+  /**
+   * LLMの機能を取得
+   * @param provider プロバイダー名（オプション）
+   * @returns LLM機能情報
+   */
+  async getLLMCapabilities(provider?: string): Promise<Record<string, any>> {
+    const params = provider ? { provider } : {};
+    return this.get<Record<string, any>>('/llm/capabilities', { params });
+  }
+
+  /**
+   * 利用可能なテンプレート一覧を取得
+   * @returns テンプレートID配列
+   */
+  async getLLMTemplates(): Promise<string[]> {
+    return this.get<string[]>('/llm/templates');
+  }
+
+  /**
+   * プロンプトテンプレートをフォーマット
+   * @param templateId テンプレートID
+   * @param variables テンプレート変数
+   * @returns フォーマットされたプロンプト
+   */
+  async formatPrompt(
+    templateId: string, 
+    variables: Record<string, any>
+  ): Promise<string> {
+    return this.post<string>(
+      `/llm/format-prompt?template_id=${templateId}`, 
+      variables
+    );
   }
 }
 

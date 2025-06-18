@@ -5,12 +5,18 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { sendChatMessage } from '../services/api/chat.service';
+import { 
+  sendLLMQuery, 
+  formatPrompt 
+} from '../services/api/chat.service';
 import { useDocumentStore } from './document.store';
 import { useRepositoryStore } from './repository.store';
 import { getDefaultRepositoryConfig } from '../utils/config.util';
-import type { ChatMessage as ApiChatMessage, ChatRequest } from '../services/api/types';
-import type { ChatMessage, ChatRequest, ChatResponse } from '../services/api/types';
+import type { 
+  ChatMessage,
+  LLMQueryRequest,
+  LLMResponse
+} from '../services/api/types';
 
 export interface ClientChatMessage {
   id: string;
@@ -90,20 +96,6 @@ export const useChatStore = defineStore('chat', () => {
         throw new Error('ドキュメントが選択されていません');
       }
       
-      // APIリクエスト用のメッセージ履歴を構築
-      const apiMessages: ChatMessage[] = messages.value
-        .filter(msg => msg.role !== 'system') // システムメッセージを除外
-        .map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
-      
-      // システムメッセージの追加（先頭に挿入）
-      apiMessages.unshift({
-        role: 'system',
-        content: '以下のドキュメントに関する質問に答えてください。ドキュメントに記載されていない内容については、その旨を伝えてください。'
-      });
-      
       // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
       const service = documentStore.currentService || defaultConfig.service;
       const owner = documentStore.currentOwner || defaultConfig.owner;
@@ -111,24 +103,21 @@ export const useChatStore = defineStore('chat', () => {
       const path = documentStore.currentPath || defaultConfig.path;
       const ref = documentStore.currentRef || defaultConfig.ref;
       
-      // チャットリクエストの構築
-      const request: ChatRequest = {
-        messages: apiMessages,
-        document_context: {
-          service,
-          owner,
-          repo,
-          path,
-          ref
-        }
-      };
-      
       try {
-        // APIリクエスト送信
-        const response = await sendChatMessage(request);
+        // ユーザーの最後のメッセージを取得
+        const userPrompt = content;
+        
+        // LLMクエリリクエストの構築 - システムプロンプトなしでユーザーの質問のみを送信
+        const request: LLMQueryRequest = {
+          prompt: userPrompt,
+          context_documents: [path]
+        };
+        
+        // APIリクエスト送信（/llm/queryエンドポイントを使用）
+        const response = await sendLLMQuery(request);
         
         // 応答メッセージを追加
-        addAssistantMessage(response.message.content);
+        addAssistantMessage(response.content);
       } catch (apiErr: any) {
         console.error('API通信エラー:', apiErr);
         // モック応答（バックエンドAPI未実装の場合）
@@ -162,6 +151,79 @@ export const useChatStore = defineStore('chat', () => {
     messages.value = [];
   }
   
+  // 直接LLMにクエリを送信する関数
+  async function sendDirectQuery(prompt: string, options?: {
+    provider?: string;
+    model?: string;
+    customOptions?: Record<string, any>;
+  }) {
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      // 現在のドキュメントコンテキストを取得
+      const currentDoc = documentStore.currentDocument;
+      
+      if (!currentDoc) {
+        throw new Error('ドキュメントが選択されていません');
+      }
+      
+      // ユーザープロンプトを追加（UIに表示用）
+      addUserMessage(prompt);
+      
+      // リポジトリ情報を取得
+      const service = documentStore.currentService || defaultConfig.service;
+      const owner = documentStore.currentOwner || defaultConfig.owner;
+      const repo = documentStore.currentRepo || defaultConfig.repo;
+      const path = documentStore.currentPath || defaultConfig.path;
+      
+      // LLMクエリリクエストの構築
+      const request: LLMQueryRequest = {
+        prompt,
+        context_documents: [path],
+        provider: options?.provider,
+        model: options?.model,
+        options: options?.customOptions
+      };
+      
+      // APIリクエスト送信
+      const response = await sendLLMQuery(request);
+      
+      // 応答を追加（UIに表示用）
+      addAssistantMessage(response.content);
+      
+      return response;
+    } catch (err: any) {
+      error.value = err.message || 'LLMクエリの送信に失敗しました';
+      console.error('LLMクエリ送信エラー:', err);
+      
+      // エラーメッセージを表示
+      addSystemMessage(`エラー: ${error.value}`);
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
+  // テンプレートを使用してLLMにクエリを送信する関数
+  async function sendTemplateQuery(templateId: string, variables: Record<string, any>, options?: {
+    provider?: string;
+    model?: string;
+    customOptions?: Record<string, any>;
+  }) {
+    try {
+      // テンプレートをフォーマット
+      const formattedPrompt = await formatPrompt(templateId, variables);
+      
+      // フォーマットされたプロンプトを使用してクエリを送信
+      return await sendDirectQuery(formattedPrompt, options);
+    } catch (err: any) {
+      error.value = err.message || 'テンプレートクエリの送信に失敗しました';
+      console.error('テンプレートクエリ送信エラー:', err);
+      throw err;
+    }
+  }
+  
   return {
     messages,
     isLoading,
@@ -170,6 +232,8 @@ export const useChatStore = defineStore('chat', () => {
     addUserMessage,
     addSystemMessage,
     addAssistantMessage,
-    clearMessages
+    clearMessages,
+    sendDirectQuery,
+    sendTemplateQuery
   };
 });

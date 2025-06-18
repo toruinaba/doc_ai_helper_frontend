@@ -49,3 +49,12 @@ export function getApiConfig(): ApiConfig {
     useMockApi: import.meta.env.VITE_USE_MOCK_API === 'true'
   };
 }
+
+/**
+ * モックAPIを使用するかどうかを判定
+ * @returns モックAPIを使用する場合はtrue、そうでない場合はfalse
+ */
+export function shouldUseMockApi(): boolean {
+  // 環境変数が文字列なので、明示的に'false'と比較して判定
+  return import.meta.env.VITE_USE_MOCK_API !== 'false';
+}

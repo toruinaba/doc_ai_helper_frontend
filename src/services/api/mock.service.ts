@@ -150,12 +150,9 @@ export function getMockDocument(path: string): DocumentResponse {
     return mockDocuments[cleanPath];
   }
   
-  // デフォルトのモックドキュメントを返す
-  return mockDocuments['index.md'];
+  // モックデータにパスが存在しない場合は404エラーを模擬
+  throw new Error('Document not found: ' + path);
 }
-
-// モックデータにパスが存在しない場合は404エラーを模擬
-throw new Error('Document not found: ' + path);
 
 /**
  * モックチャットレスポンス取得
@@ -183,4 +180,54 @@ export function getMockChatResponse(messages: any[], documentContext: any): any 
     },
     execution_time_ms: 120
   };
+}
+
+/**
+ * モックLLMレスポンス取得
+ */
+export function getMockLLMResponse(prompt: string): any {
+  return {
+    content: `これはモックLLMレスポンスです。あなたのプロンプト: "${prompt}" について回答します。
+
+実際のバックエンドが実装されると、このモックレスポンスは本物のLLMの応答に置き換えられます。`,
+    model: "mock-model",
+    provider: "mock-provider",
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 150,
+      total_tokens: 250
+    }
+  };
+}
+
+/**
+ * モックLLM機能情報取得
+ */
+export function getMockLLMCapabilities(provider?: string): Record<string, any> {
+  return {
+    providers: ["openai", "claude", "mock"],
+    models: {
+      "openai": ["gpt-4", "gpt-3.5-turbo"],
+      "claude": ["claude-2", "claude-instant"],
+      "mock": ["mock-model"]
+    },
+    features: {
+      "streaming": true,
+      "templates": true
+    }
+  };
+}
+
+/**
+ * モックLLMテンプレート一覧取得
+ */
+export function getMockLLMTemplates(): string[] {
+  return ["document_summary", "code_explanation", "question_answering"];
+}
+
+/**
+ * モックフォーマット済みプロンプト取得
+ */
+export function getMockFormattedPrompt(templateId: string, variables: Record<string, any>): string {
+  return `これはテンプレート "${templateId}" を使用した生成プロンプトです。変数: ${JSON.stringify(variables)}`;
 }

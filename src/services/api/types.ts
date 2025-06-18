@@ -186,3 +186,24 @@ export interface ValidationError {
 export interface HTTPValidationError {
   detail: ValidationError[];
 }
+
+// LLMクエリ関連の型定義
+export interface LLMQueryRequest {
+  prompt: string;                  // LLMに送信するプロンプト
+  context_documents?: string[];    // コンテキストに含めるドキュメントパスのリスト
+  provider?: string;               // 使用するLLMプロバイダー
+  model?: string;                  // 使用する特定のモデル
+  options?: Record<string, any>;   // LLMプロバイダー用の追加オプション
+}
+
+export interface LLMResponse {
+  content: string;                 // LLMから返されたコンテンツ
+  model: string;                   // 生成に使用されたモデル
+  provider: string;                // LLMプロバイダー
+  usage?: {                        // トークン使用情報
+    prompt_tokens: number;         // プロンプト内のトークン数
+    completion_tokens: number;     // 補完内のトークン数
+    total_tokens: number;          // 使用された合計トークン数
+  };
+  raw_response?: Record<string, any>; // プロバイダーからの生レスポンス
+}

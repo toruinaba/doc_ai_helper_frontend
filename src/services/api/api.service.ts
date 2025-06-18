@@ -27,6 +27,7 @@ import type {
   ChatRequest,
   ChatResponse
 } from './types';
+import { getApiConfig } from '../../utils/config.util';
 
 /**
  * APIクライアントクラス
@@ -41,7 +42,8 @@ export class ApiClient {
    */
   constructor(baseUrl: string = '') {
     // Get the base URL from environment variable or use default
-    const apiBaseFromEnv = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const apiConfig = getApiConfig();
+    const apiBaseFromEnv = apiConfig.apiBaseUrl;
     
     // Make sure the URL doesn't have a trailing slash
     const baseUrlWithoutTrailingSlash = (baseUrl || apiBaseFromEnv).replace(/\/$/, '');
@@ -51,7 +53,7 @@ export class ApiClient {
       ? baseUrlWithoutTrailingSlash 
       : `${baseUrlWithoutTrailingSlash}/api/v1`;
     
-    console.log(`API Client initialized with baseURL: ${this.baseUrl} (from env: ${import.meta.env.VITE_API_BASE_URL || 'not defined, using default'})`);
+    console.log(`API Client initialized with baseURL: ${this.baseUrl} (from env: ${apiConfig.apiBaseUrl || 'not defined, using default'})`);
     
     this.client = axios.create({
       baseURL: this.baseUrl,

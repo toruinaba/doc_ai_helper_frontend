@@ -7,6 +7,8 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { sendChatMessage } from '../services/api/chat.service';
 import { useDocumentStore } from './document.store';
+import { useRepositoryStore } from './repository.store';
+import { getDefaultRepositoryConfig } from '../utils/config.util';
 import type { ChatMessage as ApiChatMessage, ChatRequest } from '../services/api/types';
 import type { ChatMessage, ChatRequest, ChatResponse } from '../services/api/types';
 
@@ -18,11 +20,15 @@ export interface ClientChatMessage {
 }
 
 export const useChatStore = defineStore('chat', () => {
+  // デフォルト設定を取得
+  const defaultConfig = getDefaultRepositoryConfig();
+
   // 状態
   const messages = ref<ClientChatMessage[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const documentStore = useDocumentStore();
+  const repositoryStore = useRepositoryStore();
   
   // 新しいメッセージID生成
   function generateMessageId(): string {
@@ -98,15 +104,22 @@ export const useChatStore = defineStore('chat', () => {
         content: '以下のドキュメントに関する質問に答えてください。ドキュメントに記載されていない内容については、その旨を伝えてください。'
       });
       
+      // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
+      const service = documentStore.currentService || defaultConfig.service;
+      const owner = documentStore.currentOwner || defaultConfig.owner;
+      const repo = documentStore.currentRepo || defaultConfig.repo;
+      const path = documentStore.currentPath || defaultConfig.path;
+      const ref = documentStore.currentRef || defaultConfig.ref;
+      
       // チャットリクエストの構築
       const request: ChatRequest = {
         messages: apiMessages,
         document_context: {
-          service: documentStore.currentService,
-          owner: documentStore.currentOwner,
-          repo: documentStore.currentRepo,
-          path: documentStore.currentPath,
-          ref: documentStore.currentRef
+          service,
+          owner,
+          repo,
+          path,
+          ref
         }
       };
       

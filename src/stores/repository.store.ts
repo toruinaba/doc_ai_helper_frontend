@@ -7,12 +7,20 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import apiClient from '../services/api';
 import { types } from '../services/api';
+import { getDefaultRepositoryConfig } from '../utils/config.util';
 
 export const useRepositoryStore = defineStore('repository', () => {
+  // デフォルト設定を取得
+  const defaultConfig = getDefaultRepositoryConfig();
+
   // 状態
   const repositories = ref<types.RepositoryResponse[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
+  const currentService = ref<string>(defaultConfig.service);
+  const currentOwner = ref<string>(defaultConfig.owner);
+  const currentRepo = ref<string>(defaultConfig.repo);
+  const currentRef = ref<string>(defaultConfig.ref);
   
   // リポジトリ一覧取得
   async function fetchRepositories() {
@@ -24,6 +32,49 @@ export const useRepositoryStore = defineStore('repository', () => {
     } catch (err: any) {
       error.value = err.message || 'リポジトリ一覧の取得に失敗しました';
       console.error('リポジトリ一覧取得エラー:', err);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
+  // リポジトリ構造取得
+  async function fetchRepositoryStructure(
+    service: string = currentService.value,
+    owner: string = currentOwner.value,
+    repo: string = currentRepo.value,
+    ref: string = currentRef.value,
+    path: string = ''
+  ) {
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      return await apiClient.getRepositoryStructure(service, owner, repo, ref, path);
+    } catch (err: any) {
+      error.value = err.message || 'リポジトリ構造の取得に失敗しました';
+      console.error('リポジトリ構造取得エラー:', err);
+      return null;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
+  // リポジトリ検索
+  async function searchRepository(
+    query: types.SearchQuery,
+    service: string = currentService.value,
+    owner: string = currentOwner.value,
+    repo: string = currentRepo.value
+  ) {
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      return await apiClient.searchRepository(service, owner, repo, query);
+    } catch (err: any) {
+      error.value = err.message || 'リポジトリ検索に失敗しました';
+      console.error('リポジトリ検索エラー:', err);
+      return null;
     } finally {
       isLoading.value = false;
     }
@@ -109,12 +160,18 @@ export const useRepositoryStore = defineStore('repository', () => {
     repositories,
     isLoading,
     error,
+    currentService,
+    currentOwner,
+    currentRepo,
+    currentRef,
     
     // アクション
     fetchRepositories,
     createRepository,
     updateRepository,
     deleteRepository,
-    getAvailableMockRepositories
+    getAvailableMockRepositories,
+    fetchRepositoryStructure,
+    searchRepository
   };
 });

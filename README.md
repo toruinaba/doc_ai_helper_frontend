@@ -303,14 +303,33 @@ import { useDocumentStore } from '@/stores/document.store';
 
 ```
 # .env.local
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+# API Base URL (without /api/v1 at the end)
+VITE_API_BASE_URL=http://localhost:8000
+
+# Backend Base URL (for link transformations, without /api/v1 at the end)
+VITE_BACKEND_URL=http://localhost:8000
+
+# Always use real API
 VITE_USE_MOCK_API=false
+
+# Default repository settings
 VITE_DEFAULT_SERVICE=mock
 VITE_DEFAULT_OWNER=example
 VITE_DEFAULT_REPO=docs-project
 VITE_DEFAULT_REF=main
-VITE_DEFAULT_DOCUMENT=index.md
+VITE_DEFAULT_PATH=index.md
 ```
+
+これらの環境変数の説明：
+
+- `VITE_API_BASE_URL` - バックエンドAPIのベースURL (/api/v1は自動的に追加されます)
+- `VITE_BACKEND_URL` - リンク変換用のバックエンドURL
+- `VITE_USE_MOCK_API` - モックAPIを使用するかどうか（`true`または`false`）
+- `VITE_DEFAULT_SERVICE` - デフォルトのGitサービス（`github`, `gitlab`, `mock`など）
+- `VITE_DEFAULT_OWNER` - デフォルトのリポジトリ所有者
+- `VITE_DEFAULT_REPO` - デフォルトのリポジトリ名
+- `VITE_DEFAULT_REF` - デフォルトのブランチまたはタグ名
+- `VITE_DEFAULT_PATH` - デフォルトのドキュメントパス
 
 ## コーディングガイドライン
 

@@ -161,41 +161,105 @@ export function getMockChatResponse(messages: any[], documentContext: any): any 
   // 最後のユーザーメッセージ
   const lastUserMessage = messages.filter(m => m.role === 'user').pop();
   
-  // モックレスポンス
-  return {
-    message: {
-      role: 'assistant',
-      content: `これはモックLLMレスポンスです。あなたの質問: "${lastUserMessage?.content}" について、表示中のドキュメントの内容に基づいて回答します。
+  // レスポンスコンテンツ
+  const responseContent = `これはモックLLMレスポンスです。あなたの質問: "${lastUserMessage?.content}" について、表示中のドキュメントの内容に基づいて回答します。
 
 実際のバックエンドが実装されると、このモックレスポンスは本物のLLMの応答に置き換えられます。
 
 現在表示しているドキュメント: ${documentContext.path}
 リポジトリ: ${documentContext.service}/${documentContext.owner}/${documentContext.repo}
-`
+`;
+
+  // アシスタントメッセージ
+  const assistantMessage = {
+    role: 'assistant',
+    content: responseContent,
+    timestamp: new Date().toISOString()
+  };
+  
+  // 最適化された会話履歴を作成
+  // システムメッセージを保持し、ユーザーとアシスタントの最新メッセージを保持
+  const optimizedHistory = [
+    ...messages.filter(msg => msg.role === 'system'),
+    ...messages.filter(msg => msg.role !== 'system').slice(-4),
+    {
+      role: 'assistant',
+      content: responseContent,
+      timestamp: new Date().toISOString()
+    }
+  ];
+  
+  // モックレスポンス
+  return {
+    message: {
+      role: 'assistant',
+      content: responseContent
     },
     usage: {
       prompt_tokens: 100,
       completion_tokens: 150,
       total_tokens: 250
     },
-    execution_time_ms: 120
+    execution_time_ms: 120,
+    optimized_conversation_history: optimizedHistory
   };
 }
 
 /**
  * モックLLMレスポンス取得
  */
-export function getMockLLMResponse(prompt: string): any {
+export function getMockLLMResponse(prompt: string, conversation_history?: any[]): any {
+  // 会話履歴の処理（もし存在すれば）
+  let responseContent = `これはモックLLMレスポンスです。あなたのプロンプト: "${prompt}" について回答します。`;
+  
+  // 会話履歴がある場合は言及する
+  if (conversation_history && conversation_history.length > 0) {
+    const userMessages = conversation_history.filter(msg => msg.role === 'user');
+    responseContent += `\n\n会話履歴の長さ: ${conversation_history.length}件、ユーザーメッセージ: ${userMessages.length}件を考慮しています。`;
+  }
+  
+  responseContent += `\n\n実際のバックエンドが実装されると、このモックレスポンスは本物のLLMの応答に置き換えられます。`;
+  
+  // 最適化された会話履歴を作成
+  const currentMessage = { 
+    role: 'assistant', 
+    content: responseContent, 
+    timestamp: new Date().toISOString() 
+  };
+  
+  // システムメッセージがあれば保持し、ユーザーメッセージは最新のものだけを保持する
+  let optimizedHistory = [];
+  
+  if (conversation_history && conversation_history.length > 0) {
+    const systemMessages = conversation_history.filter(msg => msg.role === 'system');
+    const userMessages = conversation_history.filter(msg => msg.role === 'user');
+    const latestUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+    
+    optimizedHistory = [
+      ...systemMessages,
+      ...(latestUserMessage ? [latestUserMessage] : []),
+      currentMessage
+    ];
+  } else {
+    optimizedHistory = [currentMessage];
+  }
+  
+  console.log('Mock optimized history created with', optimizedHistory.length, 'messages');
+  
   return {
-    content: `これはモックLLMレスポンスです。あなたのプロンプト: "${prompt}" について回答します。
-
-実際のバックエンドが実装されると、このモックレスポンスは本物のLLMの応答に置き換えられます。`,
+    content: responseContent,
     model: "mock-model",
     provider: "mock-provider",
     usage: {
       prompt_tokens: 100,
       completion_tokens: 150,
       total_tokens: 250
+    },
+    optimized_conversation_history: optimizedHistory,
+    history_optimization_info: {
+      method: "simple-truncation",
+      original_length: conversation_history ? conversation_history.length : 0,
+      optimized_length: optimizedHistory.length
     }
   };
 }

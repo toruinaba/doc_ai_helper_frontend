@@ -27,13 +27,13 @@ Document AI Helperは、GitリポジトリのMarkdownドキュメントを表示
 - [検索関連](#検索関連)
   - [リポジトリ内検索](#リポジトリ内検索)
 - [チャット関連](#チャット関連)
-  - [チャットメッセージ送信](#チャットメッセージ送信)
+  - [チャットメッセージ送信](#チャットメッセージ送信) (会話履歴サポート)
 - [LLM関連](#llm関連)
-  - [LLMクエリ送信](#llmクエリ送信)
+  - [LLMクエリ送信](#llmクエリ送信) (会話履歴サポート)
   - [LLM機能取得](#llm機能取得)
   - [テンプレート一覧取得](#テンプレート一覧取得)
   - [プロンプトフォーマット](#プロンプトフォーマット)
-  - [LLMレスポンスストリーミング](#llmレスポンスストリーミング)
+  - [LLMレスポンスストリーミング](#llmレスポンスストリーミング) (会話履歴サポート)
 
 ## ヘルスチェック
 
@@ -248,7 +248,21 @@ POST /chat/message
       "completion_tokens": 150,
       "total_tokens": 250
     },
-    "execution_time_ms": 120
+    "execution_time_ms": 120,
+    "optimized_conversation_history": [
+      {
+        "role": "system",
+        "content": "以下のドキュメントに関する質問に答えてください。"
+      },
+      {
+        "role": "user",
+        "content": "ユーザーの質問内容"
+      },
+      {
+        "role": "assistant",
+        "content": "アシスタントからの回答内容"
+      }
+    ]
   }
   ```
 - `422 Unprocessable Entity`: リクエストボディが無効です
@@ -261,7 +275,7 @@ POST /chat/message
 POST /llm/query
 ```
 
-ドキュメントコンテキストを含むオプションでLLMにクエリを送信します。
+ドキュメントコンテキストを含むオプションでLLMにクエリを送信します。会話履歴をサポートしており、過去のメッセージのコンテキストを維持した連続した対話が可能です。
 
 **リクエストボディ**: [LLMQueryRequest](#llmqueryrequest)
 
@@ -321,7 +335,7 @@ POST /llm/format-prompt
 POST /llm/stream
 ```
 
-Server-Sent Events (SSE)を使用してLLMからのレスポンスをリアルタイムでストリーミングします。
+Server-Sent Events (SSE)を使用してLLMからのレスポンスをリアルタイムでストリーミングします。会話履歴をサポートしており、連続した対話が可能です。
 
 **リクエストボディ**: [LLMQueryRequest](#llmqueryrequest)
 
@@ -505,7 +519,15 @@ LLMクエリリクエストモデル。
   "context_documents": ["string"],     // コンテキストに含めるドキュメントパスのリスト
   "provider": "openai",                // 使用するLLMプロバイダー
   "model": "string",                   // 使用する特定のモデル
-  "options": {}                        // LLMプロバイダー用の追加オプション
+  "options": {},                       // LLMプロバイダー用の追加オプション
+  "disable_cache": false,              // trueの場合、キャッシュをバイパスして常に新しいAPI呼び出しを行う
+  "conversation_history": [            // 会話の履歴（コンテキスト用）
+    {
+      "role": "user",                  // メッセージの役割 (user, assistant, system)
+      "content": "string",             // メッセージの内容
+      "timestamp": "date-time"         // メッセージが作成されたタイムスタンプ（オプション）
+    }
+  ]
 }
 ```
 
@@ -523,7 +545,27 @@ LLMレスポンスモデル。
     "completion_tokens": 0,            // 補完内のトークン数
     "total_tokens": 0                  // 使用された合計トークン数
   },
-  "raw_response": {}                   // プロバイダーからの生レスポンス
+  "raw_response": {},                  // プロバイダーからの生レスポンス
+  "optimized_conversation_history": [  // フロントエンドが次のリクエストに使用すべき最適化された会話履歴
+    {
+      "role": "user",                  // メッセージの役割 (user, assistant, system)
+      "content": "string",             // メッセージの内容
+      "timestamp": "date-time"         // メッセージが作成されたタイムスタンプ（オプション）
+    }
+  ],
+  "history_optimization_info": {}      // 会話履歴の最適化に関する情報
+}
+```
+
+### MessageItem
+
+会話内の単一メッセージモデル。
+
+```json
+{
+  "role": "user",                      // メッセージの送信者の役割 (user, assistant, system)
+  "content": "string",                 // メッセージの内容
+  "timestamp": "date-time"             // メッセージが作成されたタイムスタンプ（オプション）
 }
 ```
 
@@ -579,6 +621,13 @@ LLMレスポンスモデル。
     "completion_tokens": 0,            // 補完内のトークン数
     "total_tokens": 0                  // 使用された合計トークン数
   },
-  "execution_time_ms": 0               // 実行時間（ミリ秒）
+  "execution_time_ms": 0,              // 実行時間（ミリ秒）
+  "optimized_conversation_history": [  // 最適化された会話履歴
+    {
+      "role": "string",                // メッセージの役割
+      "content": "string",             // メッセージの内容
+      "timestamp": "date-time"         // メッセージのタイムスタンプ（オプション）
+    }
+  ]
 }
 ```

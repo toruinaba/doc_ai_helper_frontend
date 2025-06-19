@@ -77,6 +77,7 @@ export interface ChatResponse {
     total_tokens: number;
   };
   execution_time_ms: number;
+  optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
 }
 
 // リポジトリ構造関連の型定義
@@ -188,12 +189,20 @@ export interface HTTPValidationError {
 }
 
 // LLMクエリ関連の型定義
+export interface MessageItem {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: string;
+}
+
 export interface LLMQueryRequest {
   prompt: string;                  // LLMに送信するプロンプト
   context_documents?: string[];    // コンテキストに含めるドキュメントパスのリスト
   provider?: string;               // 使用するLLMプロバイダー
   model?: string;                  // 使用する特定のモデル
   options?: Record<string, any>;   // LLMプロバイダー用の追加オプション
+  disable_cache?: boolean;         // trueの場合、キャッシュをバイパスして常に新しいAPI呼び出しを行う
+  conversation_history?: MessageItem[]; // 会話の履歴（コンテキスト用）
 }
 
 export interface LLMResponse {
@@ -206,4 +215,6 @@ export interface LLMResponse {
     total_tokens: number;          // 使用された合計トークン数
   };
   raw_response?: Record<string, any>; // プロバイダーからの生レスポンス
+  optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
+  history_optimization_info?: Record<string, any>; // 会話履歴の最適化に関する情報
 }

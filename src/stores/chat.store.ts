@@ -15,7 +15,8 @@ import { getDefaultRepositoryConfig } from '../utils/config.util';
 import type { 
   ChatMessage,
   LLMQueryRequest,
-  LLMResponse
+  LLMResponse,
+  MessageItem
 } from '../services/api/types';
 
 export interface ClientChatMessage {
@@ -69,6 +70,7 @@ export const useChatStore = defineStore('chat', () => {
   
   // アシスタントメッセージ追加
   function addAssistantMessage(content: string) {
+    console.log('Adding assistant message with content:', content.substring(0, 100) + '...');
     const message: ClientChatMessage = {
       id: generateMessageId(),
       role: 'assistant',
@@ -77,11 +79,13 @@ export const useChatStore = defineStore('chat', () => {
     };
     
     messages.value.push(message);
+    console.log('Messages after adding assistant message:', messages.value.length);
     return message;
   }
   
   // LLMにメッセージ送信
   async function sendMessage(content: string) {
+    console.log('Start sending message:', content);
     isLoading.value = true;
     error.value = null;
     
@@ -107,21 +111,68 @@ export const useChatStore = defineStore('chat', () => {
         // ユーザーの最後のメッセージを取得
         const userPrompt = content;
         
-        // LLMクエリリクエストの構築 - システムプロンプトなしでユーザーの質問のみを送信
+        // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
+        const conversationHistory = messages.value.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp.toISOString()
+        }));
+        
+        // LLMクエリリクエストの構築
         const request: LLMQueryRequest = {
           prompt: userPrompt,
-          context_documents: [path]
+          context_documents: [path],
+          conversation_history: conversationHistory
         };
+        
+        console.log('Sending chat message with conversation history:', conversationHistory.length, 'messages');
         
         // APIリクエスト送信（/llm/queryエンドポイントを使用）
         const response = await sendLLMQuery(request);
+        console.log('Received LLM response:', response);
         
-        // 応答メッセージを追加
-        addAssistantMessage(response.content);
+        // 最適化された会話履歴がある場合は、それをクライアント形式に変換して保存
+        if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
+          console.log('Using optimized conversation history from the server:', 
+            response.optimized_conversation_history.length, 'messages');
+          
+          // 現在の会話履歴をバックアップ（デバッグ用）
+          const oldMessages = [...messages.value];
+          console.log('Previous messages count:', oldMessages.length);
+          
+          // 既存の会話履歴をクリア
+          messages.value = [];
+          
+          // 最適化された会話履歴を追加
+          response.optimized_conversation_history.forEach((msg: MessageItem, index: number) => {
+            console.log(`Adding message ${index} with role ${msg.role}`);
+            const clientMsg: ClientChatMessage = {
+              id: generateMessageId(),
+              role: msg.role as 'user' | 'assistant' | 'system',
+              content: msg.content,
+              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+            };
+            messages.value.push(clientMsg);
+          });
+          console.log('Updated messages after optimization:', messages.value.length);
+          
+          // 最後のメッセージが assistant でない場合、応答メッセージを追加
+          const lastMsg = response.optimized_conversation_history[response.optimized_conversation_history.length - 1];
+          if (lastMsg.role !== 'assistant') {
+            console.log('Last message is not from assistant, adding response content');
+            addAssistantMessage(response.content);
+          }
+        } else {
+          // 最適化された会話履歴がない場合は、応答メッセージを追加
+          console.log('No optimized history, adding assistant message directly');
+          addAssistantMessage(response.content);
+        }
       } catch (apiErr: any) {
         console.error('API通信エラー:', apiErr);
+        console.log('APIエラー後、モック応答を使用します');
         // モック応答（バックエンドAPI未実装の場合）
         setTimeout(() => {
+          console.log('Timeout finished, adding mock assistant message');
           addAssistantMessage(`こちらはLLMの応答の予定です。ドキュメントコンテキストを使って回答します。
 現在表示中のドキュメントは ${documentStore.documentTitle || 'なし'} です。
 
@@ -156,6 +207,7 @@ export const useChatStore = defineStore('chat', () => {
     provider?: string;
     model?: string;
     customOptions?: Record<string, any>;
+    includeHistory?: boolean;
   }) {
     isLoading.value = true;
     error.value = null;
@@ -177,20 +229,66 @@ export const useChatStore = defineStore('chat', () => {
       const repo = documentStore.currentRepo || defaultConfig.repo;
       const path = documentStore.currentPath || defaultConfig.path;
       
+      // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
+      const conversationHistory = options?.includeHistory !== false ? messages.value.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      })) : undefined;
+      
       // LLMクエリリクエストの構築
       const request: LLMQueryRequest = {
         prompt,
         context_documents: [path],
         provider: options?.provider,
         model: options?.model,
-        options: options?.customOptions
+        options: options?.customOptions,
+        conversation_history: conversationHistory
       };
+      
+      console.log('Sending LLM query with conversation history:', 
+        conversationHistory ? conversationHistory.length : 0, 'messages');
       
       // APIリクエスト送信
       const response = await sendLLMQuery(request);
+      console.log('Received direct LLM query response:', response);
       
-      // 応答を追加（UIに表示用）
-      addAssistantMessage(response.content);
+      // 最適化された会話履歴がある場合は、それをクライアント形式に変換して保存
+      if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
+        console.log('Using optimized conversation history from the server:', 
+          response.optimized_conversation_history.length, 'messages');
+        
+        // 現在の会話履歴をバックアップ（デバッグ用）
+        const oldMessages = [...messages.value];
+        console.log('Previous messages count in direct query:', oldMessages.length);
+        
+        // 既存の会話履歴をクリア
+        messages.value = [];
+        
+        // 最適化された会話履歴を追加
+        response.optimized_conversation_history.forEach((msg: MessageItem, index: number) => {
+          console.log(`Direct query: Adding message ${index} with role ${msg.role}`);
+          const clientMsg: ClientChatMessage = {
+            id: generateMessageId(),
+            role: msg.role as 'user' | 'assistant' | 'system',
+            content: msg.content,
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+          };
+          messages.value.push(clientMsg);
+        });
+        console.log('Updated messages after optimization in direct query:', messages.value.length);
+        
+        // 最後のメッセージが assistant でない場合、応答メッセージを追加
+        const lastMsg = response.optimized_conversation_history[response.optimized_conversation_history.length - 1];
+        if (lastMsg.role !== 'assistant') {
+          console.log('Direct query: Last message is not from assistant, adding response content');
+          addAssistantMessage(response.content);
+        }
+      } else {
+        // 最適化された会話履歴がない場合は、応答メッセージを追加
+        console.log('No optimized history in direct query, adding assistant message directly');
+        addAssistantMessage(response.content);
+      }
       
       return response;
     } catch (err: any) {

@@ -56,8 +56,10 @@ export const useDocumentStore = defineStore('document', () => {
       // バックエンドのURLを環境変数から取得
       const apiConfig = getApiConfig();
       const backendUrl = apiConfig.backendUrl;
-      // API部分を削除して、ドメイン部分だけにする
-      const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?$/, '');
+      
+      // バックエンドURLを完全にシンプルな形式にする
+      // 例: http://localhost:8000/api/v1 → http://localhost:8000
+      const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?.*$/, '');
       console.log(`Using backend URL for links: ${baseUrlForLinks} (original: ${backendUrl})`);
       
       currentDocument.value = await apiClient.getDocument(

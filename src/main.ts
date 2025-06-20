@@ -15,6 +15,8 @@ import SplitterPanel from 'primevue/splitterpanel'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Tooltip from 'primevue/tooltip'
+import Checkbox from 'primevue/checkbox'
+import RadioButton from 'primevue/radiobutton'
 
 // PrimeVueスタイル
 // import 'primevue/resources/themes/lara-light-blue/theme.css'
@@ -42,5 +44,7 @@ app.component('Splitter', Splitter)
 app.component('SplitterPanel', SplitterPanel)
 app.component('InputText', InputText)
 app.component('Textarea', Textarea)
+app.component('Checkbox', Checkbox)
+app.component('RadioButton', RadioButton)
 
 app.mount('#app')

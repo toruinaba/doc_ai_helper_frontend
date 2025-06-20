@@ -5,6 +5,7 @@
  */
 import apiClient from '.';
 import { shouldUseMockApi } from '../../utils/config.util';
+import { getEffectiveStreamingType, StreamingType } from './streaming-config.service';
 import type { 
   ChatRequest, 
   ChatResponse, 
@@ -268,6 +269,231 @@ export function createConversationWithUserMessage(
   ];
 }
 
+/**
+ * ストリーミングモードでLLMにクエリを送信
+ * @param request LLMクエリリクエスト
+ * @param callbacks ストリーミングイベントのコールバック関数
+ * @param systemPrompt オプションのシステムプロンプト
+ * @returns イベントソースを閉じるためのクリーンアップ関数
+ */
+export function streamLLMQuery(
+  request: LLMQueryRequest,
+  callbacks: {
+    onStart?: (data: any) => void;
+    onToken?: (token: string) => void;
+    onError?: (error: string) => void;
+    onEnd?: (data: any) => void;
+  },
+  systemPrompt?: string
+): () => void {
+  // システムプロンプトがある場合は会話履歴に追加
+  if (systemPrompt && (!request.conversation_history || request.conversation_history.length === 0)) {
+    request.conversation_history = createConversationWithSystemPrompt(systemPrompt);
+  } else if (systemPrompt) {
+    request.conversation_history = createConversationWithSystemPrompt(
+      systemPrompt,
+      request.conversation_history
+    );
+  }
+
+  // 環境変数の設定に基づいてモックを使用するかどうかを判断
+  if (shouldUseMockApi()) {
+    console.log('Using mock streaming for LLM response as configured by environment variables');
+    
+    // モックストリーミング開始
+    // 開始イベントを発火
+    callbacks.onStart?.({
+      model: 'mock-gpt-3.5-turbo',
+      provider: 'mock-openai'
+    });
+    
+    // モックレスポンスを非同期で取得
+    import('./mock.service').then(({ getMockLLMResponse }) => {
+      const mockResponse = getMockLLMResponse(
+        request.prompt, 
+        request.conversation_history
+      ) as LLMResponse;
+      
+      // モックデータをトークンに分割してストリーミング
+      const content = mockResponse.content;
+      const tokens = content.split(' ');
+      
+      // トークンを一定の遅延で送信
+      let index = 0;
+      const intervalId = setInterval(() => {
+        if (index < tokens.length) {
+          callbacks.onToken?.(tokens[index] + (index < tokens.length - 1 ? ' ' : ''));
+          index++;
+        } else {
+          clearInterval(intervalId);
+          
+          // 会話履歴の最適化情報を追加
+          if (!mockResponse.optimized_conversation_history && request.conversation_history) {
+            // 最新のユーザーメッセージとシステムメッセージを保持
+            const systemMessages = request.conversation_history.filter(msg => msg.role === 'system');
+            const userMessages = request.conversation_history.filter(msg => msg.role === 'user');
+            const latestUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+            
+            mockResponse.optimized_conversation_history = [
+              ...systemMessages,
+              ...(latestUserMessage ? [latestUserMessage] : []),
+              { role: 'assistant', content: mockResponse.content, timestamp: new Date().toISOString() }
+            ];
+          }
+          
+          // 終了イベントを発火
+          callbacks.onEnd?.({
+            usage: mockResponse.usage || {
+              prompt_tokens: 100,
+              completion_tokens: tokens.length,
+              total_tokens: 100 + tokens.length
+            },
+            optimized_conversation_history: mockResponse.optimized_conversation_history
+          });
+        }
+      }, 50); // 50msごとにトークンを送信
+      
+      // クリーンアップ関数を設定
+      cleanupFunction = () => {
+        clearInterval(intervalId);
+      };
+    }).catch((error) => {
+      console.error('Mock service error:', error);
+      callbacks.onError?.(`Mock service error: ${error instanceof Error ? error.message : String(error)}`);
+    });
+    
+    // クリーンアップ関数
+    let cleanupFunction = () => {};
+    return () => cleanupFunction();
+  }
+
+  try {
+    // 実際のAPIストリーミングを使用
+    let cleanupFunction = () => {};
+    
+    // 設定からストリーミング方式を決定
+    const streamingType = getEffectiveStreamingType();
+    
+    // デバッグログ
+    console.log(`Using streaming type: ${streamingType} (selected from config)`);
+    
+    // バックエンドの実装に合わせてfetchベースの実装を優先使用
+    if (streamingType === StreamingType.EVENTSOURCE) {
+      // EventSourceベースの実装を使用（バックエンドがGETリクエストのSSEをサポートしている場合）
+      console.log('Using EventSource-based streaming implementation (configured)');
+      import('./streaming.service').then(({ streamLLMQuery: apiStreamLLMQuery }) => {
+        const cleanup = apiStreamLLMQuery(request, callbacks);
+        cleanupFunction = cleanup;
+      }).catch((error) => {
+        console.error('Failed to import streaming service:', error);
+        callbacks.onError?.(`Failed to import streaming service: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    } else {
+      // fetchベースの代替実装を使用（バックエンドがPOSTリクエストでのストリーミングを要求する場合）
+      console.log('Using fetch-based streaming implementation (configured)');
+      import('./streaming-alt.service').then(({ streamLLMQueryWithFetch }) => {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const controller = streamLLMQueryWithFetch(apiBaseUrl, '/llm/stream', request, callbacks);
+        cleanupFunction = () => controller.abort();
+      }).catch((error) => {
+        console.error('Failed to import alternative streaming service:', error);
+        callbacks.onError?.(`Failed to import alternative streaming service: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }
+    
+    // クリーンアップ関数を返す
+    return () => cleanupFunction();
+  } catch (error) {
+    console.error('Streaming API error:', error);
+    callbacks.onError?.(`Streaming API error: ${error instanceof Error ? error.message : String(error)}`);
+    return () => {}; // ダミーのクリーンアップ関数
+  }
+}
+
+/**
+ * モックLLMストリーミングの実装
+ * バックエンドAPIが未実装の場合やテスト用に使用
+ */
+function createMockStreamLLMQuery(
+  request: LLMQueryRequest,
+  callbacks: {
+    onStart?: (data: any) => void;
+    onToken?: (token: string) => void;
+    onError?: (error: string) => void;
+    onEnd?: (data: any) => void;
+  },
+  systemPrompt?: string
+): () => void {
+  console.log('Creating mock streaming implementation');
+  
+  // モックストリーミング開始
+  // 開始イベントを発火
+  callbacks.onStart?.({
+    model: 'mock-gpt-3.5-turbo',
+    provider: 'mock-openai'
+  });
+  
+  let cleanupFunction = () => {};
+  
+  // モックレスポンスを非同期で取得
+  import('./mock.service').then(({ getMockLLMResponse }) => {
+    const mockResponse = getMockLLMResponse(
+      request.prompt, 
+      request.conversation_history
+    ) as LLMResponse;
+    
+    // モックデータをトークンに分割してストリーミング
+    const content = mockResponse.content;
+    const tokens = content.split(' ');
+    
+    // トークンを一定の遅延で送信
+    let index = 0;
+    const intervalId = setInterval(() => {
+      if (index < tokens.length) {
+        callbacks.onToken?.(tokens[index] + (index < tokens.length - 1 ? ' ' : ''));
+        index++;
+      } else {
+        clearInterval(intervalId);
+        
+        // 会話履歴の最適化情報を追加
+        if (!mockResponse.optimized_conversation_history && request.conversation_history) {
+          // 最新のユーザーメッセージとシステムメッセージを保持
+          const systemMessages = request.conversation_history.filter(msg => msg.role === 'system');
+          const userMessages = request.conversation_history.filter(msg => msg.role === 'user');
+          const latestUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+          
+          mockResponse.optimized_conversation_history = [
+            ...systemMessages,
+            ...(latestUserMessage ? [latestUserMessage] : []),
+            { role: 'assistant', content: mockResponse.content, timestamp: new Date().toISOString() }
+          ];
+        }
+        
+        // 終了イベントを発火
+        callbacks.onEnd?.({
+          usage: mockResponse.usage || {
+            prompt_tokens: 100,
+            completion_tokens: tokens.length,
+            total_tokens: 100 + tokens.length
+          },
+          optimized_conversation_history: mockResponse.optimized_conversation_history
+        });
+      }
+    }, 50); // 50msごとにトークンを送信
+    
+    // クリーンアップ関数を設定
+    cleanupFunction = () => {
+      clearInterval(intervalId);
+    };
+  }).catch((error) => {
+    console.error('Mock service error:', error);
+    callbacks.onError?.(`Mock service error: ${error instanceof Error ? error.message : String(error)}`);
+  });
+  
+  // クリーンアップ関数を返す
+  return () => cleanupFunction();
+}
+
 export default {
   sendChatMessage,
   sendLLMQuery,
@@ -276,5 +502,6 @@ export default {
   formatPrompt,
   createConversationWithSystemPrompt,
   addUserMessageToConversation,
-  createConversationWithUserMessage
+  createConversationWithUserMessage,
+  streamLLMQuery
 };

@@ -217,4 +217,35 @@ export interface LLMResponse {
   raw_response?: Record<string, any>; // プロバイダーからの生レスポンス
   optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
   history_optimization_info?: Record<string, any>; // 会話履歴の最適化に関する情報
+  is_streaming?: boolean;          // ストリーミングレスポンスかどうか
+}
+
+// SSEストリーミング関連の型定義
+export interface StreamingLLMResponse {
+  event: 'start' | 'token' | 'error' | 'end';  // イベントタイプ
+  data?: {
+    content?: string;              // トークンイベントの場合、新しいトークン
+    error?: string;                // エラーイベントの場合、エラーメッセージ
+    model?: string;                // 開始イベントの場合、使用されるモデル
+    provider?: string;             // 開始イベントの場合、プロバイダー
+    usage?: {                      // 終了イベントの場合、トークン使用情報
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+    optimized_conversation_history?: MessageItem[]; // 終了イベントの場合、最適化された会話履歴
+  };
+  id?: string;                     // イベントID（任意）
+}
+
+export interface LLMStreamingRequest extends LLMQueryRequest {
+  stream?: boolean;                // ストリーミングモードを有効にするフラグ
+}
+
+// ストリーミングコールバック関数の型定義
+export interface StreamingCallbacks {
+  onStart?: (data?: any) => void;
+  onToken?: (token: string) => void;
+  onError?: (error: string) => void;
+  onEnd?: (data?: any) => void;
 }

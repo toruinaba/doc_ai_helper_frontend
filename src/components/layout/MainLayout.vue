@@ -40,15 +40,18 @@ import ChatInterface from '@/components/chat/ChatInterface.vue';
 import Splitter from 'primevue/splitter';
 import SplitterPanel from 'primevue/splitterpanel';
 import { useDocumentStore } from '@/stores/document.store';
+import { getDefaultRepositoryConfig } from '@/utils/config.util';
 
 const documentStore = useDocumentStore();
 
 // コンポーネントマウント時の処理
 onMounted(() => {
-  // デフォルトリポジトリとドキュメントを設定
-  documentStore.setRepository('mock', 'example', 'docs-project', 'main');
+  // 環境変数からのデフォルト設定を使用（storeのデフォルト値を使用）
   documentStore.fetchRepositoryStructure();
-  documentStore.fetchDocument('index.md');
+  
+  // デフォルトのパスを使用（環境変数から取得）
+  const defaultConfig = getDefaultRepositoryConfig();
+  documentStore.fetchDocument(documentStore.currentPath || defaultConfig.path);
 });
 </script>
 

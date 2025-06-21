@@ -7,18 +7,23 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import apiClient from '../services/api';
 import { types } from '../services/api';
+import { getDefaultRepositoryConfig, getApiConfig } from '../utils/config.util';
 
 export const useDocumentStore = defineStore('document', () => {
+  // デフォルト設定を取得
+  const defaultConfig = getDefaultRepositoryConfig();
+  const apiConfig = getApiConfig();
+
   // 状態
   const currentDocument = ref<types.DocumentResponse | null>(null);
   const repositoryStructure = ref<types.FileTreeItem[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
-  const currentService = ref<string>('mock'); // デフォルトサービス
-  const currentOwner = ref<string>('example');
-  const currentRepo = ref<string>('docs-project');
-  const currentPath = ref<string>('');
-  const currentRef = ref<string>('main');
+  const currentService = ref<string>(defaultConfig.service);
+  const currentOwner = ref<string>(defaultConfig.owner);
+  const currentRepo = ref<string>(defaultConfig.repo);
+  const currentPath = ref<string>(defaultConfig.path);
+  const currentRef = ref<string>(defaultConfig.ref);
   
   // リポジトリの完全パス
   const repositoryFullPath = computed(() => {
@@ -49,9 +54,12 @@ export const useDocumentStore = defineStore('document', () => {
       console.log(`Using API for document fetch: ${currentService.value}/${currentOwner.value}/${currentRepo.value}/${path}`);
       
       // バックエンドのURLを環境変数から取得
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-      // API部分を削除して、ドメイン部分だけにする
-      const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?$/, '');
+      const apiConfig = getApiConfig();
+      const backendUrl = apiConfig.backendUrl;
+      
+      // バックエンドURLを完全にシンプルな形式にする
+      // 例: http://localhost:8000/api/v1 → http://localhost:8000
+      const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?.*$/, '');
       console.log(`Using backend URL for links: ${baseUrlForLinks} (original: ${backendUrl})`);
       
       currentDocument.value = await apiClient.getDocument(

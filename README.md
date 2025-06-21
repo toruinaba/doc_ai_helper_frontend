@@ -2,34 +2,40 @@
 
 ## プロジェクト概要
 
-ドキュメントAIヘルパーフロントエンドは、`doc_ai_helper_backend`のAPIと連携し、マークダウンドキュメントの閲覧機能を提供するシンプルなVue 3アプリケーションです。UIコンポーネントライブラリとしてPrimeVueを採用し、洗練されたユーザーインターフェースを実現します。
+ドキュメントAIヘルパーフロントエンドは、`doc_ai_helper_backend`のAPIと連携し、マークダウンドキュメントの閲覧とLLMを用いた質問応答機能を提供するVue 3アプリケーションです。UIコンポーネントライブラリとしてPrimeVueを採用し、洗練されたユーザーインターフェースを実現しています。
 
 名前は`doc-ai-helper-frontend`です。将来的にはQuartoドキュメント対応も予定されています。
 
 ### 主なユースケース
 
 1. **ドキュメント表示**: Markdownドキュメントのレンダリングと表示
-2. **将来的な拡張**: LLM質問応答、リポジトリナビゲーションなど
+2. **LLM質問応答**: ドキュメントコンテキストを用いたLLMとの対話
+   - 会話履歴の管理と最適化
+   - マークダウン形式での応答表示
+3. **将来的な拡張**: リポジトリナビゲーションなど
 
 ### 実装アプローチ
 
-シンプルな実装アプローチを採用しています：
+段階的な実装アプローチを採用しています：
 
-1. **基本的なドキュメント表示（現段階）**: まずMarkdownドキュメント表示機能を実装 [✅完了]
+1. **基本的なドキュメント表示（フェーズ1）**: まずMarkdownドキュメント表示機能を実装 [✅完了]
    - ドキュメントビューアの実装
    - APIとの連携
+   - マークダウンレンダリングとシンタックスハイライト
 
-2. **LLM対話機能（フェーズ2）**: LLMとの対話機能を追加 [⏱️計画中]
-   - チャットインターフェースの実装
-   - ドキュメントコンテキスト連携
-   - 対話履歴管理
+2. **LLM対話機能（フェーズ2）**: LLMとの対話機能を追加 [✅基本実装完了]
+   - チャットインターフェースの実装 [✅完了]
+   - ドキュメントコンテキスト連携の実装 [✅完了]
+   - 対話履歴管理の実装 [✅完了]
+   - バックエンドLLM APIとの連携 [✅基本実装完了]
 
 3. **拡張機能（フェーズ3）**: 機能拡張と最適化 [⏱️将来対応]
    - リポジトリナビゲーションの実装
    - 検索機能の実装
    - パフォーマンス最適化
+   - UI/UXの改善
 
-このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
+このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。現在は、フェーズ2が基本的に完了し、フェーズ3に向けた準備を進めている段階です。
 
 ## 技術スタック
 
@@ -51,18 +57,49 @@
 - 基本的なVue 3コンポーネント構造の設定
 - ドキュメントビューアの実装
 - APIサービスの実装
-- モック機能の削除とシンプル化
+- チャットインターフェースの実装
+  - メッセージ表示とスタイリング
+  - 入力フォームとボタン（TextareaコンポーネントでUIを改善）
+  - ツールチップとUI改善
+- チャット対話履歴管理の実装
+  - 会話履歴の保持と管理
+  - サーバーから最適化された会話履歴の反映
+  - 会話コンテキストの維持
+- ドキュメントコンテキスト連携の実装完了
+- LLMとの対話機能の基本実装完了
+  - モックAPIサービスによるデモ応答表示
+  - 実際のバックエンドAPIとの連携実装完了
+  - 会話履歴を含めたLLMクエリ送信機能の実装
 
-### 実装方針の明確化
-- PrimeVueを使用したUIコンポーネント実装
-- Piniaを使用した状態管理
-- Markdownレンダリングとシンタックスハイライトの実装
-- バックエンドAPIとの連携機能の実装
+### 実装中の機能
+- バックエンドLLM API連携の強化
+  - エラーハンドリングの改善
+  - パフォーマンス最適化
+- メッセージ表示のUI改善
+  - マークダウンのレンダリング強化
+  - コードブロックのシンタックスハイライト改善
+
+### 最近の実装内容
+
+1. **LLM会話履歴管理機能の実装**
+   - 会話履歴をバックエンドに送信する機能を実装
+   - バックエンドから最適化された会話履歴を受け取って更新する機能を実装
+   - クライアント側の会話管理とバックエンド側の会話管理を同期
+
+2. **チャット応答表示の改善**
+   - エラーハンドリングの強化
+   - デバッグログの追加
+   - 応答フローの改善
+
+3. **APIサービスの強化**
+   - 環境変数に基づいたAPI設定の管理
+   - モックサービスと実際のAPIの切り替え
+   - エラー処理の改善
 
 ### 未着手の機能
-- LLMチャットインターフェースの実装
 - リポジトリナビゲーションの実装
 - 検索機能の実装
+- GitHub連携機能の実装
 - テスト実装
 
 ### 開発ステップ
@@ -70,10 +107,13 @@
    - ドキュメントビューアの実装
    - APIサービスの実装
 
-2. **LLMチャットインターフェースの実装** [⏱️計画中]
-   - チャットUIの構築
-   - ドキュメントコンテキスト連携機能の実装
-   - 対話履歴管理の実装
+2. **LLMチャットインターフェースの実装** [✅基本実装完了]
+   - チャットUIの構築 [✅完了]
+   - ドキュメントコンテキスト連携機能の実装 [✅完了]
+   - 対話履歴管理の実装 [✅完了]
+   - バックエンドLLM APIとの連携 [✅基本実装完了]
+     - 会話履歴管理機能の実装完了
+     - エラーハンドリングの基本実装完了
 
 3. **リポジトリナビゲーションの実装** [⏱️将来対応]
    - ファイル構造表示の実装
@@ -88,15 +128,17 @@
 
 ### コンポーネント構成
 
-1. **ドキュメントビューア**
+1. **ドキュメントビューア** [✅完了]
    - PrimeVueのCardコンポーネントを使用
    - Markdownレンダリングとシンタックスハイライト
    - フロントマター表示
 
-2. **将来実装予定: LLMチャットインターフェース**
-   - PrimeVueのChat UIコンポーネントを使用
+2. **LLMチャットインターフェース** [✅基本実装完了]
+   - PrimeVueのUIコンポーネントを使用
    - メッセージ表示とスタイリング
    - 入力フォームとボタン
+   - 会話履歴の管理と表示
+   - マークダウン形式の応答表示
 
 3. **将来実装予定: リポジトリナビゲータ**
    - PrimeVueのTreeコンポーネントを活用
@@ -105,7 +147,10 @@
 
 ### 状態管理
 
-- Piniaストアを使用してドキュメントの状態を管理
+- Piniaストアを使用してドキュメントとチャットの状態を管理
+  - ドキュメントストア: 現在表示しているドキュメントの状態管理
+  - チャットストア: 会話履歴と応答状態の管理
+  - リポジトリストア: リポジトリ構造とナビゲーション状態の管理
 - APIサービスの実装によるバックエンドとの通信
 
 ## API エンドポイント
@@ -121,6 +166,66 @@ GET /api/v1/documents/contents/{service}/{owner}/{repo}/{path}?ref={ref}&transfo
 例：
 ```
 GET /api/v1/documents/contents/mock/example/docs-project/index.md?ref=main&transform_links=true
+```
+
+### チャットメッセージ送信
+
+```
+POST /api/v1/chat/message
+```
+
+リクエストボディ:
+```json
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "以下のドキュメントに関する質問に答えてください。"
+    },
+    {
+      "role": "user",
+      "content": "ユーザーの質問内容"
+    }
+  ],
+  "document_context": {
+    "service": "mock",
+    "owner": "example",
+    "repo": "docs-project",
+    "path": "index.md",
+    "ref": "main"
+  }
+}
+```
+
+### LLMクエリ送信
+
+```
+POST /api/v1/llm/query
+```
+
+リクエストボディ:
+```json
+{
+  "prompt": "ユーザーの質問内容",
+  "context_documents": ["index.md"],
+  "conversation_history": [
+    {
+      "role": "system",
+      "content": "システムプロンプト",
+      "timestamp": "2025-06-19T10:00:00Z"
+    },
+    {
+      "role": "user",
+      "content": "以前の質問",
+      "timestamp": "2025-06-19T10:01:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "以前の回答",
+      "timestamp": "2025-06-19T10:02:00Z"
+    }
+  ]
+}
 ```
 
 ## セットアップ手順
@@ -293,9 +398,17 @@ import { useDocumentStore } from '@/stores/document.store';
 ## 使用方法
 
 1. アプリケーションを起動してドキュメントを表示
-2. ドキュメントの内容を閲覧
-3. 将来的に: チャットインターフェースでドキュメントに関する質問を入力
-4. 将来的に: AIからの回答を確認
+   - 左側のリポジトリナビゲーターからドキュメントを選択（現在は自動的にデフォルトドキュメントが表示されます）
+   - 中央のドキュメントビューアーでドキュメントの内容を閲覧
+
+2. チャットインターフェースでドキュメントに関する質問
+   - 右側のチャットインターフェースでドキュメントに関する質問を入力
+   - AIからの回答を確認
+   - 会話を継続して関連質問を行う（会話履歴が維持されます）
+
+3. 環境変数による設定のカスタマイズ
+   - `.env.local`ファイルで設定を変更し、実際のAPIサーバーに接続
+   - モックAPIとのテストを行う場合は`VITE_USE_MOCK_API=true`に設定
 
 ## 環境設定
 
@@ -303,14 +416,33 @@ import { useDocumentStore } from '@/stores/document.store';
 
 ```
 # .env.local
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+# API Base URL (without /api/v1 at the end)
+VITE_API_BASE_URL=http://localhost:8000
+
+# Backend Base URL (for link transformations, without /api/v1 at the end)
+VITE_BACKEND_URL=http://localhost:8000
+
+# Always use real API
 VITE_USE_MOCK_API=false
+
+# Default repository settings
 VITE_DEFAULT_SERVICE=mock
 VITE_DEFAULT_OWNER=example
 VITE_DEFAULT_REPO=docs-project
 VITE_DEFAULT_REF=main
-VITE_DEFAULT_DOCUMENT=index.md
+VITE_DEFAULT_PATH=index.md
 ```
+
+これらの環境変数の説明：
+
+- `VITE_API_BASE_URL` - バックエンドAPIのベースURL (/api/v1は自動的に追加されます)
+- `VITE_BACKEND_URL` - リンク変換用のバックエンドURL
+- `VITE_USE_MOCK_API` - モックAPIを使用するかどうか（`true`または`false`）
+- `VITE_DEFAULT_SERVICE` - デフォルトのGitサービス（`github`, `gitlab`, `mock`など）
+- `VITE_DEFAULT_OWNER` - デフォルトのリポジトリ所有者
+- `VITE_DEFAULT_REPO` - デフォルトのリポジトリ名
+- `VITE_DEFAULT_REF` - デフォルトのブランチまたはタグ名
+- `VITE_DEFAULT_PATH` - デフォルトのドキュメントパス
 
 ## コーディングガイドライン
 
@@ -343,10 +475,12 @@ VITE_DEFAULT_DOCUMENT=index.md
    - コンポーネントにはJSDocコメントを付与する
    - README.mdは最新の状態を維持する
    - 複雑なロジックには適切なコメントを付与する
+   - APIエンドポイントと通信フローの文書化
 
 7. **開発優先順位**
-   - ドキュメントビューアとリポジトリナビゲーターを最優先で実装
-   - LLMチャット機能は次のフェーズで実装
+   - ドキュメントビューアとチャットインターフェースを最優先で実装（完了）
+   - 会話履歴管理機能の実装（完了）
+   - リポジトリナビゲーションの実装（次のフェーズで予定）
    - 検索機能は将来の拡張として位置付ける
 
 ## ブランチ戦略
@@ -379,3 +513,20 @@ VITE_DEFAULT_DOCUMENT=index.md
 ## ライセンス
 
 MIT
+
+## 最新の開発ログ
+
+最新の開発状況と更新履歴：
+
+```
+feat: Enhance LLM query handling with optimized conversation history
+feat: Add LLM query functionality and mock handling in API services
+feat: Add LLM query and capabilities endpoints to OpenAPI specification
+feat: Update README and documentation to clarify project features and implementation status
+feat: Refactor configuration management to utilize environment variables for repository and API settings
+feat: Integrate PrimeVue Textarea component for enhanced chat message input
+feat: Replace InputText with Textarea in chat interface for improved message input
+feat: Implement chat interface and integrate chat functionality with API service
+```
+
+次のマイルストーン：リポジトリナビゲーション機能の実装と検索機能の基盤開発

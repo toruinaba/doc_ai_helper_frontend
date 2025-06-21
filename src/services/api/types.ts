@@ -77,6 +77,7 @@ export interface ChatResponse {
     total_tokens: number;
   };
   execution_time_ms: number;
+  optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
 }
 
 // リポジトリ構造関連の型定義
@@ -185,4 +186,66 @@ export interface ValidationError {
 
 export interface HTTPValidationError {
   detail: ValidationError[];
+}
+
+// LLMクエリ関連の型定義
+export interface MessageItem {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: string;
+}
+
+export interface LLMQueryRequest {
+  prompt: string;                  // LLMに送信するプロンプト
+  context_documents?: string[];    // コンテキストに含めるドキュメントパスのリスト
+  provider?: string;               // 使用するLLMプロバイダー
+  model?: string;                  // 使用する特定のモデル
+  options?: Record<string, any>;   // LLMプロバイダー用の追加オプション
+  disable_cache?: boolean;         // trueの場合、キャッシュをバイパスして常に新しいAPI呼び出しを行う
+  conversation_history?: MessageItem[]; // 会話の履歴（コンテキスト用）
+}
+
+export interface LLMResponse {
+  content: string;                 // LLMから返されたコンテンツ
+  model: string;                   // 生成に使用されたモデル
+  provider: string;                // LLMプロバイダー
+  usage?: {                        // トークン使用情報
+    prompt_tokens: number;         // プロンプト内のトークン数
+    completion_tokens: number;     // 補完内のトークン数
+    total_tokens: number;          // 使用された合計トークン数
+  };
+  raw_response?: Record<string, any>; // プロバイダーからの生レスポンス
+  optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
+  history_optimization_info?: Record<string, any>; // 会話履歴の最適化に関する情報
+  is_streaming?: boolean;          // ストリーミングレスポンスかどうか
+}
+
+// SSEストリーミング関連の型定義
+export interface StreamingLLMResponse {
+  event: 'start' | 'token' | 'error' | 'end';  // イベントタイプ
+  data?: {
+    content?: string;              // トークンイベントの場合、新しいトークン
+    error?: string;                // エラーイベントの場合、エラーメッセージ
+    model?: string;                // 開始イベントの場合、使用されるモデル
+    provider?: string;             // 開始イベントの場合、プロバイダー
+    usage?: {                      // 終了イベントの場合、トークン使用情報
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+    optimized_conversation_history?: MessageItem[]; // 終了イベントの場合、最適化された会話履歴
+  };
+  id?: string;                     // イベントID（任意）
+}
+
+export interface LLMStreamingRequest extends LLMQueryRequest {
+  stream?: boolean;                // ストリーミングモードを有効にするフラグ
+}
+
+// ストリーミングコールバック関数の型定義
+export interface StreamingCallbacks {
+  onStart?: (data?: any) => void;
+  onToken?: (token: string) => void;
+  onError?: (error: string) => void;
+  onEnd?: (data?: any) => void;
 }

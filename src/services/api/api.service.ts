@@ -25,8 +25,13 @@ import type {
   SearchQuery,
   SearchResponse,
   ChatRequest,
-  ChatResponse
+  ChatResponse,
+  LLMQueryRequest,
+  LLMResponse,
+  LLMStreamingRequest,
+  StreamingLLMResponse
 } from './types';
+import { getApiConfig } from '../../utils/config.util';
 
 /**
  * APIクライアントクラス
@@ -41,7 +46,8 @@ export class ApiClient {
    */
   constructor(baseUrl: string = '') {
     // Get the base URL from environment variable or use default
-    const apiBaseFromEnv = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const apiConfig = getApiConfig();
+    const apiBaseFromEnv = apiConfig.apiBaseUrl;
     
     // Make sure the URL doesn't have a trailing slash
     const baseUrlWithoutTrailingSlash = (baseUrl || apiBaseFromEnv).replace(/\/$/, '');
@@ -51,7 +57,7 @@ export class ApiClient {
       ? baseUrlWithoutTrailingSlash 
       : `${baseUrlWithoutTrailingSlash}/api/v1`;
     
-    console.log(`API Client initialized with baseURL: ${this.baseUrl} (from env: ${import.meta.env.VITE_API_BASE_URL || 'not defined, using default'})`);
+    console.log(`API Client initialized with baseURL: ${this.baseUrl} (from env: ${apiConfig.apiBaseUrl || 'not defined, using default'})`);
     
     this.client = axios.create({
       baseURL: this.baseUrl,
@@ -183,6 +189,9 @@ export class ApiClient {
       // Make sure the base URL doesn't have /api/v1 at the end
       // Backend expects just the domain part of the URL
       const cleanedBaseUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+      
+      // URLエンコードをせず、そのままパラメータとして渡す
+      // バックエンドでURLエンコードが行われる場合、二重エンコードを避ける
       params.base_url = cleanedBaseUrl;
       console.log(`Using cleaned base URL for links: ${cleanedBaseUrl}`);
     }
@@ -298,23 +307,287 @@ export class ApiClient {
   }
 
   /**
-     /**
    * LLMとのチャット
    * @param request チャットリクエスト
    * @returns チャットレスポンス
    */
   async sendChatMessage(request: ChatRequest): Promise<ChatResponse> {
-    try {
-      return await this.post<ChatResponse>('/chat/message', request);
-    } catch (error) {
-      console.error('Chat API error, using mock response:', error);
-      // モックデータを返す（開発用）
-      const { getMockChatResponse } = await import('./mock.service');
-      return getMockChatResponse(
-        request.messages, 
-        request.document_context
-      ) as ChatResponse;
+    return this.post<ChatResponse>('/chat/message', request);
+  }
+
+  /**
+   * LLMにクエリを送信
+   * @param request LLMクエリリクエスト
+   * @returns LLMレスポンス
+   */
+  async sendLLMQuery(request: LLMQueryRequest): Promise<LLMResponse> {
+    return this.post<LLMResponse>('/llm/query', request);
+  }
+
+  /**
+   * LLMの機能を取得
+   * @param provider プロバイダー名（オプション）
+   * @returns LLM機能情報
+   */
+  async getLLMCapabilities(provider?: string): Promise<Record<string, any>> {
+    const params = provider ? { provider } : {};
+    return this.get<Record<string, any>>('/llm/capabilities', { params });
+  }
+
+  /**
+   * 利用可能なテンプレート一覧を取得
+   * @returns テンプレートID配列
+   */
+  async getLLMTemplates(): Promise<string[]> {
+    return this.get<string[]>('/llm/templates');
+  }
+
+  /**
+   * プロンプトテンプレートをフォーマット
+   * @param templateId テンプレートID
+   * @param variables テンプレート変数
+   * @returns フォーマットされたプロンプト
+   */
+  async formatPrompt(
+    templateId: string, 
+    variables: Record<string, any>
+  ): Promise<string> {
+    return this.post<string>(
+      `/llm/format-prompt?template_id=${templateId}`, 
+      variables
+    );
+  }
+
+  /**
+   * LLMにストリーミングクエリを送信
+   * @param request LLMストリーミングリクエスト
+   * @param callbacks ストリーミングイベントのコールバック関数
+   * @returns イベントソースを閉じるためのクリーンアップ関数
+   */
+  streamLLMQuery(
+    request: LLMStreamingRequest, 
+    callbacks: {
+      onStart?: (data: StreamingLLMResponse['data']) => void;
+      onToken?: (token: string) => void;
+      onError?: (error: string) => void;
+      onEnd?: (data: StreamingLLMResponse['data']) => void;
     }
+  ): () => void {
+    // リクエストがストリーミングを要求していることを確認
+    const streamingRequest = {
+      ...request,
+      stream: true
+    };
+    
+    // URL構築
+    const baseUrl = this.baseUrl.endsWith('/') 
+      ? this.baseUrl.slice(0, -1) 
+      : this.baseUrl;
+    const url = `${baseUrl}/api/v1/llm/stream`;
+    
+    // クエリパラメータの構築
+    const params = new URLSearchParams();
+    if (request.provider) params.append('provider', request.provider);
+    if (request.model) params.append('model', request.model);
+    if (request.disable_cache) params.append('disable_cache', 'true');
+    
+    // URLにクエリパラメータを追加
+    const fullUrl = `${url}?${params.toString()}`;
+    
+    // イベントソースの作成
+    const eventSource = new EventSource(fullUrl);
+    
+    // 開始イベントハンドラ
+    eventSource.addEventListener('start', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        callbacks.onStart?.(data);
+      } catch (error) {
+        console.error('SSE start event parsing error:', error);
+      }
+    });
+    
+    // トークンイベントハンドラ
+    eventSource.addEventListener('token', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        callbacks.onToken?.(data.content || '');
+      } catch (error) {
+        console.error('SSE token event parsing error:', error);
+      }
+    });
+    
+    // エラーイベントハンドラ
+    eventSource.addEventListener('error', (event) => {
+      try {
+        if (event.data) {
+          const data = JSON.parse(event.data);
+          callbacks.onError?.(data.error || 'Unknown streaming error');
+        } else {
+          callbacks.onError?.('Connection error');
+        }
+      } catch (error) {
+        console.error('SSE error event parsing error:', error);
+        callbacks.onError?.('Error parsing error event');
+      }
+      // エラー時にはイベントソースを閉じる
+      eventSource.close();
+    });
+    
+    // 終了イベントハンドラ
+    eventSource.addEventListener('end', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        callbacks.onEnd?.(data);
+      } catch (error) {
+        console.error('SSE end event parsing error:', error);
+      }
+      // 終了時にはイベントソースを閉じる
+      eventSource.close();
+    });
+    
+    // イベントソースの一般的なエラーハンドラ
+    eventSource.onerror = (error) => {
+      console.error('EventSource error:', error);
+      callbacks.onError?.('EventSource connection error');
+      eventSource.close();
+    };
+    
+    // POST本文のJSONデータ
+    const jsonData = JSON.stringify(streamingRequest);
+    
+    // fetchを使用してPOSTリクエストを送信し、EventSourceを開始
+    fetch(fullUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonData,
+    }).catch((error) => {
+      console.error('Fetch error for streaming request:', error);
+      callbacks.onError?.(`Failed to initiate streaming request: ${error.message}`);
+      eventSource.close();
+    });
+    
+    // クリーンアップ関数を返す
+    return () => {
+      eventSource.close();
+    };
+  }
+
+  /**
+   * LLMにストリーミングチャットメッセージを送信
+   * @param request チャットリクエスト
+   * @param callbacks ストリーミングイベントのコールバック関数
+   * @returns イベントソースを閉じるためのクリーンアップ関数
+   */
+  streamChatMessage(
+    request: ChatRequest & { stream?: boolean }, 
+    callbacks: {
+      onStart?: (data: StreamingLLMResponse['data']) => void;
+      onToken?: (token: string) => void;
+      onError?: (error: string) => void;
+      onEnd?: (data: StreamingLLMResponse['data']) => void;
+    }
+  ): () => void {
+    // リクエストがストリーミングを要求していることを確認
+    const streamingRequest = {
+      ...request,
+      stream: true
+    };
+    
+    // URL構築
+    const baseUrl = this.baseUrl.endsWith('/') 
+      ? this.baseUrl.slice(0, -1) 
+      : this.baseUrl;
+    const url = `${baseUrl}/api/v1/chat/stream`;
+    
+    // クエリパラメータの構築
+    const params = new URLSearchParams();
+    if (request.model) params.append('model', request.model);
+    
+    // URLにクエリパラメータを追加
+    const fullUrl = `${url}?${params.toString()}`;
+    
+    // イベントソースの作成
+    const eventSource = new EventSource(fullUrl);
+    
+    // 開始イベントハンドラ
+    eventSource.addEventListener('start', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        callbacks.onStart?.(data);
+      } catch (error) {
+        console.error('SSE start event parsing error:', error);
+      }
+    });
+    
+    // トークンイベントハンドラ
+    eventSource.addEventListener('token', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        callbacks.onToken?.(data.content || '');
+      } catch (error) {
+        console.error('SSE token event parsing error:', error);
+      }
+    });
+    
+    // エラーイベントハンドラ
+    eventSource.addEventListener('error', (event) => {
+      try {
+        if (event.data) {
+          const data = JSON.parse(event.data);
+          callbacks.onError?.(data.error || 'Unknown streaming error');
+        } else {
+          callbacks.onError?.('Connection error');
+        }
+      } catch (error) {
+        console.error('SSE error event parsing error:', error);
+        callbacks.onError?.('Error parsing error event');
+      }
+      // エラー時にはイベントソースを閉じる
+      eventSource.close();
+    });
+    
+    // 終了イベントハンドラ
+    eventSource.addEventListener('end', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        callbacks.onEnd?.(data);
+      } catch (error) {
+        console.error('SSE end event parsing error:', error);
+      }
+      // 終了時にはイベントソースを閉じる
+      eventSource.close();
+    });
+    
+    // イベントソースの一般的なエラーハンドラ
+    eventSource.onerror = (error) => {
+      console.error('EventSource error:', error);
+      callbacks.onError?.('EventSource connection error');
+      eventSource.close();
+    };
+    
+    // POST本文のJSONデータ
+    const jsonData = JSON.stringify(streamingRequest);
+    
+    // fetchを使用してPOSTリクエストを送信し、EventSourceを開始
+    fetch(fullUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonData,
+    }).catch((error) => {
+      console.error('Fetch error for streaming request:', error);
+      callbacks.onError?.(`Failed to initiate streaming request: ${error.message}`);
+      eventSource.close();
+    });
+    
+    // クリーンアップ関数を返す
+    return () => {
+      eventSource.close();
+    };
   }
 }
 

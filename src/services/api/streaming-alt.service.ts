@@ -52,7 +52,13 @@ export function streamLLMQueryWithFetch(
     let buffer = ''
     
     // トークンコンテンツを抽出するヘルパー関数
-    function extractTokenContent(parsedData: any): string {
+    function extractTokenContent(parsedData: any): string | null {
+      // doneフィールドがtrueの場合は終了信号なのでコンテンツとして扱わない
+      if (parsedData.done === true || parsedData.done === "true") {
+        console.log('Stream done signal detected, ending stream')
+        return null
+      }
+      
       if (parsedData.text) {
         console.log('Found text field:', parsedData.text)
         return parsedData.text
@@ -63,8 +69,8 @@ export function streamLLMQueryWithFetch(
         console.log('Data is string:', parsedData)
         return parsedData
       } else {
-        console.log('No recognizable content, stringifying:', parsedData)
-        return JSON.stringify(parsedData)
+        console.log('No recognizable content, returning null')
+        return null
       }
     }
 
@@ -89,9 +95,18 @@ export function streamLLMQueryWithFetch(
             callbacks.onStart?.(parsedData)
             break
           case 'token':
+            // doneフィールドをチェック
+            if (parsedData.done === true || parsedData.done === "true") {
+              console.log('Stream done signal detected, ending stream')
+              callbacks.onEnd?.(parsedData)
+              return
+            }
+            
             const tokenContent = extractTokenContent(parsedData)
-            console.log('Processing token event with extracted content:', tokenContent)
-            callbacks.onToken?.(tokenContent)
+            if (tokenContent !== null) {
+              console.log('Processing token event with extracted content:', tokenContent)
+              callbacks.onToken?.(tokenContent)
+            }
             break
           case 'end':
             console.log('Processing end event:', parsedData)
@@ -103,8 +118,14 @@ export function streamLLMQueryWithFetch(
             break
           default:
             // 不明なイベントタイプの場合、内容によって処理
+            if (parsedData.done === true || parsedData.done === "true") {
+              console.log('Stream done signal detected in default case, ending stream')
+              callbacks.onEnd?.(parsedData)
+              return
+            }
+            
             const defaultContent = extractTokenContent(parsedData)
-            if (defaultContent) {
+            if (defaultContent !== null) {
               console.log('Processing unknown event type as token:', defaultContent)
               callbacks.onToken?.(defaultContent)
             }
@@ -181,9 +202,19 @@ export function streamLLMQueryWithFetch(
           try {
             // JSONとして解析を試みる
             const parsedData = JSON.parse(line)
+            
+            // doneフィールドをチェック
+            if (parsedData.done === true || parsedData.done === "true") {
+              console.log('Stream done signal detected in non-SSE line, ending stream')
+              callbacks.onEnd?.(parsedData)
+              return
+            }
+            
             const tokenContent = extractTokenContent(parsedData)
-            console.log('Calling onToken with extracted content:', tokenContent)
-            callbacks.onToken?.(tokenContent)
+            if (tokenContent !== null) {
+              console.log('Calling onToken with extracted content:', tokenContent)
+              callbacks.onToken?.(tokenContent)
+            }
           } catch (e) {
             // JSONではない場合、単純なテキストトークンとして扱う
             console.log('Calling onToken with raw line:', line)

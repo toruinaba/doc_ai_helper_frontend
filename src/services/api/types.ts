@@ -195,6 +195,49 @@ export interface MessageItem {
   timestamp?: string;
 }
 
+// 新しいリポジトリコンテキスト型定義（OpenAPI仕様に基づく）
+export interface RepositoryContext {
+  service: GitService;
+  owner: string;
+  repo: string;
+  ref?: string;
+  current_path?: string | null;
+  base_url?: string | null;
+}
+
+// Git サービス列挙型（OpenAPI仕様に基づく）
+export enum GitService {
+  GitHub = "github",
+  GitLab = "gitlab",
+  Bitbucket = "bitbucket"
+}
+
+// ドキュメントメタデータ（入力用）- OpenAPI仕様に基づく
+export interface DocumentMetadataInput {
+  title?: string | null;
+  type: DocumentTypeInput;
+  filename?: string | null;
+  file_extension?: string | null;
+  last_modified?: string | null;
+  file_size?: number | null;
+  encoding?: string;
+  language?: string | null;
+}
+
+// ドキュメントタイプ（入力用）- OpenAPI仕様に基づく
+export enum DocumentTypeInput {
+  Markdown = "markdown",
+  Html = "html",
+  Text = "text",
+  Python = "python",
+  JavaScript = "javascript",
+  TypeScript = "typescript",
+  Json = "json",
+  Yaml = "yaml",
+  Xml = "xml",
+  Other = "other"
+}
+
 // MCPツール関連の型定義
 export interface FunctionCall {
   name: string;                    // 関数名
@@ -217,6 +260,14 @@ export interface LLMQueryRequest {
   conversation_history?: MessageItem[]; // 会話の履歴（コンテキスト用）
   enable_tools?: boolean;          // MCPツールを有効にするかどうか（デフォルト: false）
   tool_choice?: string;            // ツール選択戦略: 'auto', 'none', 'required', または特定の関数名（デフォルト: 'auto'）
+  complete_tool_flow?: boolean;    // 完全なツールフローを使用するかどうか（デフォルト: true）
+  
+  // 新しいフィールド（OpenAPI仕様に基づく）
+  repository_context?: RepositoryContext | null;        // リポジトリコンテキスト情報
+  document_metadata?: DocumentMetadataInput | null;     // ドキュメントメタデータ
+  document_content?: string | null;                     // ドキュメントコンテンツ
+  include_document_in_system_prompt?: boolean;          // システムプロンプトにドキュメントを含めるかどうか（デフォルト: true）
+  system_prompt_template?: string | null;               // システムプロンプトテンプレートID（デフォルト: "contextual_document_assistant_ja"）
 }
 
 export interface LLMResponse {
@@ -298,7 +349,7 @@ export interface MCPToolConfig {
 }
 
 // MCPツール実行モードの型定義
-export type ToolExecutionMode = 'auto' | 'confirm';
+export type ToolExecutionMode = 'auto' | 'required';
 
 // MCPツール管理状態の型定義
 export interface MCPToolsState {

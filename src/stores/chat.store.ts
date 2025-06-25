@@ -15,13 +15,14 @@ import {
 } from '../services/api/chat.service';
 import { useDocumentStore } from './document.store';
 import { useRepositoryStore } from './repository.store';
-import { getDefaultRepositoryConfig } from '../utils/config.util';
+import { getDefaultRepositoryConfig, type DocumentContextConfig } from '../utils/config.util';
 import type { 
   ChatMessage,
   LLMQueryRequest,
   LLMResponse,
   MessageItem,
-  ToolCall
+  ToolCall,
+  ToolExecutionMode
 } from '../services/api/types';
 
 export interface ClientChatMessage {
@@ -52,6 +53,7 @@ export interface MCPToolsConfig {
   enabled: boolean;
   autoDetect: boolean;
   defaultToolChoice: string;
+  executionMode: ToolExecutionMode;
   enableProgressMonitoring: boolean;
   enableDetailedLogging: boolean;
 }
@@ -72,6 +74,7 @@ export const useChatStore = defineStore('chat', () => {
     enabled: true,
     autoDetect: true,
     defaultToolChoice: 'auto',
+    executionMode: 'auto',
     enableProgressMonitoring: true,
     enableDetailedLogging: true
   });
@@ -209,7 +212,17 @@ export const useChatStore = defineStore('chat', () => {
       // ツール使用の判定
       const toolRecommendation = shouldUseMCPTools(content, mcpToolsConfig.value.autoDetect);
       const useTools = mcpToolsConfig.value.enabled && toolRecommendation.recommended;
-      const toolChoice = forceToolChoice || toolRecommendation.toolChoice;
+      
+      // executionModeに基づいてtoolChoiceを設定
+      let toolChoice: string;
+      if (forceToolChoice) {
+        toolChoice = forceToolChoice;
+      } else if (useTools) {
+        // MCPツールが有効な場合は、executionModeに基づいて決定
+        toolChoice = mcpToolsConfig.value.executionMode; // 'auto' または 'required'
+      } else {
+        toolChoice = 'none';
+      }
       
       console.log('Tool recommendation:', toolRecommendation);
       console.log('Using tools:', useTools, 'Tool choice:', toolChoice);
@@ -513,9 +526,7 @@ ${currentDoc.content.content}`;
             error.value = errorMsg;
             
             // エラーメッセージを表示
-            if (error.value) {
-              addSystemMessage(`エラー: ${error.value}`);
-            }
+            addSystemMessage(`エラー: ${errorMsg}`);
           },
           onEnd: (data) => {
             console.log('Streaming completed with usage:', data?.usage);
@@ -572,13 +583,327 @@ ${currentDoc.content.content}`;
     }
   }
   
+  // 新しいバックエンド仕様に対応したストリーミングメッセージ送信
+  async function sendStreamingMessageWithConfig(content: string, config?: Partial<DocumentContextConfig>) {
+    console.log('Start sending streaming message with config:', content, config);
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      // ユーザーメッセージを追加
+      addUserMessage(content);
+      
+      // 現在のドキュメントコンテキストを取得
+      const currentDoc = documentStore.currentDocument;
+      
+      // 設定とデフォルトをマージ
+      const effectiveConfig = {
+        includeDocumentInSystemPrompt: true,
+        systemPromptTemplate: 'contextual_document_assistant_ja',
+        enableRepositoryContext: true,
+        enableDocumentMetadata: true,
+        completeToolFlow: true,
+        ...config
+      };
+      
+      console.log('📋 Streaming with document context config:', effectiveConfig);
+      
+      // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
+      const service = documentStore.currentService || defaultConfig.service;
+      const owner = documentStore.currentOwner || defaultConfig.owner;
+      const repo = documentStore.currentRepo || defaultConfig.repo;
+      const path = documentStore.currentPath || defaultConfig.path;
+      const ref = documentStore.currentRef || defaultConfig.ref;
+      
+      // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
+      const conversationHistory = messages.value.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+      
+      // 新しいバックエンド仕様に合わせたLLMクエリリクエストの構築
+      const request: LLMQueryRequest = {
+        prompt: content,
+        context_documents: [path],
+        conversation_history: conversationHistory,
+        
+        // 新しいフィールド：リポジトリコンテキスト
+        repository_context: (effectiveConfig.enableRepositoryContext && currentDoc) ? {
+          service: currentDoc.service as any,
+          owner: currentDoc.owner,
+          repo: currentDoc.repository,
+          ref: currentDoc.ref || 'main',
+          current_path: currentDoc.path,
+          base_url: null
+        } : null,
+        
+        // 新しいフィールド：ドキュメントメタデータ
+        document_metadata: (effectiveConfig.enableDocumentMetadata && currentDoc) ? {
+          title: currentDoc.name,
+          type: 'markdown' as any,
+          filename: currentDoc.name,
+          file_extension: currentDoc.name.includes('.') ? currentDoc.name.split('.').pop() || null : null,
+          last_modified: currentDoc.metadata.last_modified,
+          file_size: currentDoc.metadata.size,
+          encoding: currentDoc.content.encoding || 'utf-8',
+          language: null
+        } : null,
+        
+        // 新しいフィールド：ドキュメントコンテンツ
+        document_content: (effectiveConfig.includeDocumentInSystemPrompt && currentDoc) 
+          ? currentDoc.content.content 
+          : null,
+        
+        // 新しいフィールド：システムプロンプト設定
+        include_document_in_system_prompt: effectiveConfig.includeDocumentInSystemPrompt,
+        system_prompt_template: effectiveConfig.systemPromptTemplate,
+        
+        // MCPツール設定
+        enable_tools: false, // 通常のストリーミングではツールを無効
+        complete_tool_flow: effectiveConfig.completeToolFlow
+      };
+      
+      console.log('🌊 Sending streaming request with new backend specification:', {
+        hasRepositoryContext: !!request.repository_context,
+        hasDocumentMetadata: !!request.document_metadata,
+        hasDocumentContent: !!request.document_content,
+        includeDocumentInSystemPrompt: request.include_document_in_system_prompt,
+        systemPromptTemplate: request.system_prompt_template
+      });
+      
+      // リポジトリコンテキストの詳細をログ出力
+      if (request.repository_context) {
+        console.log('📁 Repository context details:', {
+          service: request.repository_context.service,
+          owner: request.repository_context.owner,
+          repo: request.repository_context.repo,
+          ref: request.repository_context.ref,
+          current_path: request.repository_context.current_path,
+          base_url: request.repository_context.base_url
+        });
+      } else {
+        console.log('❌ No repository context included in request');
+        console.log('Current document data:', {
+          hasCurrentDoc: !!currentDoc,
+          docService: currentDoc?.service,
+          docOwner: currentDoc?.owner,
+          docRepo: currentDoc?.repository,
+          enableRepositoryContext: effectiveConfig.enableRepositoryContext
+        });
+      }
+      
+      // 送信する完全なリクエストオブジェクトもログ出力
+      console.log('📦 Complete request object to be sent:', JSON.stringify(request, null, 2));
+      
+      // アシスタントの空メッセージを追加（ストリーミング表示用）
+      const assistantMessage = addAssistantMessage('');
+      let accumulatedContent = '';
+      
+      // chat.service.tsからストリーミング関数をインポート
+      const { streamLLMQuery } = await import('../services/api/chat.service');
+      
+      // ストリーミングコールバックの設定
+      const cleanup = streamLLMQuery(
+        request,
+        {
+          onStart: (data) => {
+            console.log('Streaming started with model:', data?.model);
+          },
+          onToken: (token) => {
+            console.log('Received token in chat store:', token);
+            // 新しいトークンを受信したら累積コンテンツに追加
+            accumulatedContent += token;
+            console.log('Accumulated content so far:', accumulatedContent);
+            
+            // アシスタントメッセージを更新
+            const messageIndex = messages.value.findIndex(m => m.id === assistantMessage.id);
+            console.log('Found message at index:', messageIndex, 'with ID:', assistantMessage.id);
+            if (messageIndex !== -1) {
+              // Vueのリアクティビティを確実にトリガーするため、新しいオブジェクトを作成
+              messages.value[messageIndex] = {
+                ...messages.value[messageIndex],
+                content: accumulatedContent
+              };
+            }
+          },
+          onError: (errorMsg) => {
+            console.error('Streaming error:', errorMsg);
+            error.value = errorMsg;
+            
+            // エラーメッセージを表示
+            addSystemMessage(`ストリーミングエラー: ${errorMsg}`);
+          },
+          onEnd: (data) => {
+            console.log('Streaming ended');
+            console.log('Final accumulated content:', accumulatedContent);
+            
+            // 最終的なメッセージ内容を確認
+            const finalMessage = messages.value.find(m => m.id === assistantMessage.id);
+            if (finalMessage) {
+              console.log('Final message content:', finalMessage.content);
+            }
+            
+            // 会話履歴の最適化があった場合は適用
+            if (data?.optimized_conversation_history && data.optimized_conversation_history.length > 0) {
+              console.log('🗂️ Server provided optimized conversation history for streaming:', 
+                data.optimized_conversation_history.length, 'messages');
+            }
+            
+            isLoading.value = false;
+          }
+        }
+      );
+      
+      console.log('Streaming message sent successfully with new specification');
+      
+      // AbortControllerを返す（必要に応じて中断できるように）
+      return {
+        abort: cleanup || (() => {})
+      };
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown streaming error occurred';
+      console.error('Error sending streaming message with config:', err);
+      error.value = errorMessage;
+      
+      // エラーメッセージを表示
+      addSystemMessage(`ストリーミングエラーが発生しました: ${errorMessage}`);
+      isLoading.value = false;
+      
+      return {
+        abort: () => {}
+      };
+    }
+  }
+  
   // MCPツール対応ストリーミングメッセージ送信
-  async function sendStreamingMessageWithTools(
+  // 新しいバックエンド仕様に対応したメッセージ送信（設定付き）
+  async function sendMessageWithConfig(content: string, config?: Partial<DocumentContextConfig>) {
+    console.log('Start sending message with config:', content, config);
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      // ユーザーメッセージを追加
+      addUserMessage(content);
+      
+      // 現在のドキュメントコンテキストを取得
+      const currentDoc = documentStore.currentDocument;
+      
+      // 設定とデフォルトをマージ
+      const effectiveConfig = {
+        includeDocumentInSystemPrompt: true,
+        systemPromptTemplate: 'contextual_document_assistant_ja',
+        enableRepositoryContext: true,
+        enableDocumentMetadata: true,
+        completeToolFlow: true,
+        ...config
+      };
+      
+      console.log('📋 Message with document context config:', effectiveConfig);
+      
+      // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
+      const service = documentStore.currentService || defaultConfig.service;
+      const owner = documentStore.currentOwner || defaultConfig.owner;
+      const repo = documentStore.currentRepo || defaultConfig.repo;
+      const path = documentStore.currentPath || defaultConfig.path;
+      const ref = documentStore.currentRef || defaultConfig.ref;
+      
+      // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
+      const conversationHistory = messages.value.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+      
+      // 新しいバックエンド仕様に合わせたLLMクエリリクエストの構築
+      const request: LLMQueryRequest = {
+        prompt: content,
+        context_documents: [path],
+        conversation_history: conversationHistory,
+        
+        // 新しいフィールド：リポジトリコンテキスト
+        repository_context: (effectiveConfig.enableRepositoryContext && currentDoc) ? {
+          service: currentDoc.service as any,
+          owner: currentDoc.owner,
+          repo: currentDoc.repository,
+          ref: currentDoc.ref || 'main',
+          current_path: currentDoc.path,
+          base_url: null
+        } : null,
+        
+        // 新しいフィールド：ドキュメントメタデータ
+        document_metadata: (effectiveConfig.enableDocumentMetadata && currentDoc) ? {
+          title: currentDoc.name,
+          type: 'markdown' as any,
+          filename: currentDoc.name,
+          file_extension: currentDoc.name.includes('.') ? currentDoc.name.split('.').pop() || null : null,
+          last_modified: currentDoc.metadata.last_modified,
+          file_size: currentDoc.metadata.size,
+          encoding: currentDoc.content.encoding || 'utf-8',
+          language: null
+        } : null,
+        
+        // 新しいフィールド：ドキュメントコンテンツ
+        document_content: (effectiveConfig.includeDocumentInSystemPrompt && currentDoc) 
+          ? currentDoc.content.content 
+          : null,
+        
+        // 新しいフィールド：システムプロンプト設定
+        include_document_in_system_prompt: effectiveConfig.includeDocumentInSystemPrompt,
+        system_prompt_template: effectiveConfig.systemPromptTemplate,
+        
+        // MCPツール設定
+        enable_tools: false, // 通常のメッセージ送信ではツールを無効
+        complete_tool_flow: effectiveConfig.completeToolFlow
+      };
+      
+      console.log('� Sending message request with new backend specification:', {
+        hasRepositoryContext: !!request.repository_context,
+        hasDocumentMetadata: !!request.document_metadata,
+        hasDocumentContent: !!request.document_content,
+        includeDocumentInSystemPrompt: request.include_document_in_system_prompt,
+        systemPromptTemplate: request.system_prompt_template
+      });
+      
+      // chat.service.tsのsendLLMQuery関数を使用
+      const { sendLLMQuery } = await import('../services/api/chat.service');
+      const response = await sendLLMQuery(request);
+      
+      // レスポンスを処理
+      if (response.content) {
+        addAssistantMessage(response.content);
+        
+        // 会話履歴の最適化があった場合は適用
+        if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
+          console.log('🗂️ Server provided optimized conversation history:', 
+            response.optimized_conversation_history.length, 'messages');
+        }
+      }
+      
+      console.log('Message sent successfully with new specification');
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Error sending message with config:', err);
+      error.value = errorMessage;
+      
+      // エラーメッセージを表示
+      addSystemMessage(`エラーが発生しました: ${errorMessage}`);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
+  // 新しいバックエンド仕様に対応したMCPツール付きストリーミングメッセージ送信
+  async function sendStreamingMessageWithToolsAndConfig(
     content: string, 
+    config?: Partial<DocumentContextConfig>,
     onToken?: (token: string) => void,
     forceToolChoice?: string
   ) {
-    console.log('Start streaming message with MCP tools:', content);
+    console.log('Start streaming message with MCP tools and config:', content, config);
     isLoading.value = true;
     isStreamingWithTools.value = true;
     error.value = null;
@@ -592,10 +917,32 @@ ${currentDoc.content.content}`;
       // ユーザーメッセージを追加
       const userMessage = addUserMessage(content);
       
+      // 設定とデフォルトをマージ
+      const effectiveConfig = {
+        includeDocumentInSystemPrompt: true,
+        systemPromptTemplate: 'contextual_document_assistant_ja',
+        enableRepositoryContext: true,
+        enableDocumentMetadata: true,
+        completeToolFlow: true,
+        ...config
+      };
+      
+      console.log('📋 Streaming MCP tools with document context config:', effectiveConfig);
+      
       // ツール使用の判定
       const toolRecommendation = shouldUseMCPTools(content, mcpToolsConfig.value.autoDetect);
       const useTools = mcpToolsConfig.value.enabled && toolRecommendation.recommended;
-      const toolChoice = forceToolChoice || toolRecommendation.toolChoice;
+      
+      // executionModeに基づいてtoolChoiceを設定
+      let toolChoice: string;
+      if (forceToolChoice) {
+        toolChoice = forceToolChoice;
+      } else if (useTools) {
+        // MCPツールが有効な場合は、executionModeに基づいて決定
+        toolChoice = mcpToolsConfig.value.executionMode; // 'auto' または 'required'
+      } else {
+        toolChoice = 'none';
+      }
       
       console.log('Streaming with tools - Tool recommendation:', toolRecommendation);
       console.log('Using tools:', useTools, 'Tool choice:', toolChoice);
@@ -607,23 +954,6 @@ ${currentDoc.content.content}`;
         throw new Error('ドキュメントが選択されていません');
       }
       
-      // リポジトリ情報を取得
-      const service = documentStore.currentService || defaultConfig.service;
-      const owner = documentStore.currentOwner || defaultConfig.owner;
-      const repo = documentStore.currentRepo || defaultConfig.repo;
-      const ref = documentStore.currentRef || defaultConfig.ref;
-      const path = currentDoc.path;
-      
-      // ドキュメントコンテキストを含むシステムプロンプトを作成
-      const documentContext = `以下のドキュメントに関する質問に答えてください：
-
-リポジトリ: ${service}/${owner}/${repo}
-ファイル: ${path}
-ブランチ: ${ref}
-
-ドキュメント内容:
-${currentDoc.content.content}`;
-      
       // 会話履歴を構築
       const conversationHistory: MessageItem[] = messages.value.map(msg => ({
         role: msg.role,
@@ -631,13 +961,57 @@ ${currentDoc.content.content}`;
         timestamp: msg.timestamp.toISOString()
       }));
       
-      // LLMクエリリクエストを構築
+      // 新しいバックエンド仕様に合わせたLLMクエリリクエストを構築
       const request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'> = {
         prompt: content,
         conversation_history: conversationHistory,
-        context_documents: [path],
-        provider: 'openai'
+        context_documents: [currentDoc.path],
+        provider: 'openai',
+        
+        // 新しいフィールド：リポジトリコンテキスト
+        repository_context: (effectiveConfig.enableRepositoryContext && currentDoc) ? {
+          service: currentDoc.service as any,
+          owner: currentDoc.owner,
+          repo: currentDoc.repository,
+          ref: currentDoc.ref || 'main',
+          current_path: currentDoc.path,
+          base_url: null
+        } : null,
+        
+        // 新しいフィールド：ドキュメントメタデータ
+        document_metadata: (effectiveConfig.enableDocumentMetadata && currentDoc) ? {
+          title: currentDoc.name,
+          type: 'markdown' as any,
+          filename: currentDoc.name,
+          file_extension: currentDoc.name.includes('.') ? currentDoc.name.split('.').pop() || null : null,
+          last_modified: currentDoc.metadata.last_modified,
+          file_size: currentDoc.metadata.size,
+          encoding: currentDoc.content.encoding || 'utf-8',
+          language: null
+        } : null,
+        
+        // 新しいフィールド：ドキュメントコンテンツ
+        document_content: (effectiveConfig.includeDocumentInSystemPrompt && currentDoc) 
+          ? currentDoc.content.content 
+          : null,
+        
+        // 新しいフィールド：システムプロンプト設定
+        include_document_in_system_prompt: effectiveConfig.includeDocumentInSystemPrompt,
+        system_prompt_template: effectiveConfig.systemPromptTemplate,
+        
+        // 完全なツールフロー設定
+        complete_tool_flow: effectiveConfig.completeToolFlow
       };
+      
+      console.log('🌊🛠️ Sending streaming MCP tools request with new backend specification:', {
+        hasRepositoryContext: !!request.repository_context,
+        hasDocumentMetadata: !!request.document_metadata,
+        hasDocumentContent: !!request.document_content,
+        includeDocumentInSystemPrompt: request.include_document_in_system_prompt,
+        systemPromptTemplate: request.system_prompt_template,
+        useTools,
+        toolChoice
+      });
       
       // ストリーミング用の暫定アシスタントメッセージを作成
       const assistantMessage = addAssistantMessage('');
@@ -646,79 +1020,31 @@ ${currentDoc.content.content}`;
       // ストリーミングコールバック
       const callbacks = {
         onStart: (data?: any) => {
-          console.log('🚀 MCP tools streaming started:', data);
+          console.log('🚀 MCP tools streaming started with new backend specification:', data);
         },
         onToken: (token: string) => {
-          console.log('📝 Received token:', token.substring(0, 50) + (token.length > 50 ? '...' : ''));
+          console.log('🎯 MCP tools token received:', token);
           accumulatedContent += token;
           
-          // Vueのリアクティビティを確実にトリガーするため、配列全体を新しい配列で置き換える
-          const messageIndex = messages.value.findIndex(msg => msg.id === assistantMessage.id);
+          // アシスタントメッセージを更新
+          const messageIndex = messages.value.findIndex(m => m.id === assistantMessage.id);
           if (messageIndex !== -1) {
-            // 新しい配列を作成して置き換え
-            const newMessages = [...messages.value];
-            newMessages[messageIndex] = {
-              ...newMessages[messageIndex],
+            messages.value[messageIndex] = {
+              ...messages.value[messageIndex],
               content: accumulatedContent
             };
-            messages.value = newMessages;
-            console.log('📝 Updated assistant message via full array replacement, content length:', accumulatedContent.length);
-            console.log('📝 Message content preview:', accumulatedContent.substring(0, 100) + (accumulatedContent.length > 100 ? '...' : ''));
-          } else {
-            // フォールバック: 直接更新
-            assistantMessage.content = accumulatedContent;
-            console.log('📝 Updated assistant message directly (fallback), content length:', accumulatedContent.length);
           }
           
+          // 外部のコールバック関数があれば呼び出し
           onToken?.(token);
         },
         onToolCall: (toolCall: any) => {
-          console.log('🛠️ Tool call in streaming:', toolCall);
+          console.log('🛠️ Tool call detected during streaming:', toolCall);
           const execution = startToolExecution(toolCall);
           updateToolExecutionStatus(execution.id, 'running');
-          
-          // ツール実行情報をメッセージに追加（配列全体を置き換え）
-          const messageIndex = messages.value.findIndex(msg => msg.id === assistantMessage.id);
-          if (messageIndex !== -1) {
-            const newMessages = [...messages.value];
-            const currentToolCalls = newMessages[messageIndex].toolCalls || [];
-            newMessages[messageIndex] = {
-              ...newMessages[messageIndex],
-              toolCalls: [...currentToolCalls, toolCall]
-            };
-            messages.value = newMessages;
-            console.log('🛠️ Added tool call to message via full array replacement, total calls:', newMessages[messageIndex].toolCalls?.length);
-          } else {
-            // フォールバック: 直接更新
-            if (!assistantMessage.toolCalls) {
-              assistantMessage.toolCalls = [];
-            }
-            assistantMessage.toolCalls.push(toolCall);
-            console.log('🛠️ Added tool call to message directly (fallback), total calls:', assistantMessage.toolCalls.length);
-          }
         },
         onToolResult: (result: any) => {
-          console.log('📊 Tool result in streaming:', result);
-          
-          // ツール実行結果をメッセージに追加（配列全体を置き換え）
-          const messageIndex = messages.value.findIndex(msg => msg.id === assistantMessage.id);
-          if (messageIndex !== -1) {
-            const newMessages = [...messages.value];
-            const currentToolResults = newMessages[messageIndex].toolResults || [];
-            newMessages[messageIndex] = {
-              ...newMessages[messageIndex],
-              toolResults: [...currentToolResults, result]
-            };
-            messages.value = newMessages;
-            console.log('📊 Added tool result to message via full array replacement, total results:', newMessages[messageIndex].toolResults?.length);
-          } else {
-            // フォールバック: 直接更新
-            if (!assistantMessage.toolResults) {
-              assistantMessage.toolResults = [];
-            }
-            assistantMessage.toolResults.push(result);
-            console.log('📊 Added tool result to message directly (fallback), total results:', assistantMessage.toolResults.length);
-          }
+          console.log('🎯 Tool result received during streaming:', result);
           
           // 対応するツール実行を完了状態に更新
           const execution = activeToolExecutions.value.find(exec => 
@@ -728,101 +1054,53 @@ ${currentDoc.content.content}`;
             updateToolExecutionStatus(execution.id, 'completed', result);
           }
         },
-        onError: (error: string) => {
-          console.error('MCP tools streaming error:', error);
-          assistantMessage.content = `エラーが発生しました: ${error}`;
-          
-          // アクティブなツール実行をエラー状態に更新
-          activeToolExecutions.value.forEach(execution => {
-            updateToolExecutionStatus(execution.id, 'error', undefined, error);
-          });
+        onError: (errorMsg: string) => {
+          console.error('🚨 MCP tools streaming error:', errorMsg);
+          error.value = errorMsg;
+          addSystemMessage(`MCPツールストリーミングエラー: ${errorMsg}`);
+          isStreamingWithTools.value = false;
         },
         onEnd: (data?: any) => {
-          console.log('🏁 MCP tools streaming ended:', data);
-          console.log('🏁 Final assistant message content length:', assistantMessage.content.length);
-          console.log('🏁 Final assistant message preview:', assistantMessage.content.substring(0, 100) + (assistantMessage.content.length > 100 ? '...' : ''));
+          console.log('✅ MCP tools streaming ended with new backend specification');
+          console.log('Final accumulated content:', accumulatedContent);
           
-          // MCPツール使用時は最適化された会話履歴で置き換えしない
-          // 現在のUI表示を維持し、最適化は次回のリクエスト時に透過的に適用される
-          if (data?.optimized_conversation_history) {
-            console.log('🗂️ Server provided optimized conversation history from MCP streaming');
-            console.log('🗂️ Keeping current UI messages, optimization will be applied transparently in next request');
+          // 会話履歴の最適化があった場合は適用
+          if (data?.optimized_conversation_history && data.optimized_conversation_history.length > 0) {
+            console.log('🗂️ Server provided optimized conversation history for MCP tools streaming:', 
+              data.optimized_conversation_history.length, 'messages');
           }
           
-          // ツール実行を完了状態に更新
-          activeToolExecutions.value.forEach(execution => {
-            if (execution.status === 'running') {
-              updateToolExecutionStatus(execution.id, 'completed');
-            }
-          });
+          isLoading.value = false;
+          isStreamingWithTools.value = false;
         }
       };
       
-      if (useTools) {
-        // MCPツール付きストリーミング
-        console.log('🛠️ Starting MCP tools streaming with request:', {
-          prompt: request.prompt,
-          toolChoice,
-          enableTools: true,
-          conversationHistoryLength: request.conversation_history?.length || 0
-        });
-        
-        const controller = await streamLLMQueryWithTools(
-          request,
-          true,
-          toolChoice,
-          callbacks,
-          documentContext
-        );
-        currentStreamController.value = controller;
-        console.log('🛠️ MCP tools streaming controller established');
-      } else {
-        // 通常のストリーミング（MCPツールなし）
-        console.log('Streaming without tools not implemented, falling back to non-streaming');
-        const response = await sendLLMQuery({ ...request, enable_tools: false }, documentContext);
-        
-        // レスポンスを単語ごとにストリーミング風に表示
-        const words = response.content.split(' ');
-        for (let i = 0; i < words.length; i++) {
-          const token = words[i] + (i < words.length - 1 ? ' ' : '');
-          accumulatedContent += token;
-          assistantMessage.content = accumulatedContent;
-          onToken?.(token);
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-      }
+      // chat.service.tsからMCPツール対応ストリーミング関数をインポートして実行
+      const { streamLLMQueryWithTools } = await import('../services/api/chat.service');
       
-      console.log('Streaming message with MCP tools completed');
-      console.log('📊 Final messages count:', messages.value.length);
-      console.log('📊 Last message preview:', {
-        role: messages.value[messages.value.length - 1]?.role,
-        contentLength: messages.value[messages.value.length - 1]?.content.length,
-        hasToolCalls: !!messages.value[messages.value.length - 1]?.toolCalls,
-        hasToolResults: !!messages.value[messages.value.length - 1]?.toolResults
-      });
+      const abortController = await streamLLMQueryWithTools(
+        request,
+        useTools,
+        toolChoice,
+        callbacks
+      );
+      
+      currentStreamController.value = abortController;
+      
+      console.log('MCP tools streaming message sent successfully with new backend specification');
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      console.error('Error in streaming message with MCP tools:', err);
+      console.error('Error sending streaming message with MCP tools and config:', err);
       error.value = errorMessage;
       
-      addSystemMessage(`ストリーミングエラー: ${errorMessage}`);
-    } finally {
+      // エラーメッセージを表示
+      addSystemMessage(`MCPツールストリーミングエラーが発生しました: ${errorMessage}`);
       isLoading.value = false;
       isStreamingWithTools.value = false;
-      currentStreamController.value = null;
     }
   }
-  
-  // ストリーミング中止
-  function stopStreaming() {
-    if (currentStreamController.value) {
-      currentStreamController.value.abort();
-      currentStreamController.value = null;
-      isStreamingWithTools.value = false;
-      console.log('Stopped MCP tools streaming');
-    }
-  }
-  
+
   return {
     // 基本状態
     messages,
@@ -852,11 +1130,12 @@ ${currentDoc.content.content}`;
     sendDirectQuery,
     sendTemplateQuery,
     sendStreamingMessage,
+    sendStreamingMessageWithConfig,
+    sendMessageWithConfig,
     
     // MCPツール対応関数
     sendMessageWithTools,
-    sendStreamingMessageWithTools,
-    stopStreaming,
+    sendStreamingMessageWithToolsAndConfig,
     
     // MCPツール管理
     updateMCPToolsConfig,

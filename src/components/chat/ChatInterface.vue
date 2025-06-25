@@ -3,6 +3,128 @@
     <div class="chat-header">
       <h2>ドキュメント AI チャット</h2>
       
+      <!-- 新しいドキュメントコンテキスト設定パネル -->
+      <div class="document-context-panel">
+        <div class="context-settings-header">
+          <Button 
+            icon="pi pi-file-text" 
+            size="small" 
+            text 
+            severity="secondary"
+            @click="showDocumentContextConfig = !showDocumentContextConfig"
+            v-tooltip.bottom="'ドキュメントコンテキスト設定'"
+            class="context-config-toggle"
+          />
+          <span class="context-status">
+            <i v-if="documentContextConfig.includeDocumentInSystemPrompt" 
+               class="pi pi-check-circle text-green-500" 
+               v-tooltip.bottom="'ドキュメントコンテキスト有効'" />
+            <i v-else 
+               class="pi pi-times-circle text-red-500" 
+               v-tooltip.bottom="'ドキュメントコンテキスト無効'" />
+          </span>
+        </div>
+        
+        <div v-if="showDocumentContextConfig" class="document-context-config">
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.includeDocumentInSystemPrompt" 
+                :binary="true" 
+                inputId="includeDocument" 
+              />
+              <label for="includeDocument">システムプロンプトにドキュメントを含める</label>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.enableRepositoryContext" 
+                :binary="true" 
+                inputId="enableRepoContext" 
+              />
+              <label for="enableRepoContext">リポジトリコンテキストを有効にする</label>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.enableDocumentMetadata" 
+                :binary="true" 
+                inputId="enableDocMetadata" 
+              />
+              <label for="enableDocMetadata">ドキュメントメタデータを含める</label>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <label class="config-label">システムプロンプトテンプレート:</label>
+            <Dropdown 
+              v-model="documentContextConfig.systemPromptTemplate" 
+              :options="systemPromptTemplates" 
+              optionLabel="name" 
+              optionValue="id" 
+              placeholder="テンプレートを選択"
+              class="w-full"
+            />
+          </div>
+          
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.completeToolFlow" 
+                :binary="true" 
+                inputId="completeToolFlow" 
+              />
+              <label for="completeToolFlow">完全なツールフローを使用</label>
+            </div>
+          </div>
+          
+          <!-- 現在のコンテキスト情報表示 -->
+          <div v-if="currentDocumentInfo" class="current-context-info">
+            <h5>現在のドキュメントコンテキスト</h5>
+            <div class="context-details">
+              <div class="context-item">
+                <strong>ファイル:</strong> {{ currentDocumentInfo.name }}
+              </div>
+              <div class="context-item">
+                <strong>リポジトリ:</strong> {{ currentDocumentInfo.owner }}/{{ currentDocumentInfo.repository }}
+              </div>
+              <div class="context-item">
+                <strong>パス:</strong> {{ currentDocumentInfo.path }}
+              </div>
+              <div class="context-item">
+                <strong>サイズ:</strong> {{ formatFileSize(currentDocumentInfo.metadata.size) }}
+              </div>
+            </div>
+          </div>
+          
+          <!-- 設定操作ボタン -->
+          <div class="config-actions">
+            <Button 
+              icon="pi pi-refresh" 
+              size="small" 
+              text 
+              severity="secondary"
+              @click="loadAvailableTemplates"
+              v-tooltip.bottom="'テンプレート一覧を更新'"
+              label="更新"
+            />
+            <Button 
+              icon="pi pi-undo" 
+              size="small" 
+              text 
+              severity="secondary"
+              @click="resetDocumentContextConfig"
+              v-tooltip.bottom="'設定をリセット'"
+              label="リセット"
+            />
+          </div>
+        </div>
+      </div>
+      
       <!-- MCPツール設定パネル -->
       <div class="mcp-tools-panel">
         <div class="mcp-tools-header">
@@ -51,11 +173,11 @@
             <div class="execution-mode-options">
               <div class="p-field-radiobutton">
                 <RadioButton v-model="executionMode" inputId="auto-execute" name="executionMode" value="auto" />
-                <label for="auto-execute">自動実行</label>
+                <label for="auto-execute">自動実行 (auto)</label>
               </div>
               <div class="p-field-radiobutton">
-                <RadioButton v-model="executionMode" inputId="confirm-execute" name="executionMode" value="confirm" />
-                <label for="confirm-execute">確認後実行</label>
+                <RadioButton v-model="executionMode" inputId="required-execute" name="executionMode" value="required" />
+                <label for="required-execute">必須実行 (required)</label>
               </div>
             </div>
           </div>
@@ -237,6 +359,7 @@ import ProgressBar from 'primevue/progressbar';
 import Checkbox from 'primevue/checkbox';
 import RadioButton from 'primevue/radiobutton';
 import Tag from 'primevue/tag';
+import Dropdown from 'primevue/dropdown';
 import { updateStreamingConfig, StreamingType } from '@/services/api/streaming-config.service';
 import { getMCPToolsConfig, logMCPToolsConfig } from '@/utils/mcp-config.util';
 import type { ToolExecution, MCPToolConfig, ToolExecutionMode } from '@/services/api/types';
@@ -276,6 +399,81 @@ const toolExecutionHistory = computed(() => chatStore.toolExecutionHistory);
 const showDebugPanel = ref(import.meta.env.DEV || import.meta.env.VITE_SHOW_DEBUG_PANEL === 'true');
 const streamingType = ref<string>(StreamingType.FETCH);
 
+// 新しいドキュメントコンテキスト設定
+const showDocumentContextConfig = ref(false);
+const documentContextConfig = ref({
+  includeDocumentInSystemPrompt: true,
+  systemPromptTemplate: 'contextual_document_assistant_ja',
+  enableRepositoryContext: true,
+  enableDocumentMetadata: true,
+  completeToolFlow: true
+});
+
+// システムプロンプトテンプレートのオプション
+const systemPromptTemplates = ref([
+  { 
+    id: 'contextual_document_assistant_ja', 
+    name: 'ドキュメントアシスタント（日本語）' 
+  },
+  { 
+    id: 'contextual_document_assistant_en', 
+    name: 'Document Assistant (English)' 
+  },
+  { 
+    id: 'code_analysis_assistant', 
+    name: 'コード解析アシスタント' 
+  },
+  { 
+    id: 'technical_writer_assistant', 
+    name: 'テクニカルライターアシスタント' 
+  }
+]);
+
+// システムプロンプトテンプレート一覧を取得する関数
+const loadAvailableTemplates = async () => {
+  try {
+    // APIから利用可能なテンプレート一覧を取得
+    const { getLLMTemplates } = await import('@/services/api/chat.service');
+    const templates = await getLLMTemplates();
+    
+    // テンプレート選択肢を更新
+    systemPromptTemplates.value = templates.map(id => ({
+      id,
+      name: getTemplateDisplayName(id)
+    }));
+    
+    console.log('利用可能なシステムプロンプトテンプレート:', systemPromptTemplates.value);
+  } catch (error) {
+    console.warn('システムプロンプトテンプレート一覧の取得に失敗しました:', error);
+  }
+};
+
+// テンプレートIDから表示名を生成
+const getTemplateDisplayName = (templateId: string): string => {
+  const nameMap: Record<string, string> = {
+    'contextual_document_assistant_ja': 'ドキュメントアシスタント（日本語）',
+    'contextual_document_assistant_en': 'Document Assistant (English)',
+    'code_analysis_assistant': 'コード解析アシスタント',
+    'technical_writer_assistant': 'テクニカルライターアシスタント',
+    'api_documentation_assistant': 'API仕様書アシスタント',
+    'tutorial_assistant': 'チュートリアルアシスタント'
+  };
+  
+  return nameMap[templateId] || templateId;
+};
+
+// 設定リセット機能
+const resetDocumentContextConfig = () => {
+  documentContextConfig.value = {
+    includeDocumentInSystemPrompt: true,
+    systemPromptTemplate: 'contextual_document_assistant_ja',
+    enableRepositoryContext: true,
+    enableDocumentMetadata: true,
+    completeToolFlow: true
+  };
+  console.log('ドキュメントコンテキスト設定をリセットしました');
+};
+
 // ストリーミングタイプが変更されたときの処理
 watch(streamingType, (newType) => {
   // 選択に基づいてストリーミング設定を更新
@@ -291,6 +489,7 @@ watch([mcpToolsEnabled, executionMode, availableTools], ([enabled, mode, tools])
   // chatStoreのMCPツール設定を更新
   chatStore.updateMCPToolsConfig({
     enabled,
+    executionMode: mode, // 'auto' または 'required'
     autoDetect: mode === 'auto',
     defaultToolChoice: mode === 'auto' ? 'auto' : 'none',
     enableProgressMonitoring: true,
@@ -298,6 +497,27 @@ watch([mcpToolsEnabled, executionMode, availableTools], ([enabled, mode, tools])
   });
   console.log('MCPツール設定を更新しました:', { enabled, mode, tools: tools.map(t => t.name) });
 }, { deep: true });
+
+// ドキュメントコンテキスト設定の変更を監視
+watch(documentContextConfig, (newConfig) => {
+  console.log('ドキュメントコンテキスト設定が変更されました:', newConfig);
+  // 必要に応じて設定をローカルストレージに保存
+  localStorage.setItem('documentContextConfig', JSON.stringify(newConfig));
+}, { deep: true });
+
+// ドキュメントコンテキスト設定の初期化（ローカルストレージから復元）
+const initializeDocumentContextConfig = () => {
+  const savedConfig = localStorage.getItem('documentContextConfig');
+  if (savedConfig) {
+    try {
+      const parsedConfig = JSON.parse(savedConfig);
+      documentContextConfig.value = { ...documentContextConfig.value, ...parsedConfig };
+      console.log('ドキュメントコンテキスト設定を復元しました:', documentContextConfig.value);
+    } catch (error) {
+      console.warn('保存された設定の読み込みに失敗しました:', error);
+    }
+  }
+};
 
 // メッセージの変更を監視（デバッグ用）
 watch(messages, (newMessages, oldMessages) => {
@@ -423,15 +643,24 @@ async function sendStreamingMessage() {
       streamingController.value = null;
     }
     
+    console.log('🌊 Sending streaming message with new backend specification');
+    console.log('Document context config:', documentContextConfig.value);
+    
     // MCPツールを使用するかどうかの判定
     if (mcpToolsEnabled.value && useToolsForMessage.value) {
       console.log('🛠️ Sending streaming message with MCP tools enabled');
-      // MCPツール対応のストリーミングメッセージ送信
-      await chatStore.sendStreamingMessageWithTools(newMessage.value.trim());
+      // MCPツール対応のストリーミングメッセージ送信（設定付き）
+      await chatStore.sendStreamingMessageWithToolsAndConfig(
+        newMessage.value.trim(),
+        documentContextConfig.value
+      );
     } else {
       console.log('📨 Sending regular streaming message');
-      // 通常のストリーミングメッセージ送信
-      const controller = await chatStore.sendStreamingMessage(newMessage.value.trim());
+      // 通常のストリーミングメッセージ送信（設定付き）
+      const controller = await chatStore.sendStreamingMessageWithConfig(
+        newMessage.value.trim(),
+        documentContextConfig.value
+      );
       streamingController.value = controller;
     }
     newMessage.value = '';
@@ -443,17 +672,15 @@ function sendMessage() {
   if (useStreaming.value) {
     sendStreamingMessage();
   } else if (newMessage.value.trim() && !isLoading.value) {
-    // MCPツールを使用するかどうかの判定
-    if (mcpToolsEnabled.value && useToolsForMessage.value) {
-      console.log('🛠️ Sending non-streaming message with MCP tools enabled');
-      // MCPツール対応のメッセージ送信
-      chatStore.sendMessageWithTools(newMessage.value.trim());
-    } else {
-      console.log('📨 Sending regular non-streaming message');
-      // 通常のメッセージ送信（chat.store.tsで適切なメソッドを確認する必要あり）
-      // 一旦sendDirectQueryを使用
-      chatStore.sendDirectQuery(newMessage.value.trim());
-    }
+    // 新しいバックエンド仕様に対応したメッセージ送信
+    console.log('📨 Sending message with new backend specification');
+    console.log('Document context config:', documentContextConfig.value);
+    
+    // 新しいsendMessageWithConfig関数を使用して設定を渡す
+    chatStore.sendMessageWithConfig(
+      newMessage.value.trim(), 
+      documentContextConfig.value
+    );
     newMessage.value = '';
   }
 }
@@ -490,7 +717,25 @@ onMounted(() => {
   if (import.meta.env.DEV) {
     logMCPToolsConfig();
   }
+  
+  // ドキュメントコンテキスト設定の初期化
+  initializeDocumentContextConfig();
+  
+  // 利用可能なシステムプロンプトテンプレートをロード
+  loadAvailableTemplates();
 });
+
+// 現在のドキュメント情報の計算プロパティ
+const currentDocumentInfo = computed(() => documentStore.currentDocument);
+
+// ファイルサイズのフォーマット関数
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 </script>
 
 <style scoped>
@@ -1045,5 +1290,75 @@ onMounted(() => {
 
 .mcp-history-toggle {
   margin-left: 0.25rem;
+}
+
+/* ドキュメントコンテキスト設定パネルのスタイル */
+.document-context-panel {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.context-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.context-config-toggle {
+  margin-left: auto;
+}
+
+.document-context-config {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #c8e6c9;
+}
+
+.config-section {
+  margin-bottom: 1rem;
+}
+
+.config-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.current-context-info {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #f1f8e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+}
+
+.context-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.context-item {
+  font-size: 0.85rem;
+  color: #333;
+}
+
+/* 設定操作ボタンのスタイル */
+.config-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #c8e6c9;
+  justify-content: flex-end;
+}
+
+.config-actions .p-button {
+  font-size: 0.8rem;
 }
 </style>

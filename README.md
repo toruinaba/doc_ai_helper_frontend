@@ -530,3 +530,98 @@ feat: Implement chat interface and integrate chat functionality with API service
 ```
 
 次のマイルストーン：リポジトリナビゲーション機能の実装と検索機能の基盤開発
+
+## 最新のアップデート (June 25, 2025)
+
+### 🎯 新しいバックエンド仕様への完全対応 (実装完了)
+
+バックエンドAPIの仕様変更に対応し、より豊富なドキュメントコンテキストを活用したLLM対話機能を実装しました。
+
+#### 主要な新機能
+
+1. **🏗️ リポジトリコンテキスト統合**
+   - 現在のリポジトリ、オーナー、ブランチ情報を自動的にLLMに提供
+   - ドキュメントの位置と関連ファイルの理解を大幅に向上
+
+2. **📋 ドキュメントメタデータ統合**
+   - ファイルサイズ、更新日時、拡張子、エンコーディング情報を包括的に送信
+   - より精密なコンテキスト理解によりLLMの応答品質が向上
+
+3. **🎨 システムプロンプトテンプレート**
+   - 用途別のプリセットテンプレート（ドキュメントアシスタント、コード解析、技術文書作成など）
+   - 動的なテンプレート選択機能と自動読み込み
+
+4. **⚙️ 完全なツールフロー制御**
+   - MCPツールの実行フローの詳細制御
+   - パフォーマンスと精度のバランス調整
+
+5. **🔧 高度な設定管理UI**
+   - リアルタイムでの設定変更
+   - 設定の永続化とプリセット機能
+   - 現在のドキュメントコンテキスト情報の可視化
+
+#### 技術的な改善
+
+- **型安全性の向上**: 新しいOpenAPI仕様に基づく完全な型定義
+- **エラーハンドリングの強化**: より詳細なエラー情報と復旧機能
+- **設定の永続化**: ローカルストレージによる設定保存
+- **パフォーマンス最適化**: 会話履歴の最適化とメモリ使用量の改善
+
+#### 使用方法
+
+1. **基本的な使用**
+   ```typescript
+   // 自動的にドキュメントコンテキストを含んでメッセージ送信
+   await chatStore.sendMessage('このドキュメントについて教えて');
+   ```
+
+2. **カスタム設定での使用**
+   ```typescript
+   // 特定の設定でメッセージ送信
+   await chatStore.sendMessageWithConfig('コード解析をして', {
+     systemPromptTemplate: 'code_analysis_assistant',
+     enableRepositoryContext: true,
+     includeDocumentInSystemPrompt: true
+   });
+   ```
+
+3. **UI設定パネル**
+   - チャットインターフェースの上部にある設定アイコンから詳細設定が可能
+   - プリセット設定の選択と手動調整
+
+#### 対応するバックエンドAPI
+
+```typescript
+interface LLMQueryRequest {
+  prompt: string;
+  conversation_history?: MessageItem[];
+  
+  // 新しいフィールド
+  repository_context?: RepositoryContext;
+  document_metadata?: DocumentMetadataInput;
+  document_content?: string;
+  include_document_in_system_prompt?: boolean;
+  system_prompt_template?: string;
+  complete_tool_flow?: boolean;
+  
+  // その他の既存フィールド...
+}
+```
+
+#### デモ機能
+
+開発者向けのデモ機能を追加：
+```javascript
+// ブラウザのコンソールで実行
+import { runBackendSpecDemo } from '@/utils/demo.util';
+runBackendSpecDemo();
+```
+
+#### テスト
+
+新機能に対応したテストスイートを追加：
+```bash
+npm run test -- src/stores/__tests__/chat.store.new-backend.spec.ts
+```
+
+---

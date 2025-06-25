@@ -11,7 +11,12 @@ import type {
   ChatResponse, 
   LLMQueryRequest, 
   LLMResponse,
-  MessageItem
+  MessageItem,
+  DocumentResponse,
+  RepositoryContext,
+  DocumentMetadataInput,
+  DocumentTypeInput,
+  GitService
 } from './types';
 
 /**
@@ -1008,6 +1013,73 @@ export function integrateMCPToolResults(
   return integratedConversation;
 }
 
+/**
+ * ドキュメント情報からDocumentMetadataInputを生成する
+ * @param document ドキュメントレスポンス
+ * @returns DocumentMetadataInput
+ */
+export function createDocumentMetadataInput(document: DocumentResponse | null): DocumentMetadataInput | null {
+  if (!document) return null;
+  
+  // ファイル拡張子の抽出
+  const fileExtension = document.name.includes('.') 
+    ? document.name.split('.').pop() 
+    : null;
+  
+  // ドキュメントタイプのマッピング
+  const typeMapping: Record<string, DocumentTypeInput> = {
+    'markdown': DocumentTypeInput.Markdown,
+    'html': DocumentTypeInput.Html,
+    'text': DocumentTypeInput.Text,
+    'python': DocumentTypeInput.Python,
+    'javascript': DocumentTypeInput.JavaScript,
+    'typescript': DocumentTypeInput.TypeScript,
+    'json': DocumentTypeInput.Json,
+    'yaml': DocumentTypeInput.Yaml,
+    'xml': DocumentTypeInput.Xml
+  };
+  
+  const documentType = typeMapping[document.type.toLowerCase()] || DocumentTypeInput.Other;
+  
+  return {
+    title: document.name,
+    type: documentType,
+    filename: document.name,
+    file_extension: fileExtension || null,
+    last_modified: document.metadata.last_modified,
+    file_size: document.metadata.size,
+    encoding: document.content.encoding || 'utf-8',
+    language: null // 言語検出は将来的に実装
+  };
+}
+
+/**
+ * リポジトリ情報からRepositoryContextを生成する
+ * @param document ドキュメントレスポンス
+ * @returns RepositoryContext
+ */
+export function createRepositoryContext(document: DocumentResponse | null): RepositoryContext | null {
+  if (!document) return null;
+  
+  // サービス名のマッピング
+  const serviceMapping: Record<string, GitService> = {
+    'github': GitService.GitHub,
+    'gitlab': GitService.GitLab,
+    'bitbucket': GitService.Bitbucket
+  };
+  
+  const service = serviceMapping[document.service.toLowerCase()] || GitService.GitHub;
+  
+  return {
+    service,
+    owner: document.owner,
+    repo: document.repository,
+    ref: document.ref || 'main',
+    current_path: document.path,
+    base_url: null // 必要に応じて設定
+  };
+}
+
 export default {
   sendChatMessage,
   sendChatMessageWithTools,
@@ -1021,5 +1093,7 @@ export default {
   addUserMessageToConversation,
   createConversationWithUserMessage,
   shouldUseMCPTools,
-  integrateMCPToolResults
+  integrateMCPToolResults,
+  createDocumentMetadataInput,
+  createRepositoryContext
 };

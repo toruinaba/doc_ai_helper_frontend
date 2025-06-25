@@ -17,6 +17,9 @@ import Textarea from 'primevue/textarea'
 import Tooltip from 'primevue/tooltip'
 import Checkbox from 'primevue/checkbox'
 import RadioButton from 'primevue/radiobutton'
+import Dropdown from 'primevue/dropdown'
+import Tag from 'primevue/tag'
+import ProgressBar from 'primevue/progressbar'
 
 // PrimeVueスタイル
 // import 'primevue/resources/themes/lara-light-blue/theme.css'
@@ -46,5 +49,8 @@ app.component('InputText', InputText)
 app.component('Textarea', Textarea)
 app.component('Checkbox', Checkbox)
 app.component('RadioButton', RadioButton)
+app.component('Dropdown', Dropdown)
+app.component('Tag', Tag)
+app.component('ProgressBar', ProgressBar)
 
 app.mount('#app')

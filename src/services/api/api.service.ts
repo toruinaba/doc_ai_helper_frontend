@@ -657,8 +657,8 @@ export class ApiClient {
       onToolResult?: (result: any) => void;           // ツール実行結果受信時
     }
   ): Promise<AbortController> {
-    // streaming-alt.serviceを動的にインポートして使用
-    const { streamLLMQueryWithFetch } = await import('./streaming-alt.service');
+    // MCPツール対応のストリーミングサービスを動的にインポート
+    const { streamLLMQueryWithMCPTools } = await import('./streaming-alt.service');
     
     const toolsRequest: LLMQueryRequest = {
       ...request,
@@ -672,47 +672,40 @@ export class ApiClient {
       prompt: request.prompt.substring(0, 100) + '...'
     });
     
-    // 拡張されたコールバック関数を定義
-    const extendedCallbacks = {
+    // MCPツール対応のコールバック関数を定義
+    const mcpCallbacks = {
       onStart: (data?: any) => {
         console.log('MCP streaming started:', data);
         callbacks.onStart?.(data);
       },
       onToken: (token: string) => {
+        console.log('MCP token received:', token.substring(0, 50) + (token.length > 50 ? '...' : ''));
         callbacks.onToken?.(token);
+      },
+      onToolCall: (toolCall: any) => {
+        console.log('Tool call detected during streaming:', toolCall);
+        callbacks.onToolCall?.(toolCall);
+      },
+      onToolResult: (result: any) => {
+        console.log('Tool result received during streaming:', result);
+        callbacks.onToolResult?.(result);
       },
       onError: (error: string) => {
         console.error('MCP streaming error:', error);
         callbacks.onError?.(error);
       },
       onEnd: (data?: any) => {
-        console.log('MCP streaming ended:', data);
-        
-        // ツール実行結果があれば通知
-        if (data?.tool_calls && callbacks.onToolCall) {
-          data.tool_calls.forEach((toolCall: any) => {
-            console.log('Tool call detected in stream:', toolCall);
-            callbacks.onToolCall?.(toolCall);
-          });
-        }
-        
-        if (data?.tool_execution_results && callbacks.onToolResult) {
-          data.tool_execution_results.forEach((result: any) => {
-            console.log('Tool execution result detected in stream:', result);
-            callbacks.onToolResult?.(result);
-          });
-        }
-        
+        console.log('MCP streaming ended with final data:', data);
         callbacks.onEnd?.(data);
       }
     };
     
-    // streaming-alt.serviceを使用してストリーミングを開始
-    return streamLLMQueryWithFetch(
+    // MCPツール専用ストリーミングを使用
+    return streamLLMQueryWithMCPTools(
       this.baseUrl,
       '/llm/stream',
       toolsRequest,
-      extendedCallbacks
+      mcpCallbacks
     );
   }
 }

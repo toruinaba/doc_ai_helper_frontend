@@ -288,20 +288,11 @@ ${currentDoc.content.content}`;
         assistantMessage.toolResults = response.tool_execution_results;
       }
       
-      // 最適化された会話履歴があれば更新
+      // 最適化された会話履歴があれば更新（MCPツール使用時は慎重に処理）
       if (response.optimized_conversation_history) {
-        console.log('Updating conversation history from server optimization');
-        // サーバーから最適化された履歴でクライアント側の履歴を更新
-        const optimizedMessages: ClientChatMessage[] = response.optimized_conversation_history.map(msg => ({
-          id: generateMessageId(),
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp || new Date().toISOString())
-        }));
-        
-        // 既存のメッセージをクリアして最適化されたものに置き換え
-        messages.value = optimizedMessages;
-        console.log('Updated messages from optimized history:', messages.value.length);
+        console.log('🗂️ Server provided optimized conversation history for MCP tools');
+        console.log('🗂️ Keeping current UI messages, optimization will be applied transparently in next request');
+        // MCPツール使用時は現在のUI表示を維持し、最適化は次回のリクエスト時に透過的に適用
       }
       
       console.log('Message with MCP tools sent successfully');
@@ -529,7 +520,7 @@ ${currentDoc.content.content}`;
           onEnd: (data) => {
             console.log('Streaming completed with usage:', data?.usage);
             
-            // 最適化された会話履歴がある場合は、それをクライアント形式に変換して保存
+            // 最適化された会話履歴の処理を改善
             if (data?.optimized_conversation_history && data.optimized_conversation_history.length > 0) {
               console.log('Using optimized conversation history from the server:', 
                 data.optimized_conversation_history.length, 'messages');
@@ -537,6 +528,10 @@ ${currentDoc.content.content}`;
               // 現在の会話履歴をバックアップ（デバッグ用）
               const oldMessages = [...messages.value];
               console.log('Previous messages count:', oldMessages.length);
+              
+              // MCPツール使用時は現在のメッセージを保持し、最適化は透過的に処理
+              // 通常のストリーミングでのみ履歴を置き換える
+              console.log('Replacing conversation history with optimized version for regular streaming');
               
               // 既存の会話履歴をクリア
               messages.value = [];
@@ -651,32 +646,79 @@ ${currentDoc.content.content}`;
       // ストリーミングコールバック
       const callbacks = {
         onStart: (data?: any) => {
-          console.log('MCP tools streaming started:', data);
+          console.log('🚀 MCP tools streaming started:', data);
         },
         onToken: (token: string) => {
+          console.log('📝 Received token:', token.substring(0, 50) + (token.length > 50 ? '...' : ''));
           accumulatedContent += token;
-          assistantMessage.content = accumulatedContent;
+          
+          // Vueのリアクティビティを確実にトリガーするため、配列全体を新しい配列で置き換える
+          const messageIndex = messages.value.findIndex(msg => msg.id === assistantMessage.id);
+          if (messageIndex !== -1) {
+            // 新しい配列を作成して置き換え
+            const newMessages = [...messages.value];
+            newMessages[messageIndex] = {
+              ...newMessages[messageIndex],
+              content: accumulatedContent
+            };
+            messages.value = newMessages;
+            console.log('📝 Updated assistant message via full array replacement, content length:', accumulatedContent.length);
+            console.log('📝 Message content preview:', accumulatedContent.substring(0, 100) + (accumulatedContent.length > 100 ? '...' : ''));
+          } else {
+            // フォールバック: 直接更新
+            assistantMessage.content = accumulatedContent;
+            console.log('📝 Updated assistant message directly (fallback), content length:', accumulatedContent.length);
+          }
+          
           onToken?.(token);
         },
         onToolCall: (toolCall: any) => {
-          console.log('Tool call in streaming:', toolCall);
+          console.log('🛠️ Tool call in streaming:', toolCall);
           const execution = startToolExecution(toolCall);
           updateToolExecutionStatus(execution.id, 'running');
           
-          // ツール実行情報をメッセージに追加
-          if (!assistantMessage.toolCalls) {
-            assistantMessage.toolCalls = [];
+          // ツール実行情報をメッセージに追加（配列全体を置き換え）
+          const messageIndex = messages.value.findIndex(msg => msg.id === assistantMessage.id);
+          if (messageIndex !== -1) {
+            const newMessages = [...messages.value];
+            const currentToolCalls = newMessages[messageIndex].toolCalls || [];
+            newMessages[messageIndex] = {
+              ...newMessages[messageIndex],
+              toolCalls: [...currentToolCalls, toolCall]
+            };
+            messages.value = newMessages;
+            console.log('🛠️ Added tool call to message via full array replacement, total calls:', newMessages[messageIndex].toolCalls?.length);
+          } else {
+            // フォールバック: 直接更新
+            if (!assistantMessage.toolCalls) {
+              assistantMessage.toolCalls = [];
+            }
+            assistantMessage.toolCalls.push(toolCall);
+            console.log('🛠️ Added tool call to message directly (fallback), total calls:', assistantMessage.toolCalls.length);
           }
-          assistantMessage.toolCalls.push(toolCall);
         },
         onToolResult: (result: any) => {
-          console.log('Tool result in streaming:', result);
+          console.log('📊 Tool result in streaming:', result);
           
-          // ツール実行結果をメッセージに追加
-          if (!assistantMessage.toolResults) {
-            assistantMessage.toolResults = [];
+          // ツール実行結果をメッセージに追加（配列全体を置き換え）
+          const messageIndex = messages.value.findIndex(msg => msg.id === assistantMessage.id);
+          if (messageIndex !== -1) {
+            const newMessages = [...messages.value];
+            const currentToolResults = newMessages[messageIndex].toolResults || [];
+            newMessages[messageIndex] = {
+              ...newMessages[messageIndex],
+              toolResults: [...currentToolResults, result]
+            };
+            messages.value = newMessages;
+            console.log('📊 Added tool result to message via full array replacement, total results:', newMessages[messageIndex].toolResults?.length);
+          } else {
+            // フォールバック: 直接更新
+            if (!assistantMessage.toolResults) {
+              assistantMessage.toolResults = [];
+            }
+            assistantMessage.toolResults.push(result);
+            console.log('📊 Added tool result to message directly (fallback), total results:', assistantMessage.toolResults.length);
           }
-          assistantMessage.toolResults.push(result);
           
           // 対応するツール実行を完了状態に更新
           const execution = activeToolExecutions.value.find(exec => 
@@ -696,26 +738,35 @@ ${currentDoc.content.content}`;
           });
         },
         onEnd: (data?: any) => {
-          console.log('MCP tools streaming ended:', data);
+          console.log('🏁 MCP tools streaming ended:', data);
+          console.log('🏁 Final assistant message content length:', assistantMessage.content.length);
+          console.log('🏁 Final assistant message preview:', assistantMessage.content.substring(0, 100) + (assistantMessage.content.length > 100 ? '...' : ''));
           
-          // 最適化された会話履歴があれば更新
+          // MCPツール使用時は最適化された会話履歴で置き換えしない
+          // 現在のUI表示を維持し、最適化は次回のリクエスト時に透過的に適用される
           if (data?.optimized_conversation_history) {
-            console.log('Updating conversation history from streaming optimization');
-            const optimizedMessages: ClientChatMessage[] = data.optimized_conversation_history.map((msg: MessageItem) => ({
-              id: generateMessageId(),
-              role: msg.role,
-              content: msg.content,
-              timestamp: new Date(msg.timestamp || new Date().toISOString())
-            }));
-            
-            messages.value = optimizedMessages;
-            console.log('Updated messages from streaming optimization:', messages.value.length);
+            console.log('🗂️ Server provided optimized conversation history from MCP streaming');
+            console.log('🗂️ Keeping current UI messages, optimization will be applied transparently in next request');
           }
+          
+          // ツール実行を完了状態に更新
+          activeToolExecutions.value.forEach(execution => {
+            if (execution.status === 'running') {
+              updateToolExecutionStatus(execution.id, 'completed');
+            }
+          });
         }
       };
       
       if (useTools) {
         // MCPツール付きストリーミング
+        console.log('🛠️ Starting MCP tools streaming with request:', {
+          prompt: request.prompt,
+          toolChoice,
+          enableTools: true,
+          conversationHistoryLength: request.conversation_history?.length || 0
+        });
+        
         const controller = await streamLLMQueryWithTools(
           request,
           true,
@@ -724,6 +775,7 @@ ${currentDoc.content.content}`;
           documentContext
         );
         currentStreamController.value = controller;
+        console.log('🛠️ MCP tools streaming controller established');
       } else {
         // 通常のストリーミング（MCPツールなし）
         console.log('Streaming without tools not implemented, falling back to non-streaming');
@@ -741,6 +793,13 @@ ${currentDoc.content.content}`;
       }
       
       console.log('Streaming message with MCP tools completed');
+      console.log('📊 Final messages count:', messages.value.length);
+      console.log('📊 Last message preview:', {
+        role: messages.value[messages.value.length - 1]?.role,
+        contentLength: messages.value[messages.value.length - 1]?.content.length,
+        hasToolCalls: !!messages.value[messages.value.length - 1]?.toolCalls,
+        hasToolResults: !!messages.value[messages.value.length - 1]?.toolResults
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       console.error('Error in streaming message with MCP tools:', err);

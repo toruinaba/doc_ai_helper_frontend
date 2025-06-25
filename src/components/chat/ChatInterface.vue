@@ -2,6 +2,99 @@
   <div class="chat-container">
     <div class="chat-header">
       <h2>ドキュメント AI チャット</h2>
+      
+      <!-- MCPツール設定パネル -->
+      <div class="mcp-tools-panel">
+        <div class="mcp-tools-header">
+          <Checkbox v-model="mcpToolsEnabled" :binary="true" inputId="mcpTools" />
+          <label for="mcpTools" class="ml-2">MCPツール機能を有効にする</label>
+          <Button 
+            icon="pi pi-cog" 
+            size="small" 
+            text 
+            severity="secondary"
+            @click="showMCPToolsConfig = !showMCPToolsConfig"
+            v-tooltip.bottom="'MCPツール設定'"
+            class="mcp-config-toggle"
+          />
+          <Button 
+            icon="pi pi-history" 
+            size="small" 
+            text 
+            severity="secondary"
+            @click="showToolHistory = !showToolHistory"
+            v-tooltip.bottom="'ツール実行履歴'"
+            class="mcp-history-toggle"
+          />
+        </div>
+        
+        <div v-if="showMCPToolsConfig" class="mcp-tools-config">
+          <div class="config-section">
+            <label class="config-label">利用可能なツール:</label>
+            <div class="available-tools">
+              <div v-for="tool in availableTools" :key="tool.name" class="tool-item">
+                <Checkbox 
+                  v-model="tool.enabled" 
+                  :binary="true" 
+                  :inputId="`tool-${tool.name}`" 
+                />
+                <label :for="`tool-${tool.name}`" class="tool-label">
+                  {{ tool.name }}
+                  <span class="tool-description">{{ tool.description }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <label class="config-label">実行モード:</label>
+            <div class="execution-mode-options">
+              <div class="p-field-radiobutton">
+                <RadioButton v-model="executionMode" inputId="auto-execute" name="executionMode" value="auto" />
+                <label for="auto-execute">自動実行</label>
+              </div>
+              <div class="p-field-radiobutton">
+                <RadioButton v-model="executionMode" inputId="confirm-execute" name="executionMode" value="confirm" />
+                <label for="confirm-execute">確認後実行</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="showToolHistory" class="tool-history">
+          <div class="tool-history-header">
+            <h4>ツール実行履歴</h4>
+            <Button 
+              icon="pi pi-trash" 
+              size="small" 
+              text 
+              severity="danger"
+              @click="clearToolHistory"
+              v-tooltip.bottom="'履歴をクリア'"
+            />
+          </div>
+          <div v-if="toolExecutionHistory.length === 0" class="no-history">
+            <small>ツール実行履歴がありません</small>
+          </div>
+          <div v-else class="history-list">
+            <div v-for="execution in toolExecutionHistory.slice(-5)" :key="execution.id" class="history-item">
+              <div class="history-item-header">
+                <span class="history-tool-name">{{ execution.toolCall.function.name }}</span>
+                <Tag 
+                  :value="execution.status" 
+                  :severity="getExecutionStatusSeverity(execution.status)"
+                  size="small"
+                />
+              </div>
+              <div class="history-item-time">
+                {{ formatHistoryTime(execution.startTime) }}
+                {{ execution.endTime ? ` - ${formatHistoryTime(execution.endTime)}` : '' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div v-if="showDebugPanel" class="debug-panel">
         <div class="debug-options">
           <div>
@@ -46,6 +139,46 @@
         </div>
         <div class="message-content">
           <div class="message-text" v-html="formatMessageContent(message.content)"></div>
+          
+          <!-- MCPツール実行情報の表示 -->
+          <div v-if="message.toolCalls && message.toolCalls.length > 0" class="tool-calls-section">
+            <div class="tool-calls-header">
+              <i class="pi pi-wrench"></i>
+              <span>ツール実行</span>
+            </div>
+            <div v-for="toolCall in message.toolCalls" :key="toolCall.id" class="tool-call-item">
+              <div class="tool-call-header">
+                <span class="tool-name">{{ toolCall.function?.name || 'Unknown Tool' }}</span>
+                <Tag 
+                  :value="getToolCallStatus(toolCall.id)" 
+                  :severity="getToolCallStatusSeverity(toolCall.id)"
+                  class="tool-status"
+                />
+              </div>
+              <div v-if="toolCall.function?.arguments" class="tool-arguments">
+                <details>
+                  <summary>引数</summary>
+                  <pre>{{ formatToolArguments(toolCall.function.arguments) }}</pre>
+                </details>
+              </div>
+              <div v-if="getToolExecutionResult(toolCall.id)" class="tool-result">
+                <div class="tool-result-header">実行結果:</div>
+                <div class="tool-result-content">
+                  {{ formatToolResult(getToolExecutionResult(toolCall.id)) }}
+                </div>
+              </div>
+              <div v-if="getToolExecutionProgress(toolCall.id)" class="tool-progress">
+                <ProgressBar 
+                  :value="getToolExecutionProgress(toolCall.id)?.percentage || 0" 
+                  class="tool-progress-bar"
+                />
+                <small class="tool-progress-text">
+                  {{ getToolExecutionProgress(toolCall.id)?.message || '実行中...' }}
+                </small>
+              </div>
+            </div>
+          </div>
+          
           <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
         </div>
       </div>
@@ -57,9 +190,15 @@
     </div>
     
     <div class="chat-input">
-      <div class="streaming-toggle">
-        <Checkbox v-model="useStreaming" :binary="true" inputId="streaming" />
-        <label for="streaming" class="ml-2">ストリーミングモード</label>
+      <div class="input-options">
+        <div class="streaming-toggle">
+          <Checkbox v-model="useStreaming" :binary="true" inputId="streaming" />
+          <label for="streaming" class="ml-2">ストリーミングモード</label>
+        </div>
+        <div v-if="mcpToolsEnabled" class="tools-toggle">
+          <Checkbox v-model="useToolsForMessage" :binary="true" inputId="useTools" />
+          <label for="useTools" class="ml-2">ツール使用</label>
+        </div>
       </div>
       <div class="p-inputgroup">
         <Textarea 
@@ -94,9 +233,13 @@ import hljs from 'highlight.js';
 import Textarea from 'primevue/textarea';
 import Button from 'primevue/button';
 import ProgressSpinner from 'primevue/progressspinner';
+import ProgressBar from 'primevue/progressbar';
 import Checkbox from 'primevue/checkbox';
 import RadioButton from 'primevue/radiobutton';
+import Tag from 'primevue/tag';
 import { updateStreamingConfig, StreamingType } from '@/services/api/streaming-config.service';
+import { getMCPToolsConfig, logMCPToolsConfig } from '@/utils/mcp-config.util';
+import type { ToolExecution, MCPToolConfig, ToolExecutionMode } from '@/services/api/types';
 
 // 状態
 const chatStore = useChatStore();
@@ -113,6 +256,22 @@ const error = computed(() => chatStore.error);
 const useStreaming = ref(true);
 const streamingController = ref<{ abort: () => void } | null>(null);
 
+// 環境変数からMCPツール設定を取得
+const mcpConfig = getMCPToolsConfig();
+
+// MCPツール関連の状態（環境変数から初期化）
+const mcpToolsEnabled = ref(mcpConfig.enabled);
+const showMCPToolsConfig = ref(false);
+const showToolHistory = ref(false);
+const useToolsForMessage = ref(mcpConfig.enabled); // MCPツールが有効な場合はデフォルトで使用
+const executionMode = ref<ToolExecutionMode>(mcpConfig.executionMode);
+
+// MCPツール設定（環境変数から取得）
+const availableTools = ref<MCPToolConfig[]>(mcpConfig.availableTools);
+
+// chatStoreからのツール実行履歴の計算プロパティ
+const toolExecutionHistory = computed(() => chatStore.toolExecutionHistory);
+
 // デバッグパネル
 const showDebugPanel = ref(import.meta.env.DEV || import.meta.env.VITE_SHOW_DEBUG_PANEL === 'true');
 const streamingType = ref<string>(StreamingType.FETCH);
@@ -127,18 +286,53 @@ watch(streamingType, (newType) => {
   console.log(`ストリーミングタイプを変更しました: ${newType}`);
 });
 
+// MCPツール設定の変更を監視
+watch([mcpToolsEnabled, executionMode, availableTools], ([enabled, mode, tools]) => {
+  // chatStoreのMCPツール設定を更新
+  chatStore.updateMCPToolsConfig({
+    enabled,
+    autoDetect: mode === 'auto',
+    defaultToolChoice: mode === 'auto' ? 'auto' : 'none',
+    enableProgressMonitoring: true,
+    enableDetailedLogging: true
+  });
+  console.log('MCPツール設定を更新しました:', { enabled, mode, tools: tools.map(t => t.name) });
+}, { deep: true });
+
 // メッセージの変更を監視（デバッグ用）
 watch(messages, (newMessages, oldMessages) => {
-  console.log('Messages array changed from', oldMessages?.length, 'to', newMessages.length);
+  console.log('📝 Messages array changed from', oldMessages?.length || 0, 'to', newMessages.length);
   if (newMessages.length > 0) {
     const lastMessage = newMessages[newMessages.length - 1];
-    console.log('Last message:', lastMessage);
+    console.log('📝 Last message:', {
+      id: lastMessage.id,
+      role: lastMessage.role,
+      content: lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : ''),
+      contentLength: lastMessage.content.length,
+      hasToolCalls: !!lastMessage.toolCalls,
+      toolCallsCount: lastMessage.toolCalls?.length || 0
+    });
+    
+    // 空のコンテンツのアシスタントメッセージを詳細調査
+    if (lastMessage.role === 'assistant' && lastMessage.content.length === 0) {
+      console.warn('🚨 Empty assistant message detected:', {
+        messageId: lastMessage.id,
+        timestamp: lastMessage.timestamp,
+        allMessages: newMessages.map(m => ({
+          id: m.id,
+          role: m.role,
+          contentLength: m.content.length,
+          contentPreview: m.content.substring(0, 30)
+        }))
+      });
+    }
   }
+  scrollToBottom();
 }, { deep: true });
 
 // マークダウンパーサーの設定
-// @ts-ignore
 marked.setOptions({
+  // @ts-ignore - marked v4+では langPrefix オプションは非推奨
   langPrefix: 'hljs language-'
 });
 
@@ -157,6 +351,69 @@ function formatMessageTime(timestamp: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// MCPツール関連のヘルパー関数
+function getToolCallStatus(toolCallId: string): string {
+  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  if (!execution) return 'unknown';
+  return execution.status;
+}
+
+function getToolCallStatusSeverity(toolCallId: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | undefined {
+  const status = getToolCallStatus(toolCallId);
+  switch (status) {
+    case 'completed': return 'success';
+    case 'running': return 'info';
+    case 'pending': return 'warning';
+    case 'error': return 'danger';
+    default: return 'secondary';
+  }
+}
+
+function formatToolArguments(args: string): string {
+  try {
+    return JSON.stringify(JSON.parse(args), null, 2);
+  } catch {
+    return args;
+  }
+}
+
+function getToolExecutionResult(toolCallId: string): any {
+  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  return execution?.result;
+}
+
+function formatToolResult(result: any): string {
+  if (typeof result === 'string') return result;
+  return JSON.stringify(result, null, 2);
+}
+
+function getToolExecutionProgress(toolCallId: string) {
+  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  return execution?.progress ? {
+    percentage: execution.progress * 100,
+    message: `実行中... ${Math.round(execution.progress * 100)}%`
+  } : null;
+}
+
+// ツール履歴関連のヘルパー関数
+function clearToolHistory() {
+  chatStore.clearToolExecutionHistory();
+}
+
+function getExecutionStatusSeverity(status: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | undefined {
+  switch (status) {
+    case 'completed': return 'success';
+    case 'running': return 'info';
+    case 'pending': return 'warning';
+    case 'error': return 'danger';
+    default: return 'secondary';
+  }
+}
+
+function formatHistoryTime(time: Date): string {
+  return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 // ストリーミングメッセージ送信
 async function sendStreamingMessage() {
   if (newMessage.value.trim() && !isLoading.value) {
@@ -166,8 +423,17 @@ async function sendStreamingMessage() {
       streamingController.value = null;
     }
     
-    // ストリーミングメッセージ送信
-    streamingController.value = await chatStore.sendStreamingMessage(newMessage.value.trim());
+    // MCPツールを使用するかどうかの判定
+    if (mcpToolsEnabled.value && useToolsForMessage.value) {
+      console.log('🛠️ Sending streaming message with MCP tools enabled');
+      // MCPツール対応のストリーミングメッセージ送信
+      await chatStore.sendStreamingMessageWithTools(newMessage.value.trim());
+    } else {
+      console.log('📨 Sending regular streaming message');
+      // 通常のストリーミングメッセージ送信
+      const controller = await chatStore.sendStreamingMessage(newMessage.value.trim());
+      streamingController.value = controller;
+    }
     newMessage.value = '';
   }
 }
@@ -177,7 +443,17 @@ function sendMessage() {
   if (useStreaming.value) {
     sendStreamingMessage();
   } else if (newMessage.value.trim() && !isLoading.value) {
-    chatStore.sendMessage(newMessage.value.trim());
+    // MCPツールを使用するかどうかの判定
+    if (mcpToolsEnabled.value && useToolsForMessage.value) {
+      console.log('🛠️ Sending non-streaming message with MCP tools enabled');
+      // MCPツール対応のメッセージ送信
+      chatStore.sendMessageWithTools(newMessage.value.trim());
+    } else {
+      console.log('📨 Sending regular non-streaming message');
+      // 通常のメッセージ送信（chat.store.tsで適切なメソッドを確認する必要あり）
+      // 一旦sendDirectQueryを使用
+      chatStore.sendDirectQuery(newMessage.value.trim());
+    }
     newMessage.value = '';
   }
 }
@@ -209,6 +485,11 @@ watch(() => documentStore.currentPath, () => {
 // コンポーネントマウント時の処理
 onMounted(() => {
   scrollToBottom();
+  
+  // MCPツール設定をデバッグ出力
+  if (import.meta.env.DEV) {
+    logMCPToolsConfig();
+  }
 });
 </script>
 
@@ -500,5 +781,269 @@ onMounted(() => {
 .recommended {
   color: #2196F3;
   font-weight: bold;
+}
+
+/* MCPツールパネルのスタイル */
+.mcp-tools-panel {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f0f8ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.mcp-tools-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mcp-config-toggle {
+  margin-left: auto;
+}
+
+.mcp-tools-config {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #b3d9ff;
+}
+
+.config-section {
+  margin-bottom: 1rem;
+}
+
+.config-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.available-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.5rem;
+  background-color: white;
+}
+
+.tool-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tool-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.tool-description {
+  color: #666;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.execution-mode-options {
+  display: flex;
+  gap: 1rem;
+}
+
+/* MCPツール実行情報のスタイル */
+.tool-calls-section {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.tool-calls-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.75rem;
+}
+
+.tool-call-item {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.tool-call-item:last-child {
+  margin-bottom: 0;
+}
+
+.tool-call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tool-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-family: monospace;
+}
+
+.tool-status {
+  font-size: 0.8rem;
+}
+
+.tool-arguments {
+  margin: 0.5rem 0;
+}
+
+.tool-arguments details {
+  font-size: 0.85rem;
+}
+
+.tool-arguments summary {
+  cursor: pointer;
+  color: #007bff;
+  margin-bottom: 0.25rem;
+}
+
+.tool-arguments pre {
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 3px;
+  border: 1px solid #e9ecef;
+  font-size: 0.8rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.tool-result {
+  margin: 0.5rem 0;
+}
+
+.tool-result-header {
+  font-weight: 600;
+  color: #28a745;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.tool-result-content {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  padding: 0.5rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.tool-progress {
+  margin: 0.5rem 0;
+}
+
+.tool-progress-bar {
+  margin-bottom: 0.25rem;
+}
+
+.tool-progress-text {
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+/* 入力オプションのスタイル */
+.input-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #f0f0f0;
+  border-top: 1px solid #e0e0e0;
+  font-size: 0.8rem;
+}
+
+.tools-toggle {
+  display: flex;
+  align-items: center;
+  color: #555;
+}
+
+/* ツール履歴のスタイル */
+.tool-history {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #b3d9ff;
+}
+
+.tool-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tool-history-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #2c3e50;
+}
+
+.no-history {
+  text-align: center;
+  color: #6c757d;
+  padding: 1rem;
+  font-style: italic;
+}
+
+.history-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: white;
+}
+
+.history-item {
+  padding: 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.history-tool-name {
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.history-item-time {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.mcp-history-toggle {
+  margin-left: 0.25rem;
 }
 </style>

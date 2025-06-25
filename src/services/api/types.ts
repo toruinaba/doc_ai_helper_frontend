@@ -273,3 +273,38 @@ export interface MCPStreamingCallbacks extends StreamingCallbacks {
   onToolCall?: (toolCall: ToolCall) => void;           // ツール呼び出し開始時
   onToolResult?: (result: Record<string, any>) => void; // ツール実行結果受信時
 }
+
+// MCPツール実行状態管理用の型定義
+export interface ToolExecution {
+  id: string;
+  toolCallId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  startTime: Date;
+  endTime?: Date;
+  progress?: {
+    percentage: number;
+    message: string;
+  };
+  result?: any;
+  error?: string;
+}
+
+// MCPツール設定の型定義
+export interface MCPToolConfig {
+  name: string;
+  description: string;
+  enabled: boolean;
+  parameters?: Record<string, any>;
+}
+
+// MCPツール実行モードの型定義
+export type ToolExecutionMode = 'auto' | 'confirm';
+
+// MCPツール管理状態の型定義
+export interface MCPToolsState {
+  enabled: boolean;
+  executionMode: ToolExecutionMode;
+  availableTools: MCPToolConfig[];
+  activeExecutions: Map<string, ToolExecution>;
+  executionHistory: ToolExecution[];
+}

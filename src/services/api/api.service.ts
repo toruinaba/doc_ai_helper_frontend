@@ -359,6 +359,51 @@ export class ApiClient {
   }
 
   /**
+   * MCPツールを有効にしたLLMクエリを送信
+   * @param request LLMクエリリクエスト
+   * @param enableTools ツールを有効にするかどうか
+   * @param toolChoice ツール選択戦略
+   * @returns LLMレスポンス（ツール実行結果を含む）
+   */
+  async sendLLMQueryWithTools(
+    request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'>,
+    enableTools: boolean = true,
+    toolChoice: string = 'auto'
+  ): Promise<LLMResponse> {
+    const toolsRequest: LLMQueryRequest = {
+      ...request,
+      enable_tools: enableTools,
+      tool_choice: toolChoice
+    };
+    
+    console.log('Sending LLM query with MCP tools:', {
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      prompt: request.prompt.substring(0, 100) + '...'
+    });
+    
+    const response = await this.post<LLMResponse>('/llm/query', toolsRequest);
+    
+    // ツール実行結果をログ出力
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      console.log('Tool calls executed:', response.tool_calls.length);
+      response.tool_calls.forEach((toolCall, index) => {
+        console.log(`Tool call ${index + 1}:`, {
+          id: toolCall.id,
+          function: toolCall.function.name,
+          arguments: toolCall.function.arguments
+        });
+      });
+    }
+    
+    if (response.tool_execution_results && response.tool_execution_results.length > 0) {
+      console.log('Tool execution results received:', response.tool_execution_results.length);
+    }
+    
+    return response;
+  }
+
+  /**
    * LLMにストリーミングクエリを送信
    * @param request LLMストリーミングリクエスト
    * @param callbacks ストリーミングイベントのコールバック関数
@@ -588,6 +633,87 @@ export class ApiClient {
     return () => {
       eventSource.close();
     };
+  }
+
+  /**
+   * MCPツールを有効にしたLLMストリーミングクエリを送信
+   * このメソッドは高度なストリーミング機能のためにstreaming-alt.serviceを使用します
+   * @param request LLMクエリリクエスト
+   * @param enableTools ツールを有効にするかどうか
+   * @param toolChoice ツール選択戦略
+   * @param callbacks ストリーミングイベントのコールバック関数（MCPツール対応）
+   * @returns ストリーミングを中止するためのAbortController
+   */
+  async streamLLMQueryWithTools(
+    request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'>,
+    enableTools: boolean = true,
+    toolChoice: string = 'auto',
+    callbacks: {
+      onStart?: (data?: any) => void;
+      onToken?: (token: string) => void;
+      onError?: (error: string) => void;
+      onEnd?: (data?: any) => void;
+      onToolCall?: (toolCall: any) => void;           // ツール呼び出し開始時
+      onToolResult?: (result: any) => void;           // ツール実行結果受信時
+    }
+  ): Promise<AbortController> {
+    // streaming-alt.serviceを動的にインポートして使用
+    const { streamLLMQueryWithFetch } = await import('./streaming-alt.service');
+    
+    const toolsRequest: LLMQueryRequest = {
+      ...request,
+      enable_tools: enableTools,
+      tool_choice: toolChoice
+    };
+    
+    console.log('Streaming LLM query with MCP tools:', {
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      prompt: request.prompt.substring(0, 100) + '...'
+    });
+    
+    // 拡張されたコールバック関数を定義
+    const extendedCallbacks = {
+      onStart: (data?: any) => {
+        console.log('MCP streaming started:', data);
+        callbacks.onStart?.(data);
+      },
+      onToken: (token: string) => {
+        callbacks.onToken?.(token);
+      },
+      onError: (error: string) => {
+        console.error('MCP streaming error:', error);
+        callbacks.onError?.(error);
+      },
+      onEnd: (data?: any) => {
+        console.log('MCP streaming ended:', data);
+        
+        // ツール実行結果があれば通知
+        if (data?.tool_calls && callbacks.onToolCall) {
+          data.tool_calls.forEach((toolCall: any) => {
+            console.log('Tool call detected in stream:', toolCall);
+            callbacks.onToolCall?.(toolCall);
+          });
+        }
+        
+        if (data?.tool_execution_results && callbacks.onToolResult) {
+          data.tool_execution_results.forEach((result: any) => {
+            console.log('Tool execution result detected in stream:', result);
+            callbacks.onToolResult?.(result);
+          });
+        }
+        
+        callbacks.onEnd?.(data);
+      }
+    };
+    
+    // streaming-alt.serviceを使用してストリーミングを開始
+    return streamLLMQueryWithFetch(
+      this.baseUrl,
+      '/llm/stream',
+      toolsRequest,
+      extendedCallbacks
+    );
   }
 }
 

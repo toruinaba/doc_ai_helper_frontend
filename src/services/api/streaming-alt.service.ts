@@ -1,4 +1,5 @@
 import { normalizeUrl } from './url-helper'
+import type { ToolCall, MCPStreamingCallbacks } from './types'
 
 // ストリーミングコールバック関数の型定義
 interface StreamingCallbacks {
@@ -274,6 +275,260 @@ export function streamLLMQueryWithFetch(
     }
     
     callbacks.onError?.(errorMessage)
+  })
+  
+  return controller
+}
+
+/**
+ * MCPツール対応のFetch-based SSE実装
+ * 既存のstreamLLMQueryWithFetchを拡張し、MCPツール機能に対応
+ * @param apiBaseUrl APIのベースURL
+ * @param endpoint エンドポイント
+ * @param requestData リクエストデータ（MCPツール設定を含む）
+ * @param callbacks ストリーミングコールバック（MCPツール対応）
+ * @returns AbortController
+ */
+export function streamLLMQueryWithMCPTools(
+  apiBaseUrl: string,
+  endpoint: string,
+  requestData: any,
+  callbacks: MCPStreamingCallbacks
+): AbortController {
+  console.log('=== Initializing MCP Tools Streaming ===')
+  console.log('MCP Tools enabled:', requestData.enable_tools)
+  console.log('Tool choice:', requestData.tool_choice)
+
+  // 拡張されたコールバック関数を定義
+  const extendedCallbacks: StreamingCallbacks = {
+    onStart: (data?: any) => {
+      console.log('MCP streaming started:', data)
+      
+      // ツール関連の情報があれば処理
+      if (data?.tools_available) {
+        console.log('Available tools:', data.tools_available)
+      }
+      
+      callbacks.onStart?.(data)
+    },
+    
+    onToken: (token: string) => {
+      // 通常のトークンストリーミング
+      callbacks.onToken?.(token)
+    },
+    
+    onError: (error: string) => {
+      console.error('MCP streaming error:', error)
+      callbacks.onError?.(error)
+    },
+    
+    onEnd: (data?: any) => {
+      console.log('MCP streaming ended:', data)
+      
+      // ツール実行結果の処理
+      if (data?.tool_calls && Array.isArray(data.tool_calls)) {
+        console.log('Processing tool calls from stream end:', data.tool_calls.length)
+        data.tool_calls.forEach((toolCall: ToolCall, index: number) => {
+          console.log(`Tool call ${index + 1}:`, {
+            id: toolCall.id,
+            function: toolCall.function.name,
+            arguments: toolCall.function.arguments
+          })
+          callbacks.onToolCall?.(toolCall)
+        })
+      }
+      
+      if (data?.tool_execution_results && Array.isArray(data.tool_execution_results)) {
+        console.log('Processing tool execution results from stream end:', data.tool_execution_results.length)
+        data.tool_execution_results.forEach((result: any, index: number) => {
+          console.log(`Tool result ${index + 1}:`, result)
+          callbacks.onToolResult?.(result)
+        })
+      }
+      
+      // 最適化された会話履歴の処理
+      if (data?.optimized_conversation_history) {
+        console.log('Optimized conversation history received:', data.optimized_conversation_history.length, 'messages')
+      }
+      
+      callbacks.onEnd?.(data)
+    }
+  }
+
+  // 既存のstreamLLMQueryWithFetch関数を使用
+  return streamLLMQueryWithFetch(apiBaseUrl, endpoint, requestData, extendedCallbacks)
+}
+
+/**
+ * リアルタイムMCPツール実行ストリーミング
+ * ツール実行中の進捗をリアルタイムで監視
+ * @param apiBaseUrl APIのベースURL
+ * @param endpoint エンドポイント
+ * @param requestData リクエストデータ
+ * @param callbacks MCPツール専用コールバック
+ * @returns AbortController
+ */
+export function streamMCPToolExecution(
+  apiBaseUrl: string,
+  endpoint: string,
+  requestData: any,
+  callbacks: MCPStreamingCallbacks & {
+    onToolProgress?: (progress: { toolId: string; status: string; progress?: number }) => void
+  }
+): AbortController {
+  console.log('=== Initializing Real-time MCP Tool Execution Streaming ===')
+  
+  const controller = new AbortController()
+  const fullUrl = normalizeUrl(apiBaseUrl, endpoint)
+  
+  fetch(fullUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    },
+    body: JSON.stringify({
+      ...requestData,
+      enable_tools: true,
+      stream_tool_execution: true // ツール実行の詳細ストリーミングを有効化
+    }),
+    signal: controller.signal,
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+    
+    if (!response.body) {
+      throw new Error('Response body is null')
+    }
+    
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    
+    // MCPツール固有のイベント処理
+    function processMCPEvent(eventType: string, eventData: string) {
+      try {
+        const parsedData = JSON.parse(eventData)
+        
+        switch (eventType) {
+          case 'tool_call_start':
+            console.log('Tool call started:', parsedData)
+            if (parsedData.tool_call) {
+              callbacks.onToolCall?.(parsedData.tool_call)
+            }
+            break
+            
+          case 'tool_execution_progress':
+            console.log('Tool execution progress:', parsedData)
+            if (callbacks.onToolProgress && parsedData.tool_id) {
+              callbacks.onToolProgress({
+                toolId: parsedData.tool_id,
+                status: parsedData.status || 'running',
+                progress: parsedData.progress
+              })
+            }
+            break
+            
+          case 'tool_execution_result':
+            console.log('Tool execution result:', parsedData)
+            if (parsedData.result) {
+              callbacks.onToolResult?.(parsedData.result)
+            }
+            break
+            
+          case 'token':
+            if (parsedData.content || parsedData.text) {
+              callbacks.onToken?.(parsedData.content || parsedData.text)
+            }
+            break
+            
+          case 'start':
+            callbacks.onStart?.(parsedData)
+            break
+            
+          case 'end':
+            callbacks.onEnd?.(parsedData)
+            break
+            
+          case 'error':
+            callbacks.onError?.(parsedData.error || 'Unknown error')
+            break
+            
+          default:
+            // 不明なイベントは通常のトークンとして処理
+            if (parsedData.content || parsedData.text) {
+              callbacks.onToken?.(parsedData.content || parsedData.text)
+            }
+            break
+        }
+      } catch (error) {
+        console.error('Error processing MCP event:', error)
+        callbacks.onError?.(`Event processing error: ${error}`)
+      }
+    }
+    
+    // ストリームデータの処理（既存の実装を再利用）
+    function processStreamData(chunk: string) {
+      buffer += chunk
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      
+      let eventType = ''
+      let eventData = ''
+      
+      for (const line of lines) {
+        if (line === '') {
+          if (eventData) {
+            processMCPEvent(eventType || 'token', eventData)
+            eventType = ''
+            eventData = ''
+          }
+          continue
+        }
+        
+        if (line.startsWith('event:')) {
+          eventType = line.substring(6).trim()
+        } else if (line.startsWith('data:')) {
+          eventData = line.substring(5).trim()
+          if (eventData.startsWith('data:')) {
+            eventData = eventData.substring(5).trim()
+          }
+        } else if (line.trim()) {
+          try {
+            processMCPEvent('token', line)
+          } catch (e) {
+            callbacks.onToken?.(line)
+          }
+        }
+      }
+    }
+    
+    // ストリーム読み込み
+    function readStream(): Promise<void> {
+      return reader.read().then(({ done, value }) => {
+        if (done) {
+          console.log('MCP tool execution stream complete')
+          return
+        }
+        
+        const chunk = decoder.decode(value, { stream: true })
+        processStreamData(chunk)
+        
+        return readStream()
+      })
+    }
+    
+    readStream().catch(error => {
+      console.error('MCP stream reading error:', error)
+      callbacks.onError?.(`Stream reading error: ${error.message}`)
+    })
+  })
+  .catch(error => {
+    console.error('MCP streaming fetch error:', error)
+    callbacks.onError?.(`Failed to initiate MCP streaming: ${error.message}`)
   })
   
   return controller

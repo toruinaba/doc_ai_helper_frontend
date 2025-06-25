@@ -195,14 +195,28 @@ export interface MessageItem {
   timestamp?: string;
 }
 
+// MCPツール関連の型定義
+export interface FunctionCall {
+  name: string;                    // 関数名
+  arguments: string;               // JSON文字列としての引数
+}
+
+export interface ToolCall {
+  id: string;                      // ツール呼び出しID
+  type: 'function';                // ツール呼び出しタイプ（現在は'function'のみ）
+  function: FunctionCall;          // 関数呼び出しの詳細
+}
+
 export interface LLMQueryRequest {
   prompt: string;                  // LLMに送信するプロンプト
   context_documents?: string[];    // コンテキストに含めるドキュメントパスのリスト
-  provider?: string;               // 使用するLLMプロバイダー
+  provider?: string;               // 使用するLLMプロバイダー（デフォルト: 'openai'）
   model?: string;                  // 使用する特定のモデル
   options?: Record<string, any>;   // LLMプロバイダー用の追加オプション
   disable_cache?: boolean;         // trueの場合、キャッシュをバイパスして常に新しいAPI呼び出しを行う
   conversation_history?: MessageItem[]; // 会話の履歴（コンテキスト用）
+  enable_tools?: boolean;          // MCPツールを有効にするかどうか（デフォルト: false）
+  tool_choice?: string;            // ツール選択戦略: 'auto', 'none', 'required', または特定の関数名（デフォルト: 'auto'）
 }
 
 export interface LLMResponse {
@@ -217,6 +231,8 @@ export interface LLMResponse {
   raw_response?: Record<string, any>; // プロバイダーからの生レスポンス
   optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
   history_optimization_info?: Record<string, any>; // 会話履歴の最適化に関する情報
+  tool_calls?: ToolCall[];         // LLMが要求したツール呼び出し（MCPツール機能）
+  tool_execution_results?: Record<string, any>[]; // ツール実行結果（MCPツール機能）
   is_streaming?: boolean;          // ストリーミングレスポンスかどうか
 }
 
@@ -234,6 +250,8 @@ export interface StreamingLLMResponse {
       total_tokens: number;
     };
     optimized_conversation_history?: MessageItem[]; // 終了イベントの場合、最適化された会話履歴
+    tool_calls?: ToolCall[];       // ツール呼び出し情報（MCPツール機能）
+    tool_execution_results?: Record<string, any>[]; // ツール実行結果（MCPツール機能）
   };
   id?: string;                     // イベントID（任意）
 }
@@ -248,4 +266,10 @@ export interface StreamingCallbacks {
   onToken?: (token: string) => void;
   onError?: (error: string) => void;
   onEnd?: (data?: any) => void;
+}
+
+// MCPツール機能のコールバック関数の型定義（ストリーミング用）
+export interface MCPStreamingCallbacks extends StreamingCallbacks {
+  onToolCall?: (toolCall: ToolCall) => void;           // ツール呼び出し開始時
+  onToolResult?: (result: Record<string, any>) => void; // ツール実行結果受信時
 }

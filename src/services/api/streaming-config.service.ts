@@ -27,7 +27,22 @@ const defaultStreamingConfig = {
   timeout: 30000,
   
   // デバッグモード
-  debug: true // デバッグモードを有効化
+  debug: true, // デバッグモードを有効化
+  
+  // MCPツール関連の設定
+  mcpTools: {
+    // MCPツール実行の詳細ログを有効化
+    enableDetailedLogging: true,
+    
+    // ツール実行進捗の監視を有効化
+    enableProgressMonitoring: true,
+    
+    // ツール実行タイムアウト (ミリ秒)
+    toolExecutionTimeout: 60000,
+    
+    // ツール実行結果の自動パース
+    autoParseResults: true
+  }
 };
 
 // 現在のストリーミング設定
@@ -96,11 +111,48 @@ export function resetStreamingConfig() {
   return { ...currentConfig };
 }
 
+/**
+ * MCPツール設定を取得
+ * @returns MCPツール関連の設定
+ */
+export function getMCPToolsConfig() {
+  return { ...currentConfig.mcpTools };
+}
+
+/**
+ * MCPツール設定を更新
+ * @param config 新しいMCPツール設定 (部分的)
+ * @returns 更新されたMCPツール設定
+ */
+export function updateMCPToolsConfig(config: Partial<typeof defaultStreamingConfig.mcpTools>) {
+  currentConfig.mcpTools = {
+    ...currentConfig.mcpTools,
+    ...config
+  };
+  
+  if (currentConfig.debug) {
+    console.log('Updated MCP tools config:', currentConfig.mcpTools);
+  }
+  
+  return { ...currentConfig.mcpTools };
+}
+
+/**
+ * MCPツールストリーミングが有効かどうかを判断
+ * @returns MCPツールストリーミングが有効な場合true
+ */
+export function isMCPToolsStreamingEnabled(): boolean {
+  return currentConfig.mcpTools.enableProgressMonitoring;
+}
+
 export default {
   getStreamingConfig,
   updateStreamingConfig,
   detectOptimalStreamingType,
   getEffectiveStreamingType,
   resetStreamingConfig,
+  getMCPToolsConfig,
+  updateMCPToolsConfig,
+  isMCPToolsStreamingEnabled,
   StreamingType
 };

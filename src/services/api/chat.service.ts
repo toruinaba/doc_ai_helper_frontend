@@ -56,6 +56,147 @@ export async function sendChatMessage(request: ChatRequest): Promise<ChatRespons
 }
 
 /**
+ * MCPツールを有効にしたLLMとのチャット
+ * @param request チャットリクエスト（ツール設定を除く）
+ * @param enableTools ツールを有効にするかどうか
+ * @param toolChoice ツール選択戦略
+ * @returns チャットレスポンス（ツール実行結果を含む）
+ */
+export async function sendChatMessageWithTools(
+  request: Omit<ChatRequest, 'enable_tools' | 'tool_choice'>,
+  enableTools: boolean = true,
+  toolChoice: string = 'auto'
+): Promise<ChatResponse> {
+  // ツール設定を含む完全なリクエストを構築
+  const toolsRequest = {
+    ...request,
+    enable_tools: enableTools,
+    tool_choice: toolChoice
+  };
+
+  // 環境変数の設定に基づいてモックを使用するかどうかを判断
+  if (shouldUseMockApi()) {
+    console.log('Using mock chat response with MCP tools as configured by environment variables');
+    
+    try {
+      const { getMockChatResponse } = await import('./mock.service');
+      const mockResponse = getMockChatResponse(
+        request.messages, 
+        request.document_context
+      ) as ChatResponse;
+      
+      // MCPツール情報をモックレスポンスに追加
+      if (enableTools) {
+        // 最後のユーザーメッセージを確認してツール呼び出しを生成
+        const lastMessage = request.messages[request.messages.length - 1];
+        if (lastMessage && lastMessage.content.includes('計算')) {
+          // ツール呼び出し情報をメッセージに追加
+          mockResponse.message.content = `計算ツールを使用しました。\n\n${mockResponse.message.content}`;
+          
+          // 追加のメタデータ
+          (mockResponse as any).tool_calls = [{
+            id: 'mock_chat_call_' + Date.now(),
+            type: 'function',
+            function: {
+              name: 'calculate',
+              arguments: JSON.stringify({ expression: 'auto-detected' })
+            }
+          }];
+          
+          (mockResponse as any).tool_execution_results = [{
+            tool_call_id: (mockResponse as any).tool_calls[0].id,
+            function_name: 'calculate',
+            result: { success: true, result: 'mock calculation' }
+          }];
+        }
+      }
+      
+      return mockResponse;
+    } catch (error) {
+      console.warn('Mock chat service error:', error);
+      // フォールバック
+      return {
+        message: {
+          role: 'assistant',
+          content: 'モック環境でのMCPツール対応チャット機能のテストレスポンスです。'
+        },
+        usage: { prompt_tokens: 10, completion_tokens: 15, total_tokens: 25 },
+        execution_time_ms: 100
+      } as ChatResponse;
+    }
+  }
+  
+  try {
+    // モックモードでない場合は実際のAPIを呼び出し
+    console.log('Sending chat message with MCP tools:', {
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      messages_count: request.messages ? request.messages.length : 0
+    });
+    
+    // デバッグ用：最初と最後のメッセージを表示
+    if (request.messages && request.messages.length > 0) {
+      console.log('First message:', request.messages[0]);
+      console.log('Last message:', request.messages[request.messages.length - 1]);
+    }
+    
+    // 注意: 現在のapiClientにはsendChatMessageWithToolsメソッドがないため、
+    // LLMクエリ形式に変換して送信
+    const llmRequest: LLMQueryRequest = {
+      prompt: request.messages[request.messages.length - 1]?.content || '',
+      conversation_history: request.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date().toISOString()
+      })),
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      provider: 'openai'
+    };
+    
+    // ドキュメントコンテキストがあれば追加
+    if (request.document_context) {
+      llmRequest.context_documents = [request.document_context.path];
+    }
+    
+    const llmResponse = await apiClient.sendLLMQueryWithTools(
+      llmRequest,
+      enableTools,
+      toolChoice
+    );
+    
+    // LLMレスポンスをチャットレスポンス形式に変換
+    const chatResponse: ChatResponse = {
+      message: {
+        role: 'assistant',
+        content: llmResponse.content
+      },
+      usage: llmResponse.usage,
+      execution_time_ms: 100, // デフォルト値
+      optimized_conversation_history: llmResponse.optimized_conversation_history
+    };
+    
+    // ツール実行結果があれば追加情報として含める
+    if (llmResponse.tool_calls || llmResponse.tool_execution_results) {
+      (chatResponse as any).tool_calls = llmResponse.tool_calls;
+      (chatResponse as any).tool_execution_results = llmResponse.tool_execution_results;
+      
+      console.log('Chat response includes tool execution results');
+    }
+    
+    // 会話履歴の最適化情報があれば、コンソールに記録
+    if (chatResponse.optimized_conversation_history) {
+      console.log('Received optimized conversation history from chat with MCP tools');
+    }
+    
+    return chatResponse;
+  } catch (error) {
+    console.error('Chat API with MCP tools error:', error);
+    throw error;
+  }
+}
+
+/**
  * LLMにクエリを送信
  * @param request LLMクエリリクエスト
  * @param systemPrompt オプションのシステムプロンプト
@@ -494,14 +635,391 @@ function createMockStreamLLMQuery(
   return () => cleanupFunction();
 }
 
+/**
+ * MCPツールを有効にしたLLMクエリを送信
+ * @param request LLMクエリリクエスト（ツール設定を除く）
+ * @param enableTools ツールを有効にするかどうか
+ * @param toolChoice ツール選択戦略
+ * @param systemPrompt オプションのシステムプロンプト
+ * @returns LLMレスポンス（ツール実行結果を含む）
+ */
+export async function sendLLMQueryWithTools(
+  request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'>,
+  enableTools: boolean = true,
+  toolChoice: string = 'auto',
+  systemPrompt?: string
+): Promise<LLMResponse> {
+  // ツール設定を含む完全なリクエストを構築
+  const toolsRequest: LLMQueryRequest = {
+    ...request,
+    enable_tools: enableTools,
+    tool_choice: toolChoice
+  };
+
+  // システムプロンプトがある場合は会話履歴に追加
+  if (systemPrompt && (!toolsRequest.conversation_history || toolsRequest.conversation_history.length === 0)) {
+    toolsRequest.conversation_history = createConversationWithSystemPrompt(systemPrompt);
+  } else if (systemPrompt) {
+    toolsRequest.conversation_history = createConversationWithSystemPrompt(
+      systemPrompt, 
+      toolsRequest.conversation_history
+    );
+  }
+
+  // 環境変数の設定に基づいてモックを使用するかどうかを判断
+  if (shouldUseMockApi()) {
+    console.log('Using mock LLM response with MCP tools as configured by environment variables');
+    
+    try {
+      const { getMockLLMResponse } = await import('./mock.service');
+      const mockResponse = getMockLLMResponse(toolsRequest.prompt, toolsRequest.conversation_history) as LLMResponse;
+      
+      // モックレスポンスにツール情報が含まれていなければ作成する
+      if (enableTools && !mockResponse.tool_calls) {
+        // 計算関連のプロンプトの場合、モックツール呼び出しを生成
+        if (toolsRequest.prompt.includes('計算') || toolsRequest.prompt.includes('×') || toolsRequest.prompt.includes('+')) {
+          mockResponse.tool_calls = [{
+            id: 'mock_call_' + Date.now(),
+            type: 'function',
+            function: {
+              name: 'calculate',
+              arguments: JSON.stringify({ expression: '100 * 25 + 75' })
+            }
+          }];
+          
+          mockResponse.tool_execution_results = [{
+            tool_call_id: mockResponse.tool_calls[0].id,
+            function_name: 'calculate',
+            result: { success: true, result: 2575 }
+          }];
+          
+          // ツール実行結果を反映したコンテンツに更新
+          mockResponse.content = `計算結果: 2575\n\n${mockResponse.content}`;
+        }
+      }
+      
+      // モックレスポンスに会話履歴が含まれていなければ作成する
+      if (!mockResponse.optimized_conversation_history && toolsRequest.conversation_history) {
+        const systemMessages = toolsRequest.conversation_history.filter(msg => msg.role === 'system');
+        const userMessages = toolsRequest.conversation_history.filter(msg => msg.role === 'user');
+        const latestUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+        
+        mockResponse.optimized_conversation_history = [
+          ...systemMessages,
+          ...(latestUserMessage ? [latestUserMessage] : []),
+          { role: 'assistant', content: mockResponse.content, timestamp: new Date().toISOString() }
+        ];
+        
+        console.log('Created conversation history for mock MCP tools response:', 
+          mockResponse.optimized_conversation_history.length, 'messages');
+      }
+      
+      return mockResponse;
+    } catch (error) {
+      console.warn('Mock service error, creating fallback response:', error);
+      // フォールバック用の基本モックレスポンス
+      return {
+        content: 'モック環境でのMCPツール機能のテストレスポンスです。',
+        model: 'mock-model',
+        provider: 'mock',
+        usage: { prompt_tokens: 10, completion_tokens: 15, total_tokens: 25 },
+        optimized_conversation_history: toolsRequest.conversation_history ? [
+          ...toolsRequest.conversation_history,
+          { role: 'assistant', content: 'モックレスポンス', timestamp: new Date().toISOString() }
+        ] : []
+      } as LLMResponse;
+    }
+  }
+  
+  try {
+    // モックモードでない場合は実際のAPIを呼び出し
+    console.log('Sending LLM query with MCP tools:', {
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      conversation_history_length: toolsRequest.conversation_history ? toolsRequest.conversation_history.length : 0,
+      prompt: toolsRequest.prompt.substring(0, 100) + '...'
+    });
+    
+    // デバッグ用：最初と最後のメッセージを表示
+    if (toolsRequest.conversation_history && toolsRequest.conversation_history.length > 0) {
+      console.log('First message:', toolsRequest.conversation_history[0]);
+      console.log('Last message:', toolsRequest.conversation_history[toolsRequest.conversation_history.length - 1]);
+    }
+    
+    const response = await apiClient.sendLLMQueryWithTools(
+      request, 
+      enableTools, 
+      toolChoice
+    );
+    
+    // ツール実行結果の処理
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      console.log('Tool calls executed:', response.tool_calls.length);
+      response.tool_calls.forEach((toolCall, index) => {
+        console.log(`Tool call ${index + 1}:`, {
+          id: toolCall.id,
+          function: toolCall.function.name,
+          arguments: toolCall.function.arguments
+        });
+      });
+    }
+    
+    if (response.tool_execution_results && response.tool_execution_results.length > 0) {
+      console.log('Tool execution results received:', response.tool_execution_results.length);
+    }
+    
+    // 会話履歴の最適化情報があれば、コンソールに記録
+    if (response.optimized_conversation_history) {
+      console.log('Received optimized conversation history from the server (with MCP tools)');
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('LLM API with MCP tools error:', error);
+    throw error;
+  }
+}
+
+/**
+ * MCPツールを有効にしたストリーミングLLMクエリを送信
+ * @param request LLMクエリリクエスト（ツール設定を除く）
+ * @param enableTools ツールを有効にするかどうか
+ * @param toolChoice ツール選択戦略
+ * @param callbacks ストリーミングコールバック（MCPツール対応）
+ * @param systemPrompt オプションのシステムプロンプト
+ * @returns ストリーミングを中止するためのAbortController
+ */
+export async function streamLLMQueryWithTools(
+  request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'>,
+  enableTools: boolean = true,
+  toolChoice: string = 'auto',
+  callbacks: {
+    onStart?: (data?: any) => void;
+    onToken?: (token: string) => void;
+    onError?: (error: string) => void;
+    onEnd?: (data?: any) => void;
+    onToolCall?: (toolCall: any) => void;           // ツール呼び出し開始時
+    onToolResult?: (result: any) => void;           // ツール実行結果受信時
+  },
+  systemPrompt?: string
+): Promise<AbortController> {
+  // ツール設定を含む完全なリクエストを構築
+  let toolsRequest: LLMQueryRequest = {
+    ...request,
+    enable_tools: enableTools,
+    tool_choice: toolChoice
+  };
+
+  // システムプロンプトがある場合は会話履歴に追加
+  if (systemPrompt && (!toolsRequest.conversation_history || toolsRequest.conversation_history.length === 0)) {
+    toolsRequest.conversation_history = createConversationWithSystemPrompt(systemPrompt);
+  } else if (systemPrompt) {
+    toolsRequest.conversation_history = createConversationWithSystemPrompt(
+      systemPrompt, 
+      toolsRequest.conversation_history
+    );
+  }
+
+  // 環境変数の設定に基づいてモックを使用するかどうかを判断
+  if (shouldUseMockApi()) {
+    console.log('Mock streaming with MCP tools is not implemented, falling back to non-streaming');
+    
+    // モックの場合は非ストリーミングで実行し、結果をストリーミング形式で配信
+    const controller = new AbortController();
+    
+    setTimeout(async () => {
+      try {
+        callbacks.onStart?.({ 
+          model: 'mock-model', 
+          provider: 'mock',
+          tools_enabled: enableTools 
+        });
+        
+        const response = await sendLLMQueryWithTools(request, enableTools, toolChoice, systemPrompt);
+        
+        // ツール呼び出しがあればコールバック実行
+        if (response.tool_calls) {
+          response.tool_calls.forEach(toolCall => {
+            callbacks.onToolCall?.(toolCall);
+          });
+        }
+        
+        // ツール実行結果があればコールバック実行
+        if (response.tool_execution_results) {
+          response.tool_execution_results.forEach(result => {
+            callbacks.onToolResult?.(result);
+          });
+        }
+        
+        // コンテンツを単語ごとにストリーミング
+        const words = response.content.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          if (controller.signal.aborted) break;
+          
+          callbacks.onToken?.(words[i] + (i < words.length - 1 ? ' ' : ''));
+          await new Promise(resolve => setTimeout(resolve, 50)); // 50ms間隔
+        }
+        
+        callbacks.onEnd?.({
+          usage: response.usage,
+          optimized_conversation_history: response.optimized_conversation_history,
+          tool_calls: response.tool_calls,
+          tool_execution_results: response.tool_execution_results
+        });
+      } catch (error) {
+        callbacks.onError?.(error instanceof Error ? error.message : 'Mock streaming error');
+      }
+    }, 100);
+    
+    return controller;
+  }
+  
+  try {
+    // モックモードでない場合は実際のAPIを呼び出し
+    console.log('Starting streaming LLM query with MCP tools:', {
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      conversation_history_length: toolsRequest.conversation_history ? toolsRequest.conversation_history.length : 0
+    });
+    
+    return await apiClient.streamLLMQueryWithTools(
+      request,
+      enableTools,
+      toolChoice,
+      callbacks
+    );
+  } catch (error) {
+    console.error('Streaming LLM API with MCP tools error:', error);
+    throw error;
+  }
+}
+
+/**
+ * MCPツール機能を使用すべきかを判断するヘルパー関数
+ * @param prompt ユーザーのプロンプト
+ * @param enableAutoDetection 自動検出を有効にするかどうか
+ * @returns ツール使用推奨の判定結果
+ */
+export function shouldUseMCPTools(prompt: string, enableAutoDetection: boolean = true): {
+  recommended: boolean;
+  toolChoice: string;
+  reason: string;
+} {
+  if (!enableAutoDetection) {
+    return { recommended: false, toolChoice: 'none', reason: 'Auto-detection disabled' };
+  }
+
+  const lowerPrompt = prompt.toLowerCase();
+  
+  // 計算関連のキーワード検出
+  const calculationKeywords = ['計算', '足す', '引く', '掛ける', '割る', '+', '-', '×', '*', '÷', '/', '='];
+  if (calculationKeywords.some(keyword => lowerPrompt.includes(keyword))) {
+    return { 
+      recommended: true, 
+      toolChoice: 'calculate', 
+      reason: 'Mathematical calculation detected' 
+    };
+  }
+  
+  // ドキュメント分析関連のキーワード検出
+  const analysisKeywords = ['分析', '構造', '要約', '抽出', 'まとめ', '整理'];
+  if (analysisKeywords.some(keyword => lowerPrompt.includes(keyword))) {
+    return { 
+      recommended: true, 
+      toolChoice: 'analyze_document_structure', 
+      reason: 'Document analysis task detected' 
+    };
+  }
+  
+  // テキストフォーマット関連のキーワード検出
+  const formatKeywords = ['フォーマット', '大文字', '小文字', 'タイトルケース', '整形'];
+  if (formatKeywords.some(keyword => lowerPrompt.includes(keyword))) {
+    return { 
+      recommended: true, 
+      toolChoice: 'format_text', 
+      reason: 'Text formatting task detected' 
+    };
+  }
+  
+  // フィードバック生成関連のキーワード検出
+  const feedbackKeywords = ['フィードバック', '評価', '改善', '提案', 'レビュー'];
+  if (feedbackKeywords.some(keyword => lowerPrompt.includes(keyword))) {
+    return { 
+      recommended: true, 
+      toolChoice: 'generate_feedback_from_conversation', 
+      reason: 'Feedback generation task detected' 
+    };
+  }
+  
+  // デフォルトは自動選択
+  return { 
+    recommended: true, 
+    toolChoice: 'auto', 
+    reason: 'General query, auto tool selection recommended' 
+  };
+}
+
+/**
+ * MCPツール実行結果を会話履歴に統合するヘルパー関数
+ * @param conversation 既存の会話履歴
+ * @param toolCalls ツール呼び出し情報
+ * @param toolResults ツール実行結果
+ * @param assistantResponse アシスタントのレスポンス
+ * @returns 統合された会話履歴
+ */
+export function integrateMCPToolResults(
+  conversation: MessageItem[],
+  toolCalls?: any[],
+  toolResults?: any[],
+  assistantResponse?: string
+): MessageItem[] {
+  const integratedConversation = [...conversation];
+  
+  // ツール呼び出し情報を会話履歴に追加（システムメッセージとして）
+  if (toolCalls && toolCalls.length > 0) {
+    const toolCallsMessage: MessageItem = {
+      role: 'system',
+      content: `MCPツールが実行されました: ${toolCalls.map(tc => tc.function.name).join(', ')}`,
+      timestamp: new Date().toISOString()
+    };
+    integratedConversation.push(toolCallsMessage);
+  }
+  
+  // ツール実行結果を会話履歴に追加（システムメッセージとして）
+  if (toolResults && toolResults.length > 0) {
+    const toolResultsMessage: MessageItem = {
+      role: 'system',
+      content: `ツール実行結果: ${toolResults.length}件の結果が取得されました`,
+      timestamp: new Date().toISOString()
+    };
+    integratedConversation.push(toolResultsMessage);
+  }
+  
+  // アシスタントのレスポンスを追加
+  if (assistantResponse) {
+    const assistantMessage: MessageItem = {
+      role: 'assistant',
+      content: assistantResponse,
+      timestamp: new Date().toISOString()
+    };
+    integratedConversation.push(assistantMessage);
+  }
+  
+  return integratedConversation;
+}
+
 export default {
   sendChatMessage,
+  sendChatMessageWithTools,
   sendLLMQuery,
+  sendLLMQueryWithTools,
+  streamLLMQueryWithTools,
   getLLMCapabilities,
   getLLMTemplates,
   formatPrompt,
   createConversationWithSystemPrompt,
   addUserMessageToConversation,
   createConversationWithUserMessage,
-  streamLLMQuery
+  shouldUseMCPTools,
+  integrateMCPToolResults
 };

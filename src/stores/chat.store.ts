@@ -7,6 +7,10 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { 
   sendLLMQuery, 
+  sendLLMQueryWithTools,
+  streamLLMQueryWithTools,
+  shouldUseMCPTools,
+  integrateMCPToolResults,
   formatPrompt 
 } from '../services/api/chat.service';
 import { useDocumentStore } from './document.store';
@@ -16,7 +20,8 @@ import type {
   ChatMessage,
   LLMQueryRequest,
   LLMResponse,
-  MessageItem
+  MessageItem,
+  ToolCall
 } from '../services/api/types';
 
 export interface ClientChatMessage {
@@ -24,18 +29,70 @@ export interface ClientChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  // MCPツール関連の情報
+  toolCalls?: ToolCall[];
+  toolResults?: any[];
+  isToolExecuting?: boolean;
+}
+
+// MCPツール実行状態の管理
+export interface MCPToolExecution {
+  id: string;
+  toolCall: ToolCall;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  startTime: Date;
+  endTime?: Date;
+  result?: any;
+  error?: string;
+  progress?: number;
+}
+
+// MCPツール設定
+export interface MCPToolsConfig {
+  enabled: boolean;
+  autoDetect: boolean;
+  defaultToolChoice: string;
+  enableProgressMonitoring: boolean;
+  enableDetailedLogging: boolean;
 }
 
 export const useChatStore = defineStore('chat', () => {
   // デフォルト設定を取得
   const defaultConfig = getDefaultRepositoryConfig();
 
-  // 状態
+  // 基本状態
   const messages = ref<ClientChatMessage[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const documentStore = useDocumentStore();
   const repositoryStore = useRepositoryStore();
+  
+  // MCPツール関連の状態
+  const mcpToolsConfig = ref<MCPToolsConfig>({
+    enabled: true,
+    autoDetect: true,
+    defaultToolChoice: 'auto',
+    enableProgressMonitoring: true,
+    enableDetailedLogging: true
+  });
+  
+  const activeToolExecutions = ref<MCPToolExecution[]>([]);
+  const isStreamingWithTools = ref(false);
+  const currentStreamController = ref<AbortController | null>(null);
+  const toolExecutionHistory = ref<MCPToolExecution[]>([]);
+  
+  // Computed プロパティ
+  const hasActiveToolExecutions = computed(() => activeToolExecutions.value.length > 0);
+  const isToolsEnabled = computed(() => mcpToolsConfig.value.enabled);
+  const runningToolExecutions = computed(() => 
+    activeToolExecutions.value.filter(exec => exec.status === 'running')
+  );
+  const completedToolExecutions = computed(() => 
+    toolExecutionHistory.value.filter(exec => exec.status === 'completed')
+  );
+  const failedToolExecutions = computed(() => 
+    toolExecutionHistory.value.filter(exec => exec.status === 'error')
+  );
   
   // 新しいメッセージID生成
   function generateMessageId(): string {
@@ -83,15 +140,79 @@ export const useChatStore = defineStore('chat', () => {
     return message;
   }
   
-  // LLMにメッセージ送信
-  async function sendMessage(content: string) {
-    console.log('Start sending message:', content);
+  // MCPツール実行追跡関数
+  function startToolExecution(toolCall: ToolCall): MCPToolExecution {
+    const execution: MCPToolExecution = {
+      id: toolCall.id,
+      toolCall,
+      status: 'pending',
+      startTime: new Date()
+    };
+    
+    activeToolExecutions.value.push(execution);
+    console.log('Started tool execution:', execution.id, execution.toolCall.function.name);
+    return execution;
+  }
+  
+  function updateToolExecutionStatus(
+    executionId: string, 
+    status: MCPToolExecution['status'], 
+    result?: any, 
+    error?: string,
+    progress?: number
+  ) {
+    const execution = activeToolExecutions.value.find(exec => exec.id === executionId);
+    if (execution) {
+      execution.status = status;
+      if (result !== undefined) execution.result = result;
+      if (error) execution.error = error;
+      if (progress !== undefined) execution.progress = progress;
+      
+      if (status === 'completed' || status === 'error') {
+        execution.endTime = new Date();
+        // アクティブリストから履歴に移動
+        activeToolExecutions.value = activeToolExecutions.value.filter(exec => exec.id !== executionId);
+        toolExecutionHistory.value.push(execution);
+      }
+      
+      console.log('Updated tool execution status:', executionId, status);
+    }
+  }
+  
+  function clearToolExecutionHistory() {
+    toolExecutionHistory.value = [];
+    activeToolExecutions.value = [];
+    console.log('Cleared tool execution history');
+  }
+  
+  // MCPツール設定管理
+  function updateMCPToolsConfig(config: Partial<MCPToolsConfig>) {
+    mcpToolsConfig.value = { ...mcpToolsConfig.value, ...config };
+    console.log('Updated MCP tools config:', mcpToolsConfig.value);
+  }
+  
+  function toggleMCPTools() {
+    mcpToolsConfig.value.enabled = !mcpToolsConfig.value.enabled;
+    console.log('Toggled MCP tools:', mcpToolsConfig.value.enabled ? 'enabled' : 'disabled');
+  }
+  
+  // MCPツール対応メッセージ送信
+  async function sendMessageWithTools(content: string, forceToolChoice?: string) {
+    console.log('Start sending message with MCP tools:', content);
     isLoading.value = true;
     error.value = null;
     
     try {
       // ユーザーメッセージを追加
-      addUserMessage(content);
+      const userMessage = addUserMessage(content);
+      
+      // ツール使用の判定
+      const toolRecommendation = shouldUseMCPTools(content, mcpToolsConfig.value.autoDetect);
+      const useTools = mcpToolsConfig.value.enabled && toolRecommendation.recommended;
+      const toolChoice = forceToolChoice || toolRecommendation.toolChoice;
+      
+      console.log('Tool recommendation:', toolRecommendation);
+      console.log('Using tools:', useTools, 'Tool choice:', toolChoice);
       
       // 現在のドキュメントコンテキストを取得
       const currentDoc = documentStore.currentDocument;
@@ -100,98 +221,97 @@ export const useChatStore = defineStore('chat', () => {
         throw new Error('ドキュメントが選択されていません');
       }
       
-      // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
+      // リポジトリ情報を取得
       const service = documentStore.currentService || defaultConfig.service;
       const owner = documentStore.currentOwner || defaultConfig.owner;
       const repo = documentStore.currentRepo || defaultConfig.repo;
-      const path = documentStore.currentPath || defaultConfig.path;
       const ref = documentStore.currentRef || defaultConfig.ref;
+      const path = currentDoc.path;
       
-      try {
-        // ユーザーの最後のメッセージを取得
-        const userPrompt = content;
+      // ドキュメントコンテキストを含むシステムプロンプトを作成
+      const documentContext = `以下のドキュメントに関する質問に答えてください：
+
+リポジトリ: ${service}/${owner}/${repo}
+ファイル: ${path}
+ブランチ: ${ref}
+
+ドキュメント内容:
+${currentDoc.content.content}`;
+      
+      // 会話履歴を構築
+      const conversationHistory: MessageItem[] = messages.value.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+      
+      // LLMクエリリクエストを構築
+      const request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'> = {
+        prompt: content,
+        conversation_history: conversationHistory,
+        context_documents: [path],
+        provider: 'openai'
+      };
+      
+      let response: LLMResponse;
+      
+      if (useTools) {
+        // MCPツール付きでクエリを送信
+        response = await sendLLMQueryWithTools(request, true, toolChoice, documentContext);
         
-        // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
-        const conversationHistory = messages.value.map(msg => ({
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp.toISOString()
-        }));
-        
-        // LLMクエリリクエストの構築
-        const request: LLMQueryRequest = {
-          prompt: userPrompt,
-          context_documents: [path],
-          conversation_history: conversationHistory
-        };
-        
-        console.log('Sending chat message with conversation history:', conversationHistory.length, 'messages');
-        
-        // APIリクエスト送信（/llm/queryエンドポイントを使用）
-        const response = await sendLLMQuery(request);
-        console.log('Received LLM response:', response);
-        
-        // 最適化された会話履歴がある場合は、それをクライアント形式に変換して保存
-        if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
-          console.log('Using optimized conversation history from the server:', 
-            response.optimized_conversation_history.length, 'messages');
-          
-          // 現在の会話履歴をバックアップ（デバッグ用）
-          const oldMessages = [...messages.value];
-          console.log('Previous messages count:', oldMessages.length);
-          
-          // 既存の会話履歴をクリア
-          messages.value = [];
-          
-          // 最適化された会話履歴を追加
-          response.optimized_conversation_history.forEach((msg: MessageItem, index: number) => {
-            console.log(`Adding message ${index} with role ${msg.role}`);
-            const clientMsg: ClientChatMessage = {
-              id: generateMessageId(),
-              role: msg.role as 'user' | 'assistant' | 'system',
-              content: msg.content,
-              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
-            };
-            messages.value.push(clientMsg);
+        // ツール実行の追跡
+        if (response.tool_calls) {
+          response.tool_calls.forEach(toolCall => {
+            const execution = startToolExecution(toolCall);
+            updateToolExecutionStatus(execution.id, 'running');
           });
-          console.log('Updated messages after optimization:', messages.value.length);
-          
-          // 最後のメッセージが assistant でない場合、応答メッセージを追加
-          const lastMsg = response.optimized_conversation_history[response.optimized_conversation_history.length - 1];
-          if (lastMsg.role !== 'assistant') {
-            console.log('Last message is not from assistant, adding response content');
-            addAssistantMessage(response.content);
-          }
-        } else {
-          // 最適化された会話履歴がない場合は、応答メッセージを追加
-          console.log('No optimized history, adding assistant message directly');
-          addAssistantMessage(response.content);
         }
-      } catch (apiErr: any) {
-        console.error('API通信エラー:', apiErr);
-        console.log('APIエラー後、モック応答を使用します');
-        // モック応答（バックエンドAPI未実装の場合）
-        setTimeout(() => {
-          console.log('Timeout finished, adding mock assistant message');
-          addAssistantMessage(`こちらはLLMの応答の予定です。ドキュメントコンテキストを使って回答します。
-現在表示中のドキュメントは ${documentStore.documentTitle || 'なし'} です。
-
-ドキュメントの内容に基づいて、以下の情報を提供します：
-
-1. このドキュメントは「${currentDoc.name}」というタイトルのマークダウンファイルです。
-2. ドキュメントの種類: ${currentDoc.type}
-3. ファイルパス: ${currentDoc.path}
-
-より具体的な質問をしていただければ、ドキュメントの内容に基づいてお答えします。`);
-        }, 1000);
+        
+        // ツール実行結果の処理
+        if (response.tool_execution_results) {
+          response.tool_execution_results.forEach((result, index) => {
+            const toolCall = response.tool_calls?.[index];
+            if (toolCall) {
+              updateToolExecutionStatus(toolCall.id, 'completed', result);
+            }
+          });
+        }
+      } else {
+        // 通常のクエリを送信
+        response = await sendLLMQuery({ ...request, enable_tools: false }, documentContext);
       }
       
-    } catch (err: any) {
-      error.value = err.message || 'メッセージの送信に失敗しました';
-      console.error('メッセージ送信エラー:', err);
+      // アシスタントメッセージを追加（ツール情報も含む）
+      const assistantMessage = addAssistantMessage(response.content);
+      if (useTools && (response.tool_calls || response.tool_execution_results)) {
+        assistantMessage.toolCalls = response.tool_calls;
+        assistantMessage.toolResults = response.tool_execution_results;
+      }
+      
+      // 最適化された会話履歴があれば更新
+      if (response.optimized_conversation_history) {
+        console.log('Updating conversation history from server optimization');
+        // サーバーから最適化された履歴でクライアント側の履歴を更新
+        const optimizedMessages: ClientChatMessage[] = response.optimized_conversation_history.map(msg => ({
+          id: generateMessageId(),
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp || new Date().toISOString())
+        }));
+        
+        // 既存のメッセージをクリアして最適化されたものに置き換え
+        messages.value = optimizedMessages;
+        console.log('Updated messages from optimized history:', messages.value.length);
+      }
+      
+      console.log('Message with MCP tools sent successfully');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Error sending message with MCP tools:', err);
+      error.value = errorMessage;
       
       // エラーメッセージを表示
-      addSystemMessage(`エラー: ${error.value}`);
+      addSystemMessage(`エラーが発生しました: ${errorMessage}`);
     } finally {
       isLoading.value = false;
     }
@@ -457,17 +577,233 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
   
+  // MCPツール対応ストリーミングメッセージ送信
+  async function sendStreamingMessageWithTools(
+    content: string, 
+    onToken?: (token: string) => void,
+    forceToolChoice?: string
+  ) {
+    console.log('Start streaming message with MCP tools:', content);
+    isLoading.value = true;
+    isStreamingWithTools.value = true;
+    error.value = null;
+    
+    // 前のストリーミングがあれば中止
+    if (currentStreamController.value) {
+      currentStreamController.value.abort();
+    }
+    
+    try {
+      // ユーザーメッセージを追加
+      const userMessage = addUserMessage(content);
+      
+      // ツール使用の判定
+      const toolRecommendation = shouldUseMCPTools(content, mcpToolsConfig.value.autoDetect);
+      const useTools = mcpToolsConfig.value.enabled && toolRecommendation.recommended;
+      const toolChoice = forceToolChoice || toolRecommendation.toolChoice;
+      
+      console.log('Streaming with tools - Tool recommendation:', toolRecommendation);
+      console.log('Using tools:', useTools, 'Tool choice:', toolChoice);
+      
+      // 現在のドキュメントコンテキストを取得
+      const currentDoc = documentStore.currentDocument;
+      
+      if (!currentDoc) {
+        throw new Error('ドキュメントが選択されていません');
+      }
+      
+      // リポジトリ情報を取得
+      const service = documentStore.currentService || defaultConfig.service;
+      const owner = documentStore.currentOwner || defaultConfig.owner;
+      const repo = documentStore.currentRepo || defaultConfig.repo;
+      const ref = documentStore.currentRef || defaultConfig.ref;
+      const path = currentDoc.path;
+      
+      // ドキュメントコンテキストを含むシステムプロンプトを作成
+      const documentContext = `以下のドキュメントに関する質問に答えてください：
+
+リポジトリ: ${service}/${owner}/${repo}
+ファイル: ${path}
+ブランチ: ${ref}
+
+ドキュメント内容:
+${currentDoc.content.content}`;
+      
+      // 会話履歴を構築
+      const conversationHistory: MessageItem[] = messages.value.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+      
+      // LLMクエリリクエストを構築
+      const request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'> = {
+        prompt: content,
+        conversation_history: conversationHistory,
+        context_documents: [path],
+        provider: 'openai'
+      };
+      
+      // ストリーミング用の暫定アシスタントメッセージを作成
+      const assistantMessage = addAssistantMessage('');
+      let accumulatedContent = '';
+      
+      // ストリーミングコールバック
+      const callbacks = {
+        onStart: (data?: any) => {
+          console.log('MCP tools streaming started:', data);
+        },
+        onToken: (token: string) => {
+          accumulatedContent += token;
+          assistantMessage.content = accumulatedContent;
+          onToken?.(token);
+        },
+        onToolCall: (toolCall: any) => {
+          console.log('Tool call in streaming:', toolCall);
+          const execution = startToolExecution(toolCall);
+          updateToolExecutionStatus(execution.id, 'running');
+          
+          // ツール実行情報をメッセージに追加
+          if (!assistantMessage.toolCalls) {
+            assistantMessage.toolCalls = [];
+          }
+          assistantMessage.toolCalls.push(toolCall);
+        },
+        onToolResult: (result: any) => {
+          console.log('Tool result in streaming:', result);
+          
+          // ツール実行結果をメッセージに追加
+          if (!assistantMessage.toolResults) {
+            assistantMessage.toolResults = [];
+          }
+          assistantMessage.toolResults.push(result);
+          
+          // 対応するツール実行を完了状態に更新
+          const execution = activeToolExecutions.value.find(exec => 
+            exec.toolCall.function.name === result.function_name
+          );
+          if (execution) {
+            updateToolExecutionStatus(execution.id, 'completed', result);
+          }
+        },
+        onError: (error: string) => {
+          console.error('MCP tools streaming error:', error);
+          assistantMessage.content = `エラーが発生しました: ${error}`;
+          
+          // アクティブなツール実行をエラー状態に更新
+          activeToolExecutions.value.forEach(execution => {
+            updateToolExecutionStatus(execution.id, 'error', undefined, error);
+          });
+        },
+        onEnd: (data?: any) => {
+          console.log('MCP tools streaming ended:', data);
+          
+          // 最適化された会話履歴があれば更新
+          if (data?.optimized_conversation_history) {
+            console.log('Updating conversation history from streaming optimization');
+            const optimizedMessages: ClientChatMessage[] = data.optimized_conversation_history.map((msg: MessageItem) => ({
+              id: generateMessageId(),
+              role: msg.role,
+              content: msg.content,
+              timestamp: new Date(msg.timestamp || new Date().toISOString())
+            }));
+            
+            messages.value = optimizedMessages;
+            console.log('Updated messages from streaming optimization:', messages.value.length);
+          }
+        }
+      };
+      
+      if (useTools) {
+        // MCPツール付きストリーミング
+        const controller = await streamLLMQueryWithTools(
+          request,
+          true,
+          toolChoice,
+          callbacks,
+          documentContext
+        );
+        currentStreamController.value = controller;
+      } else {
+        // 通常のストリーミング（MCPツールなし）
+        console.log('Streaming without tools not implemented, falling back to non-streaming');
+        const response = await sendLLMQuery({ ...request, enable_tools: false }, documentContext);
+        
+        // レスポンスを単語ごとにストリーミング風に表示
+        const words = response.content.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const token = words[i] + (i < words.length - 1 ? ' ' : '');
+          accumulatedContent += token;
+          assistantMessage.content = accumulatedContent;
+          onToken?.(token);
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+      
+      console.log('Streaming message with MCP tools completed');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Error in streaming message with MCP tools:', err);
+      error.value = errorMessage;
+      
+      addSystemMessage(`ストリーミングエラー: ${errorMessage}`);
+    } finally {
+      isLoading.value = false;
+      isStreamingWithTools.value = false;
+      currentStreamController.value = null;
+    }
+  }
+  
+  // ストリーミング中止
+  function stopStreaming() {
+    if (currentStreamController.value) {
+      currentStreamController.value.abort();
+      currentStreamController.value = null;
+      isStreamingWithTools.value = false;
+      console.log('Stopped MCP tools streaming');
+    }
+  }
+  
   return {
+    // 基本状態
     messages,
     isLoading,
     error,
-    sendMessage,
+    
+    // MCPツール状態
+    mcpToolsConfig,
+    activeToolExecutions,
+    isStreamingWithTools,
+    toolExecutionHistory,
+    
+    // Computed プロパティ
+    hasActiveToolExecutions,
+    isToolsEnabled,
+    runningToolExecutions,
+    completedToolExecutions,
+    failedToolExecutions,
+    
+    // 基本メッセージ操作
     addUserMessage,
     addSystemMessage,
     addAssistantMessage,
     clearMessages,
+    
+    // LLMクエリ関数
     sendDirectQuery,
     sendTemplateQuery,
-    sendStreamingMessage
+    sendStreamingMessage,
+    
+    // MCPツール対応関数
+    sendMessageWithTools,
+    sendStreamingMessageWithTools,
+    stopStreaming,
+    
+    // MCPツール管理
+    updateMCPToolsConfig,
+    toggleMCPTools,
+    startToolExecution,
+    updateToolExecutionStatus,
+    clearToolExecutionHistory
   };
 });

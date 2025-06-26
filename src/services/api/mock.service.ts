@@ -19,7 +19,8 @@ const mockDocuments: Record<string, DocumentResponse> = {
     metadata: {
       size: 1024,
       last_modified: new Date().toISOString(),
-      content_type: 'text/markdown'
+      content_type: 'text/markdown',
+      extra: {}
     },
     content: {
       content: `---
@@ -54,7 +55,8 @@ function hello() {
 \`\`\`
 
 詳細については[ドキュメント](sample.md)を参照してください。
-`
+`,
+      encoding: 'utf-8'
     },
     repository: 'docs-project',
     owner: 'example',
@@ -64,6 +66,7 @@ function hello() {
       {
         text: 'ドキュメント',
         url: 'sample.md',
+        is_image: false,
         position: [0, 0],
         is_external: false
       }
@@ -76,7 +79,8 @@ function hello() {
     metadata: {
       size: 512,
       last_modified: new Date().toISOString(),
-      content_type: 'text/markdown'
+      content_type: 'text/markdown',
+      extra: {}
     },
     content: {
       content: `---
@@ -95,7 +99,8 @@ description: ドキュメントAIヘルパーのサンプル詳細ドキュメ�
 - 項目3
 
 [トップに戻る](index.md)
-`
+`,
+      encoding: 'utf-8'
     },
     repository: 'docs-project',
     owner: 'example',
@@ -105,6 +110,7 @@ description: ドキュメントAIヘルパーのサンプル詳細ドキュメ�
       {
         text: 'トップに戻る',
         url: 'index.md',
+        is_image: false,
         position: [0, 0],
         is_external: false
       }
@@ -155,9 +161,9 @@ export function getMockDocument(path: string): DocumentResponse {
 }
 
 /**
- * モックチャットレスポンス取得
+ * モックLLMレスポンス取得（ドキュメントコンテキスト付き）
  */
-export function getMockChatResponse(messages: any[], documentContext: any): any {
+export function getMockLLMResponseWithContext(messages: any[], documentContext: any): any {
   // 最後のユーザーメッセージ
   const lastUserMessage = messages.filter(m => m.role === 'user').pop();
   

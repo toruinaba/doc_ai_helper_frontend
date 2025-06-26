@@ -17,7 +17,6 @@ import { useDocumentStore } from './document.store';
 import { useRepositoryStore } from './repository.store';
 import { getDefaultRepositoryConfig, type DocumentContextConfig } from '../utils/config.util';
 import type { 
-  ChatMessage,
   LLMQueryRequest,
   LLMResponse,
   MessageItem,
@@ -265,7 +264,11 @@ ${currentDoc.content.content}`;
         prompt: content,
         conversation_history: conversationHistory,
         context_documents: [path],
-        provider: 'openai'
+        provider: 'openai',
+        disable_cache: false,
+        complete_tool_flow: true,
+        include_document_in_system_prompt: true,
+        system_prompt_template: 'contextual_document_assistant_ja'
       };
       
       let response: LLMResponse;
@@ -293,14 +296,14 @@ ${currentDoc.content.content}`;
         }
       } else {
         // 通常のクエリを送信
-        response = await sendLLMQuery({ ...request, enable_tools: false }, documentContext);
+        response = await sendLLMQuery({ ...request, enable_tools: false, tool_choice: 'none' }, documentContext);
       }
       
       // アシスタントメッセージを追加（ツール情報も含む）
       const assistantMessage = addAssistantMessage(response.content);
       if (useTools && (response.tool_calls || response.tool_execution_results)) {
-        assistantMessage.toolCalls = response.tool_calls;
-        assistantMessage.toolResults = response.tool_execution_results;
+        assistantMessage.toolCalls = response.tool_calls || undefined;
+        assistantMessage.toolResults = response.tool_execution_results || undefined;
       }
       
       // 最適化された会話履歴があれば更新（MCPツール使用時は慎重に処理）
@@ -366,10 +369,16 @@ ${currentDoc.content.content}`;
       const request: LLMQueryRequest = {
         prompt,
         context_documents: [path],
-        provider: options?.provider,
+        provider: options?.provider || 'openai',
         model: options?.model,
         options: options?.customOptions,
-        conversation_history: conversationHistory
+        conversation_history: conversationHistory,
+        disable_cache: false,
+        enable_tools: false,
+        tool_choice: 'none',
+        complete_tool_flow: true,
+        include_document_in_system_prompt: true,
+        system_prompt_template: 'contextual_document_assistant_ja'
       };
       
       console.log('Sending LLM query with conversation history:', 
@@ -483,7 +492,14 @@ ${currentDoc.content.content}`;
       const request: LLMQueryRequest = {
         prompt: content,
         context_documents: [path],
-        conversation_history: conversationHistory
+        conversation_history: conversationHistory,
+        provider: 'openai',
+        disable_cache: false,
+        enable_tools: false,
+        tool_choice: 'none',
+        complete_tool_flow: true,
+        include_document_in_system_prompt: true,
+        system_prompt_template: 'contextual_document_assistant_ja'
       };
       
       console.log('Sending streaming chat message with conversation history:', conversationHistory.length, 'messages');
@@ -663,7 +679,12 @@ ${currentDoc.content.content}`;
         
         // MCPツール設定
         enable_tools: false, // 通常のストリーミングではツールを無効
-        complete_tool_flow: effectiveConfig.completeToolFlow
+        complete_tool_flow: effectiveConfig.completeToolFlow,
+        
+        // 必須フィールド
+        provider: 'openai',
+        disable_cache: false,
+        tool_choice: 'none'
       };
       
       console.log('🌊 Sending streaming request with new backend specification:', {
@@ -858,7 +879,12 @@ ${currentDoc.content.content}`;
         
         // MCPツール設定
         enable_tools: false, // 通常のメッセージ送信ではツールを無効
-        complete_tool_flow: effectiveConfig.completeToolFlow
+        complete_tool_flow: effectiveConfig.completeToolFlow,
+        
+        // 必須フィールド
+        provider: 'openai',
+        disable_cache: false,
+        tool_choice: 'none'
       };
       
       console.log('� Sending message request with new backend specification:', {
@@ -1006,7 +1032,10 @@ ${currentDoc.content.content}`;
         system_prompt_template: effectiveConfig.systemPromptTemplate,
         
         // 完全なツールフロー設定
-        complete_tool_flow: effectiveConfig.completeToolFlow
+        complete_tool_flow: effectiveConfig.completeToolFlow,
+        
+        // 必須フィールド
+        disable_cache: false
       };
       
       console.log('🌊🛠️ Sending streaming MCP tools request with new backend specification:', {

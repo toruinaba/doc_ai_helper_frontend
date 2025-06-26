@@ -7,8 +7,6 @@ import apiClient from '.';
 import { shouldUseMockApi } from '../../utils/config.util';
 import { getEffectiveStreamingType, StreamingType } from './streaming-config.service';
 import type { 
-  ChatRequest, 
-  ChatResponse, 
   LLMQueryRequest, 
   LLMResponse,
   MessageItem,
@@ -18,189 +16,7 @@ import type {
   MCPToolsResponse,
   MCPToolInfo
 } from './types';
-import { DocumentTypeInput, GitService } from './types';
-
-/**
- * LLMとのチャット
- * @param request チャットリクエスト
- * @returns チャットレスポンス
- */
-export async function sendChatMessage(request: ChatRequest): Promise<ChatResponse> {
-  // 環境変数の設定に基づいてモックを使用するかどうかを判断
-  if (shouldUseMockApi()) {
-    console.log('Using mock chat response as configured by environment variables');
-    const { getMockChatResponse } = await import('./mock.service');
-    return getMockChatResponse(
-      request.messages, 
-      request.document_context
-    ) as ChatResponse;
-  }
-  
-  try {
-    // モックモードでない場合は実際のAPIを呼び出し
-    console.log('Sending chat message with conversation history:', 
-      request.messages ? request.messages.length : 0, 'messages');
-    
-    // デバッグ用：最初と最後のメッセージを表示
-    if (request.messages && request.messages.length > 0) {
-      console.log('First message:', request.messages[0]);
-      console.log('Last message:', request.messages[request.messages.length - 1]);
-    }
-    
-    const response = await apiClient.sendChatMessage(request);
-    
-    // 会話履歴の最適化情報があれば、コンソールに記録
-    if (response.optimized_conversation_history) {
-      console.log('Received optimized conversation history from the server');
-    }
-    
-    return response;
-  } catch (error) {
-    console.error('Chat API error:', error);
-    throw error;
-  }
-}
-
-/**
- * MCPツールを有効にしたLLMとのチャット
- * @param request チャットリクエスト（ツール設定を除く）
- * @param enableTools ツールを有効にするかどうか
- * @param toolChoice ツール選択戦略
- * @returns チャットレスポンス（ツール実行結果を含む）
- */
-export async function sendChatMessageWithTools(
-  request: Omit<ChatRequest, 'enable_tools' | 'tool_choice'>,
-  enableTools: boolean = true,
-  toolChoice: string = 'auto'
-): Promise<ChatResponse> {
-  // ツール設定を含む完全なリクエストを構築
-  const toolsRequest = {
-    ...request,
-    enable_tools: enableTools,
-    tool_choice: toolChoice
-  };
-
-  // 環境変数の設定に基づいてモックを使用するかどうかを判断
-  if (shouldUseMockApi()) {
-    console.log('Using mock chat response with MCP tools as configured by environment variables');
-    
-    try {
-      const { getMockChatResponse } = await import('./mock.service');
-      const mockResponse = getMockChatResponse(
-        request.messages, 
-        request.document_context
-      ) as ChatResponse;
-      
-      // MCPツール情報をモックレスポンスに追加
-      if (enableTools) {
-        // 最後のユーザーメッセージを確認してツール呼び出しを生成
-        const lastMessage = request.messages[request.messages.length - 1];
-        if (lastMessage && lastMessage.content.includes('計算')) {
-          // ツール呼び出し情報をメッセージに追加
-          mockResponse.message.content = `計算ツールを使用しました。\n\n${mockResponse.message.content}`;
-          
-          // 追加のメタデータ
-          (mockResponse as any).tool_calls = [{
-            id: 'mock_chat_call_' + Date.now(),
-            type: 'function',
-            function: {
-              name: 'calculate',
-              arguments: JSON.stringify({ expression: 'auto-detected' })
-            }
-          }];
-          
-          (mockResponse as any).tool_execution_results = [{
-            tool_call_id: (mockResponse as any).tool_calls[0].id,
-            function_name: 'calculate',
-            result: { success: true, result: 'mock calculation' }
-          }];
-        }
-      }
-      
-      return mockResponse;
-    } catch (error) {
-      console.warn('Mock chat service error:', error);
-      // フォールバック
-      return {
-        message: {
-          role: 'assistant',
-          content: 'モック環境でのMCPツール対応チャット機能のテストレスポンスです。'
-        },
-        usage: { prompt_tokens: 10, completion_tokens: 15, total_tokens: 25 },
-        execution_time_ms: 100
-      } as ChatResponse;
-    }
-  }
-  
-  try {
-    // モックモードでない場合は実際のAPIを呼び出し
-    console.log('Sending chat message with MCP tools:', {
-      enable_tools: enableTools,
-      tool_choice: toolChoice,
-      messages_count: request.messages ? request.messages.length : 0
-    });
-    
-    // デバッグ用：最初と最後のメッセージを表示
-    if (request.messages && request.messages.length > 0) {
-      console.log('First message:', request.messages[0]);
-      console.log('Last message:', request.messages[request.messages.length - 1]);
-    }
-    
-    // 注意: 現在のapiClientにはsendChatMessageWithToolsメソッドがないため、
-    // LLMクエリ形式に変換して送信
-    const llmRequest: LLMQueryRequest = {
-      prompt: request.messages[request.messages.length - 1]?.content || '',
-      conversation_history: request.messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: new Date().toISOString()
-      })),
-      enable_tools: enableTools,
-      tool_choice: toolChoice,
-      provider: 'openai'
-    };
-    
-    // ドキュメントコンテキストがあれば追加
-    if (request.document_context) {
-      llmRequest.context_documents = [request.document_context.path];
-    }
-    
-    const llmResponse = await apiClient.sendLLMQueryWithTools(
-      llmRequest,
-      enableTools,
-      toolChoice
-    );
-    
-    // LLMレスポンスをチャットレスポンス形式に変換
-    const chatResponse: ChatResponse = {
-      message: {
-        role: 'assistant',
-        content: llmResponse.content
-      },
-      usage: llmResponse.usage,
-      execution_time_ms: 100, // デフォルト値
-      optimized_conversation_history: llmResponse.optimized_conversation_history
-    };
-    
-    // ツール実行結果があれば追加情報として含める
-    if (llmResponse.tool_calls || llmResponse.tool_execution_results) {
-      (chatResponse as any).tool_calls = llmResponse.tool_calls;
-      (chatResponse as any).tool_execution_results = llmResponse.tool_execution_results;
-      
-      console.log('Chat response includes tool execution results');
-    }
-    
-    // 会話履歴の最適化情報があれば、コンソールに記録
-    if (chatResponse.optimized_conversation_history) {
-      console.log('Received optimized conversation history from chat with MCP tools');
-    }
-    
-    return chatResponse;
-  } catch (error) {
-    console.error('Chat API with MCP tools error:', error);
-    throw error;
-  }
-}
+import type { DocumentTypeInput, GitService } from './types';
 
 /**
  * LLMにクエリを送信
@@ -218,7 +34,7 @@ export async function sendLLMQuery(
   } else if (systemPrompt) {
     request.conversation_history = createConversationWithSystemPrompt(
       systemPrompt, 
-      request.conversation_history
+      request.conversation_history || []
     );
   }
 
@@ -226,7 +42,7 @@ export async function sendLLMQuery(
   if (shouldUseMockApi()) {
     console.log('Using mock LLM response as configured by environment variables');
     const { getMockLLMResponse } = await import('./mock.service');
-    const mockResponse = getMockLLMResponse(request.prompt, request.conversation_history) as LLMResponse;
+    const mockResponse = getMockLLMResponse(request.prompt, request.conversation_history || []) as LLMResponse;
     
     // モックレスポンスに会話履歴が含まれていなければ作成する
     if (!mockResponse.optimized_conversation_history && request.conversation_history) {
@@ -439,7 +255,7 @@ export function streamLLMQuery(
   } else if (systemPrompt) {
     request.conversation_history = createConversationWithSystemPrompt(
       systemPrompt,
-      request.conversation_history
+      request.conversation_history || []
     );
   }
 
@@ -458,7 +274,7 @@ export function streamLLMQuery(
     import('./mock.service').then(({ getMockLLMResponse }) => {
       const mockResponse = getMockLLMResponse(
         request.prompt, 
-        request.conversation_history
+        request.conversation_history || []
       ) as LLMResponse;
       
       // モックデータをトークンに分割してストリーミング
@@ -586,7 +402,7 @@ function createMockStreamLLMQuery(
   import('./mock.service').then(({ getMockLLMResponse }) => {
     const mockResponse = getMockLLMResponse(
       request.prompt, 
-      request.conversation_history
+      request.conversation_history || []
     ) as LLMResponse;
     
     // モックデータをトークンに分割してストリーミング
@@ -668,7 +484,7 @@ export async function sendLLMQueryWithTools(
   } else if (systemPrompt) {
     toolsRequest.conversation_history = createConversationWithSystemPrompt(
       systemPrompt, 
-      toolsRequest.conversation_history
+      toolsRequest.conversation_history || []
     );
   }
 
@@ -678,7 +494,7 @@ export async function sendLLMQueryWithTools(
     
     try {
       const { getMockLLMResponse } = await import('./mock.service');
-      const mockResponse = getMockLLMResponse(toolsRequest.prompt, toolsRequest.conversation_history) as LLMResponse;
+      const mockResponse = getMockLLMResponse(toolsRequest.prompt, toolsRequest.conversation_history || []) as LLMResponse;
       
       // モックレスポンスにツール情報が含まれていなければ作成する
       if (enableTools && !mockResponse.tool_calls) {
@@ -822,7 +638,7 @@ export async function streamLLMQueryWithTools(
   } else if (systemPrompt) {
     toolsRequest.conversation_history = createConversationWithSystemPrompt(
       systemPrompt, 
-      toolsRequest.conversation_history
+      toolsRequest.conversation_history || []
     );
   }
 
@@ -1070,20 +886,20 @@ export function createDocumentMetadataInput(document: DocumentResponse | null): 
     ? document.name.split('.').pop() 
     : null;
   
-  // ドキュメントタイプのマッピング
+  // ドキュメントタイプのマッピング（文字列リテラル型に対応）
   const typeMapping: Record<string, DocumentTypeInput> = {
-    'markdown': DocumentTypeInput.Markdown,
-    'html': DocumentTypeInput.Html,
-    'text': DocumentTypeInput.Text,
-    'python': DocumentTypeInput.Python,
-    'javascript': DocumentTypeInput.JavaScript,
-    'typescript': DocumentTypeInput.TypeScript,
-    'json': DocumentTypeInput.Json,
-    'yaml': DocumentTypeInput.Yaml,
-    'xml': DocumentTypeInput.Xml
+    'markdown': 'markdown',
+    'html': 'html',
+    'text': 'text',
+    'python': 'python',
+    'javascript': 'javascript',
+    'typescript': 'typescript',
+    'json': 'json',
+    'yaml': 'yaml',
+    'xml': 'xml'
   };
   
-  const documentType = typeMapping[document.type.toLowerCase()] || DocumentTypeInput.Other;
+  const documentType = typeMapping[document.type.toLowerCase()] || 'other';
   
   return {
     title: document.name,
@@ -1105,14 +921,14 @@ export function createDocumentMetadataInput(document: DocumentResponse | null): 
 export function createRepositoryContext(document: DocumentResponse | null): RepositoryContext | null {
   if (!document) return null;
   
-  // サービス名のマッピング
+  // サービス名のマッピング（文字列リテラル型に対応）
   const serviceMapping: Record<string, GitService> = {
-    'github': GitService.GitHub,
-    'gitlab': GitService.GitLab,
-    'bitbucket': GitService.Bitbucket
+    'github': 'github',
+    'gitlab': 'gitlab',
+    'bitbucket': 'bitbucket'
   };
   
-  const service = serviceMapping[document.service.toLowerCase()] || GitService.GitHub;
+  const service = serviceMapping[document.service.toLowerCase()] || 'github';
   
   return {
     service,
@@ -1125,8 +941,6 @@ export function createRepositoryContext(document: DocumentResponse | null): Repo
 }
 
 export default {
-  sendChatMessage,
-  sendChatMessageWithTools,
   sendLLMQuery,
   sendLLMQueryWithTools,
   streamLLMQueryWithTools,

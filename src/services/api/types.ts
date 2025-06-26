@@ -1,6 +1,11 @@
 /**
  * API型定義
+ * 
+ * 自動生成された型定義（types.auto.ts）を基に、段階的に移行中
  */
+
+// 自動生成された型定義をインポート
+import type { components } from './types.auto';
 
 // ドキュメント関連の型定義
 export interface DocumentContent {
@@ -34,51 +39,8 @@ export interface LinkInfo {
   is_external?: boolean;
 }
 
-export interface DocumentResponse {
-  path: string;
-  name: string;
-  type: DocumentType;
-  metadata: DocumentMetadata;
-  content: DocumentContent;
-  repository: string;
-  owner: string;
-  service: string;
-  ref?: string;
-  links?: LinkInfo[] | null;
-  transformed_content?: string | null;
-}
-
-// LLMチャット関連の型定義
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-export interface ChatRequest {
-  messages: ChatMessage[];
-  context?: string;
-  document_context?: {
-    service: string;
-    owner: string;
-    repo: string;
-    path: string;
-    ref?: string;
-  };
-  model?: string;
-  temperature?: number;
-  max_tokens?: number;
-}
-
-export interface ChatResponse {
-  message: ChatMessage;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-  execution_time_ms: number;
-  optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
-}
+// DocumentResponse: 自動生成版を使用
+export type DocumentResponse = components["schemas"]["DocumentResponse"];
 
 // リポジトリ構造関連の型定義
 export interface FileTreeItem {
@@ -189,103 +151,33 @@ export interface HTTPValidationError {
 }
 
 // LLMクエリ関連の型定義
-export interface MessageItem {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp?: string;
-}
+// MessageItem: 自動生成版を使用
+export type MessageItem = components["schemas"]["MessageItem"];
 
-// 新しいリポジトリコンテキスト型定義（OpenAPI仕様に基づく）
-export interface RepositoryContext {
-  service: GitService;
-  owner: string;
-  repo: string;
-  ref?: string;
-  current_path?: string | null;
-  base_url?: string | null;
-}
+// RepositoryContext: 自動生成版を使用
+export type RepositoryContext = components["schemas"]["RepositoryContext"];
 
-// Git サービス列挙型（OpenAPI仕様に基づく）
-export enum GitService {
-  GitHub = "github",
-  GitLab = "gitlab",
-  Bitbucket = "bitbucket"
-}
+// GitService: 自動生成版を使用  
+export type GitService = components["schemas"]["GitService"];
 
-// ドキュメントメタデータ（入力用）- OpenAPI仕様に基づく
-export interface DocumentMetadataInput {
-  title?: string | null;
-  type: DocumentTypeInput;
-  filename?: string | null;
-  file_extension?: string | null;
-  last_modified?: string | null;
-  file_size?: number | null;
-  encoding?: string;
-  language?: string | null;
-}
+// DocumentMetadataInput: 自動生成版を使用
+export type DocumentMetadataInput = components["schemas"]["DocumentMetadata-Input"];
 
-// ドキュメントタイプ（入力用）- OpenAPI仕様に基づく
-export enum DocumentTypeInput {
-  Markdown = "markdown",
-  Html = "html",
-  Text = "text",
-  Python = "python",
-  JavaScript = "javascript",
-  TypeScript = "typescript",
-  Json = "json",
-  Yaml = "yaml",
-  Xml = "xml",
-  Other = "other"
-}
+// DocumentTypeInput: 自動生成版を使用
+export type DocumentTypeInput = components["schemas"]["DocumentType-Input"];
 
 // MCPツール関連の型定義
-export interface FunctionCall {
-  name: string;                    // 関数名
-  arguments: string;               // JSON文字列としての引数
-}
+// FunctionCall: 自動生成版を使用
+export type FunctionCall = components["schemas"]["FunctionCall"];
 
-export interface ToolCall {
-  id: string;                      // ツール呼び出しID
-  type: 'function';                // ツール呼び出しタイプ（現在は'function'のみ）
-  function: FunctionCall;          // 関数呼び出しの詳細
-}
+// ToolCall: 自動生成版を使用
+export type ToolCall = components["schemas"]["ToolCall"];
 
-export interface LLMQueryRequest {
-  prompt: string;                  // LLMに送信するプロンプト
-  context_documents?: string[];    // コンテキストに含めるドキュメントパスのリスト
-  provider?: string;               // 使用するLLMプロバイダー（デフォルト: 'openai'）
-  model?: string;                  // 使用する特定のモデル
-  options?: Record<string, any>;   // LLMプロバイダー用の追加オプション
-  disable_cache?: boolean;         // trueの場合、キャッシュをバイパスして常に新しいAPI呼び出しを行う
-  conversation_history?: MessageItem[]; // 会話の履歴（コンテキスト用）
-  enable_tools?: boolean;          // MCPツールを有効にするかどうか（デフォルト: false）
-  tool_choice?: string;            // ツール選択戦略: 'auto', 'none', 'required', または特定の関数名（デフォルト: 'auto'）
-  complete_tool_flow?: boolean;    // 完全なツールフローを使用するかどうか（デフォルト: true）
-  
-  // 新しいフィールド（OpenAPI仕様に基づく）
-  repository_context?: RepositoryContext | null;        // リポジトリコンテキスト情報
-  document_metadata?: DocumentMetadataInput | null;     // ドキュメントメタデータ
-  document_content?: string | null;                     // ドキュメントコンテンツ
-  include_document_in_system_prompt?: boolean;          // システムプロンプトにドキュメントを含めるかどうか（デフォルト: true）
-  system_prompt_template?: string | null;               // システムプロンプトテンプレートID（デフォルト: "contextual_document_assistant_ja"）
-}
+// LLMQueryRequest: 自動生成版を使用
+export type LLMQueryRequest = components["schemas"]["LLMQueryRequest"];
 
-export interface LLMResponse {
-  content: string;                 // LLMから返されたコンテンツ
-  model: string;                   // 生成に使用されたモデル
-  provider: string;                // LLMプロバイダー
-  usage?: {                        // トークン使用情報
-    prompt_tokens: number;         // プロンプト内のトークン数
-    completion_tokens: number;     // 補完内のトークン数
-    total_tokens: number;          // 使用された合計トークン数
-  };
-  raw_response?: Record<string, any>; // プロバイダーからの生レスポンス
-  optimized_conversation_history?: MessageItem[]; // 最適化された会話履歴
-  history_optimization_info?: Record<string, any>; // 会話履歴の最適化に関する情報
-  tool_calls?: ToolCall[];         // LLMが要求したツール呼び出し（MCPツール機能）
-  tool_execution_results?: Record<string, any>[]; // ツール実行結果（MCPツール機能）
-  is_streaming?: boolean;          // ストリーミングレスポンスかどうか
-}
+// LLMResponse: 自動生成版を使用
+export type LLMResponse = components["schemas"]["LLMResponse"];
 
 // SSEストリーミング関連の型定義
 export interface StreamingLLMResponse {
@@ -361,28 +253,14 @@ export interface MCPToolsState {
 }
 
 // バックエンドから取得するMCPツール情報の型定義（OpenAPI仕様に基づく）
-export interface ToolParameter {
-  name: string;
-  type: string;
-  description?: string | null;
-  required?: boolean;
-  default?: any;
-}
+// ToolParameter: 自動生成版を使用
+export type ToolParameter = components["schemas"]["ToolParameter"];
 
-export interface MCPToolInfo {
-  name: string;
-  description?: string | null;
-  parameters: ToolParameter[];
-  category?: string | null;
-  enabled?: boolean;
-}
+// MCPToolInfo: 自動生成版を使用
+export type MCPToolInfo = components["schemas"]["MCPToolInfo"];
 
-export interface MCPToolsResponse {
-  tools: MCPToolInfo[];
-  total_count: number;
-  categories: string[];
-  server_info?: Record<string, any>;
-}
+// MCPToolsResponse: 自動生成版を使用
+export type MCPToolsResponse = components["schemas"]["MCPToolsResponse"];
 
 // MCPツール選択の型定義（tool_choiceで使用）
 export type MCPToolChoice = 'auto' | 'none' | 'required' | string; // 特定のツール名も可能

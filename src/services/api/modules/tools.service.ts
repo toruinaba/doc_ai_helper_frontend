@@ -250,7 +250,7 @@ export async function sendLLMQueryWithTools(
   
   if (shouldUseMockApi()) {
     console.log('Using mock LLM response with tools as configured by environment variables');
-    const { getMockLLMResponse } = await import('../mock.service');
+    const { getMockLLMResponse } = await import('./mock.service');
     return getMockLLMResponse(request.prompt, request.conversation_history || []) as LLMResponse;
   }
   

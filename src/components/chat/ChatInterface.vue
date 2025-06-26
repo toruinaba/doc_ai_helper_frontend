@@ -364,7 +364,7 @@ import Checkbox from 'primevue/checkbox';
 import RadioButton from 'primevue/radiobutton';
 import Tag from 'primevue/tag';
 import Dropdown from 'primevue/dropdown';
-import { updateStreamingConfig, StreamingType } from '@/services/api/streaming-config.service';
+import { updateStreamingConfig, StreamingType } from '@/services/api/modules';
 import { getMCPToolsConfig, logMCPToolsConfig } from '@/utils/mcp-config.util';
 import { loadMCPToolsFromBackend, recommendToolForPrompt } from '@/utils/mcp-tools.util';
 import type { ToolExecution, MCPToolConfig, ToolExecutionMode } from '@/services/api/types';

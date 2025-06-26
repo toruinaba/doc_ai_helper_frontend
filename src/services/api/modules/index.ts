@@ -39,6 +39,31 @@ export {
   streamLLMQueryWithTools
 } from './tools.service';
 
+// ユーティリティ機能
+export {
+  getNormalizedApiUrl,
+  normalizeUrl,
+  getStreamingUrl
+} from './utils.service';
+
+// モック機能
+export {
+  getMockDocument,
+  getMockLLMResponseWithContext,
+  getMockLLMResponse,
+  getMockLLMCapabilities,
+  getMockLLMTemplates,
+  getMockFormattedPrompt
+} from './mock.service';
+
+// 設定管理
+export {
+  getStreamingConfig,
+  updateStreamingConfig,
+  getEffectiveStreamingType,
+  StreamingType
+} from './config.service';
+
 // ドキュメントユーティリティ
 export {
   createDocumentMetadataInput,
@@ -72,6 +97,25 @@ export default {
   getMCPToolInfo: () => import('./tools.service').then(m => m.getMCPToolInfo),
   shouldUseMCPTools: () => import('./tools.service').then(m => m.shouldUseMCPTools),
   integrateMCPToolResults: () => import('./tools.service').then(m => m.integrateMCPToolResults),
+  
+  // ユーティリティ機能
+  getNormalizedApiUrl: () => import('./utils.service').then(m => m.getNormalizedApiUrl),
+  normalizeUrl: () => import('./utils.service').then(m => m.normalizeUrl),
+  getStreamingUrl: () => import('./utils.service').then(m => m.getStreamingUrl),
+  
+  // モック機能
+  getMockDocument: () => import('./mock.service').then(m => m.getMockDocument),
+  getMockLLMResponseWithContext: () => import('./mock.service').then(m => m.getMockLLMResponseWithContext),
+  getMockLLMResponse: () => import('./mock.service').then(m => m.getMockLLMResponse),
+  getMockLLMCapabilities: () => import('./mock.service').then(m => m.getMockLLMCapabilities),
+  getMockLLMTemplates: () => import('./mock.service').then(m => m.getMockLLMTemplates),
+  getMockFormattedPrompt: () => import('./mock.service').then(m => m.getMockFormattedPrompt),
+  
+  // 設定管理
+  getStreamingConfig: () => import('./config.service').then(m => m.getStreamingConfig),
+  updateStreamingConfig: () => import('./config.service').then(m => m.updateStreamingConfig),
+  getEffectiveStreamingType: () => import('./config.service').then(m => m.getEffectiveStreamingType),
+  StreamingType: () => import('./config.service').then(m => m.StreamingType),
   
   // ドキュメントユーティリティ
   createDocumentMetadataInput: () => import('./document.service').then(m => m.createDocumentMetadataInput),

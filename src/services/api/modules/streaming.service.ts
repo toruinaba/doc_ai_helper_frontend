@@ -4,11 +4,26 @@
  * LLMストリーミング機能を提供（自己完結実装）
  */
 import { shouldUseMockApi } from '../../../utils/config.util';
-import { normalizeUrl } from '../url-helper';
+import { normalizeUrl } from './utils.service';
 import type { 
   LLMQueryRequest,
   LLMResponse
 } from '../types';
+
+/**
+ * Unicode文字列をデコードする関数
+ * \uXXXX形式のエスケープ文字列を通常の文字列に変換
+ */
+function decodeUnicodeString(str: string): string {
+  try {
+    // JSON.parse を使ってUnicodeエスケープ文字列をデコード
+    return JSON.parse(`"${str}"`);
+  } catch (error) {
+    // デコードに失敗した場合はそのまま返す
+    console.warn('Unicode decode failed for:', str, error);
+    return str;
+  }
+}
 
 /**
  * ストリーミング実装タイプの定義
@@ -60,6 +75,7 @@ function streamWithFetch(
   .then(response => {
     console.log('Response status:', response.status);
     console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+    console.log('Response content-type:', response.headers.get('content-type'));
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -72,6 +88,7 @@ function streamWithFetch(
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    console.log('Starting to read streaming response...');
     
     function processEvent(eventType: string, eventData: string) {
       console.log('Processing event - Type:', eventType, 'Data:', eventData.substring(0, 200) + (eventData.length > 200 ? '...' : ''));
@@ -93,7 +110,9 @@ function streamWithFetch(
             callbacks.onStart?.(parsedData);
             break;
             
+          case 'message':
           case 'token':
+          case 'data':
             let tokenContent = null;
             
             if (parsedData.done === true || parsedData.done === "true") {
@@ -112,11 +131,11 @@ function streamWithFetch(
             } else if (parsedData.delta && parsedData.delta.content) {
               tokenContent = parsedData.delta.content;
             } else if (parsedData.content) {
-              tokenContent = parsedData.content;
+              tokenContent = decodeUnicodeString(parsedData.content);
             } else if (parsedData.text) {
-              tokenContent = parsedData.text;
+              tokenContent = decodeUnicodeString(parsedData.text);
             } else if (typeof parsedData === 'string') {
-              tokenContent = parsedData;
+              tokenContent = decodeUnicodeString(parsedData);
             }
             
             if (tokenContent !== null) {
@@ -139,10 +158,13 @@ function streamWithFetch(
             
           default:
             console.log('Unknown event type:', eventType, 'data:', parsedData);
+            // デフォルトケースでもtextフィールドを処理
             if (typeof parsedData === 'string') {
-              callbacks.onToken?.(parsedData);
+              callbacks.onToken?.(decodeUnicodeString(parsedData));
+            } else if (parsedData.text) {
+              callbacks.onToken?.(decodeUnicodeString(parsedData.text));
             } else if (parsedData.content) {
-              callbacks.onToken?.(parsedData.content);
+              callbacks.onToken?.(decodeUnicodeString(parsedData.content));
             }
             break;
         }
@@ -157,32 +179,74 @@ function streamWithFetch(
         .then(({ done, value }) => {
           if (done) {
             console.log('Stream finished');
+            // 未処理のデータがある場合は処理
+            if (buffer.trim()) {
+              const lines = buffer.split('\n');
+              let currentEventType = '';
+              let currentEventData = '';
+              
+              for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('event:')) {
+                  currentEventType = trimmedLine.substring(6).trim();
+                } else if (trimmedLine.startsWith('data:')) {
+                  const dataContent = trimmedLine.substring(5).trim();
+                  currentEventData += (currentEventData ? '\n' : '') + dataContent;
+                }
+              }
+              
+              if (currentEventData) {
+                const eventType = currentEventType || 'message';
+                console.log('Processing final event - type:', eventType, 'data:', currentEventData);
+                processEvent(eventType, currentEventData);
+              }
+            }
             callbacks.onEnd?.({});
             return;
           }
           
           const chunk = decoder.decode(value, { stream: true });
+          console.log('Raw chunk received:', JSON.stringify(chunk));
           buffer += chunk;
           
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
+          console.log('Lines to process:', lines.length, 'lines:', lines);
           
           let currentEventType = '';
           let currentEventData = '';
           
           for (const line of lines) {
             const trimmedLine = line.trim();
+            console.log('Processing line:', JSON.stringify(trimmedLine));
             
             if (trimmedLine === '') {
-              if (currentEventType && currentEventData) {
-                processEvent(currentEventType, currentEventData);
+              if (currentEventData) {
+                // event:行がない場合はデフォルトで'message'イベントとして処理
+                const eventType = currentEventType || 'message';
+                console.log('Processing complete event - type:', eventType, 'data:', currentEventData);
+                processEvent(eventType, currentEventData);
                 currentEventType = '';
                 currentEventData = '';
               }
             } else if (trimmedLine.startsWith('event:')) {
               currentEventType = trimmedLine.substring(6).trim();
+              console.log('Found event type:', currentEventType);
             } else if (trimmedLine.startsWith('data:')) {
-              currentEventData += (currentEventData ? '\n' : '') + trimmedLine.substring(5).trim();
+              const dataContent = trimmedLine.substring(5).trim();
+              currentEventData += (currentEventData ? '\n' : '') + dataContent;
+              console.log('Found data:', dataContent, 'accumulated:', currentEventData);
+            } else {
+              console.log('Unknown line format, treating as raw data:', trimmedLine);
+              // SSE形式でない場合、直接JSONとしてパースしてみる
+              try {
+                const parsed = JSON.parse(trimmedLine);
+                console.log('Parsed JSON directly from line:', parsed);
+                processEvent('token', trimmedLine);
+              } catch (e) {
+                console.log('Line is not JSON, treating as text token:', trimmedLine);
+                callbacks.onToken?.(trimmedLine);
+              }
             }
           }
           
@@ -246,7 +310,7 @@ export async function streamLLMQuery(
   try {
     console.log('Using fetch-based streaming implementation');
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    const controller = streamWithFetch(apiBaseUrl, '/api/v1/llm/stream', request, callbacks);
+    const controller = streamWithFetch(apiBaseUrl, '/llm/stream', request, callbacks);
     return () => controller.abort();
   } catch (error) {
     console.error('Streaming LLM error:', error);

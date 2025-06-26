@@ -1,7 +1,7 @@
 /**
  * MCP ツール管理ユーティリティ
  */
-import { getMCPTools, getMCPToolInfo } from '@/services/api/chat.service';
+import { getMCPTools, getMCPToolInfo } from '@/services/api/modules';
 import type { MCPToolsResponse, MCPToolInfo, MCPToolConfig } from '@/services/api/types';
 
 /**

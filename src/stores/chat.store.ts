@@ -12,7 +12,7 @@ import {
   shouldUseMCPTools,
   integrateMCPToolResults,
   formatPrompt 
-} from '../services/api/chat.service';
+} from '../services/api/modules';
 import { useDocumentStore } from './document.store';
 import { useRepositoryStore } from './repository.store';
 import { getDefaultRepositoryConfig, type DocumentContextConfig } from '../utils/config.util';
@@ -82,7 +82,7 @@ export const useChatStore = defineStore('chat', () => {
   
   const activeToolExecutions = ref<MCPToolExecution[]>([]);
   const isStreamingWithTools = ref(false);
-  const currentStreamController = ref<AbortController | null>(null);
+  const currentStreamController = ref<AbortController | (() => void) | null>(null);
   const toolExecutionHistory = ref<MCPToolExecution[]>([]);
   
   // Computed プロパティ
@@ -260,7 +260,7 @@ ${currentDoc.content.content}`;
       }));
       
       // LLMクエリリクエストを構築
-      const request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'> = {
+      const request: LLMQueryRequest = {
         prompt: content,
         conversation_history: conversationHistory,
         context_documents: [path],
@@ -268,14 +268,16 @@ ${currentDoc.content.content}`;
         disable_cache: false,
         complete_tool_flow: true,
         include_document_in_system_prompt: true,
-        system_prompt_template: 'contextual_document_assistant_ja'
+        system_prompt_template: 'contextual_document_assistant_ja',
+        enable_tools: useTools,
+        tool_choice: toolChoice || 'auto'
       };
       
       let response: LLMResponse;
       
       if (useTools) {
         // MCPツール付きでクエリを送信
-        response = await sendLLMQueryWithTools(request, true, toolChoice, documentContext);
+        response = await sendLLMQueryWithTools(request, true);
         
         // ツール実行の追跡
         if (response.tool_calls) {
@@ -508,11 +510,11 @@ ${currentDoc.content.content}`;
       const assistantMessage = addAssistantMessage('');
       let accumulatedContent = '';
       
-      // chat.service.tsからストリーミング関数をインポート
-      const { streamLLMQuery } = await import('../services/api/chat.service');
+      // モジュールからストリーミング関数をインポート
+      const { streamLLMQuery } = await import('../services/api/modules');
       
       // ストリーミングコールバックの設定
-      const cleanup = streamLLMQuery(
+      const cleanup = await streamLLMQuery(
         request,
         {
           onStart: (data) => {
@@ -723,11 +725,11 @@ ${currentDoc.content.content}`;
       const assistantMessage = addAssistantMessage('');
       let accumulatedContent = '';
       
-      // chat.service.tsからストリーミング関数をインポート
-      const { streamLLMQuery } = await import('../services/api/chat.service');
+      // モジュールからストリーミング関数をインポート
+      const { streamLLMQuery } = await import('../services/api/modules');
       
       // ストリーミングコールバックの設定
-      const cleanup = streamLLMQuery(
+      const cleanup = await streamLLMQuery(
         request,
         {
           onStart: (data) => {
@@ -895,8 +897,8 @@ ${currentDoc.content.content}`;
         systemPromptTemplate: request.system_prompt_template
       });
       
-      // chat.service.tsのsendLLMQuery関数を使用
-      const { sendLLMQuery } = await import('../services/api/chat.service');
+      // モジュールのsendLLMQuery関数を使用
+      const { sendLLMQuery } = await import('../services/api/modules');
       const response = await sendLLMQuery(request);
       
       // レスポンスを処理
@@ -938,7 +940,11 @@ ${currentDoc.content.content}`;
     
     // 前のストリーミングがあれば中止
     if (currentStreamController.value) {
-      currentStreamController.value.abort();
+      if (typeof currentStreamController.value === 'function') {
+        currentStreamController.value();
+      } else {
+        currentStreamController.value.abort();
+      }
     }
     
     try {
@@ -1110,14 +1116,13 @@ ${currentDoc.content.content}`;
         }
       };
       
-      // chat.service.tsからMCPツール対応ストリーミング関数をインポートして実行
-      const { streamLLMQueryWithTools } = await import('../services/api/chat.service');
+      // MCPツール対応ストリーミング関数をインポートして実行
+      const { streamLLMQueryWithTools } = await import('../services/api/modules');
       
       const abortController = await streamLLMQueryWithTools(
         request,
-        useTools,
-        toolChoice,
-        callbacks
+        callbacks,
+        useTools
       );
       
       currentStreamController.value = abortController;

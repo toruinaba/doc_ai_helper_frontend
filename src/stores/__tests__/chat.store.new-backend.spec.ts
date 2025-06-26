@@ -37,7 +37,7 @@ const mockDocument: DocumentResponse = {
 
 // LLMクエリのモック
 const mockLLMQuery = vi.fn();
-vi.mock('@/services/api/chat.service', () => ({
+vi.mock('@/services/api/modules', () => ({
   sendLLMQuery: mockLLMQuery,
   sendLLMQueryWithTools: mockLLMQuery,
   shouldUseMCPTools: vi.fn(() => false),
@@ -72,7 +72,7 @@ describe('新しいバックエンド仕様対応テスト', () => {
     documentStore.currentDocument = mockDocument;
 
     // メッセージ送信
-    await chatStore.sendMessage('このドキュメントについて教えて');
+    await chatStore.sendMessageWithConfig('このドキュメントについて教えて');
 
     // LLMクエリが正しく呼ばれたことを確認
     expect(mockLLMQuery).toHaveBeenCalledWith(
@@ -127,7 +127,7 @@ describe('新しいバックエンド仕様対応テスト', () => {
     chatStore.addAssistantMessage('最初の回答');
     
     documentStore.currentDocument = mockDocument;
-    await chatStore.sendMessage('続きの質問');
+    await chatStore.sendMessageWithConfig('続きの質問');
 
     // 会話履歴が含まれていることを確認
     const callArgs = mockLLMQuery.mock.calls[0][0] as LLMQueryRequest;
@@ -144,7 +144,7 @@ describe('新しいバックエンド仕様対応テスト', () => {
     // ドキュメントストアを空に設定
     documentStore.currentDocument = null;
 
-    await chatStore.sendMessage('一般的な質問');
+    await chatStore.sendMessageWithConfig('一般的な質問');
 
     // ドキュメント関連のコンテキストがnullになることを確認
     expect(mockLLMQuery).toHaveBeenCalledWith(

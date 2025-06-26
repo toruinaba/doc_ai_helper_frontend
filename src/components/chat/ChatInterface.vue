@@ -438,7 +438,7 @@ const systemPromptTemplates = ref([
 const loadAvailableTemplates = async () => {
   try {
     // APIから利用可能なテンプレート一覧を取得
-    const { getLLMTemplates } = await import('@/services/api/chat.service');
+    const { getLLMTemplates } = await import('@/services/api/modules');
     const templates = await getLLMTemplates();
     
     // テンプレート選択肢を更新

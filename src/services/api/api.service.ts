@@ -454,8 +454,9 @@ export class ApiClient {
     // エラーイベントハンドラ
     eventSource.addEventListener('error', (event) => {
       try {
-        if (event.data) {
-          const data = JSON.parse(event.data);
+        const messageEvent = event as MessageEvent;
+        if (messageEvent.data) {
+          const data = JSON.parse(messageEvent.data);
           callbacks.onError?.(data.error || 'Unknown streaming error');
         } else {
           callbacks.onError?.('Connection error');
@@ -511,7 +512,7 @@ export class ApiClient {
 
   /**
    * MCPツールを有効にしたLLMストリーミングクエリを送信
-   * このメソッドは高度なストリーミング機能のためにstreaming-alt.serviceを使用します
+   * このメソッドは高度なストリーミング機能のためにmodules/tools.serviceを使用します
    * @param request LLMクエリリクエスト
    * @param enableTools ツールを有効にするかどうか
    * @param toolChoice ツール選択戦略
@@ -532,7 +533,7 @@ export class ApiClient {
     }
   ): Promise<AbortController> {
     // MCPツール対応のストリーミングサービスを動的にインポート
-    const { streamLLMQueryWithMCPTools } = await import('./streaming-alt.service');
+    const { streamLLMQueryWithTools } = await import('./modules');
     
     // リクエストが既に完全なLLMQueryRequestの場合はそのまま使用
     const toolsRequest: LLMQueryRequest = {
@@ -576,12 +577,24 @@ export class ApiClient {
     };
     
     // MCPツール専用ストリーミングを使用
-    return streamLLMQueryWithMCPTools(
-      this.baseUrl,
-      '/llm/stream',
+    const cleanupFn = await streamLLMQueryWithTools(
       toolsRequest,
-      mcpCallbacks
+      {
+        onStart: mcpCallbacks.onStart,
+        onToken: mcpCallbacks.onToken,
+        onError: mcpCallbacks.onError,
+        onEnd: mcpCallbacks.onEnd
+      },
+      enableTools
     );
+    
+    // クリーンアップ関数をAbortControllerに変換
+    const controller = new AbortController();
+    controller.signal.addEventListener('abort', () => {
+      cleanupFn();
+    });
+    
+    return controller;
   }
 }
 

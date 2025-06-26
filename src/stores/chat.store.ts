@@ -964,11 +964,15 @@ ${currentDoc.content.content}`;
       }));
       
       // 新しいバックエンド仕様に合わせたLLMクエリリクエストを構築
-      const request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'> = {
+      const request: LLMQueryRequest = {
         prompt: content,
         conversation_history: conversationHistory,
         context_documents: [currentDoc.path],
         provider: 'openai',
+        
+        // MCPツール設定
+        enable_tools: useTools,
+        tool_choice: toolChoice,
         
         // 新しいフィールド：リポジトリコンテキスト
         repository_context: (effectiveConfig.enableRepositoryContext && currentDoc) ? {

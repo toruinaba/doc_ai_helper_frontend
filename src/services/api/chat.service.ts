@@ -796,7 +796,7 @@ export async function sendLLMQueryWithTools(
  * @returns ストリーミングを中止するためのAbortController
  */
 export async function streamLLMQueryWithTools(
-  request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'>,
+  request: LLMQueryRequest, // 完全なLLMQueryRequestを受け取る
   enableTools: boolean = true,
   toolChoice: string = 'auto',
   callbacks: {
@@ -885,11 +885,14 @@ export async function streamLLMQueryWithTools(
     console.log('Starting streaming LLM query with MCP tools:', {
       enable_tools: enableTools,
       tool_choice: toolChoice,
-      conversation_history_length: toolsRequest.conversation_history ? toolsRequest.conversation_history.length : 0
+      conversation_history_length: toolsRequest.conversation_history ? toolsRequest.conversation_history.length : 0,
+      hasRepositoryContext: !!toolsRequest.repository_context,
+      hasDocumentMetadata: !!toolsRequest.document_metadata,
+      hasDocumentContent: !!toolsRequest.document_content
     });
     
     return await apiClient.streamLLMQueryWithTools(
-      request,
+      toolsRequest, // 完全なリクエストを渡す
       enableTools,
       toolChoice,
       callbacks

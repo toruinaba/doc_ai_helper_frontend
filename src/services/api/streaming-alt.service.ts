@@ -298,6 +298,10 @@ export function streamLLMQueryWithMCPTools(
   console.log('=== Initializing MCP Tools Streaming ===')
   console.log('MCP Tools enabled:', requestData.enable_tools)
   console.log('Tool choice:', requestData.tool_choice)
+  console.log('🔍 Repository context:', requestData.repository_context)
+  console.log('🔍 Document metadata:', requestData.document_metadata)
+  console.log('🔍 Document content length:', requestData.document_content ? requestData.document_content.length : 0)
+  console.log('🔍 Full request data:', JSON.stringify(requestData, null, 2))
 
   const controller = new AbortController()
   

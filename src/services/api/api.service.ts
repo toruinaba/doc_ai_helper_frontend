@@ -645,7 +645,7 @@ export class ApiClient {
    * @returns ストリーミングを中止するためのAbortController
    */
   async streamLLMQueryWithTools(
-    request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'>,
+    request: LLMQueryRequest, // 完全なLLMQueryRequestを受け取る
     enableTools: boolean = true,
     toolChoice: string = 'auto',
     callbacks: {
@@ -660,6 +660,7 @@ export class ApiClient {
     // MCPツール対応のストリーミングサービスを動的にインポート
     const { streamLLMQueryWithMCPTools } = await import('./streaming-alt.service');
     
+    // リクエストが既に完全なLLMQueryRequestの場合はそのまま使用
     const toolsRequest: LLMQueryRequest = {
       ...request,
       enable_tools: enableTools,

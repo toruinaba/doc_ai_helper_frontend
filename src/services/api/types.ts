@@ -349,7 +349,7 @@ export interface MCPToolConfig {
 }
 
 // MCPツール実行モードの型定義
-export type ToolExecutionMode = 'auto' | 'required';
+export type ToolExecutionMode = 'auto' | 'none' | 'required';
 
 // MCPツール管理状態の型定義
 export interface MCPToolsState {
@@ -359,3 +359,30 @@ export interface MCPToolsState {
   activeExecutions: Map<string, ToolExecution>;
   executionHistory: ToolExecution[];
 }
+
+// バックエンドから取得するMCPツール情報の型定義（OpenAPI仕様に基づく）
+export interface ToolParameter {
+  name: string;
+  type: string;
+  description?: string | null;
+  required?: boolean;
+  default?: any;
+}
+
+export interface MCPToolInfo {
+  name: string;
+  description?: string | null;
+  parameters: ToolParameter[];
+  category?: string | null;
+  enabled?: boolean;
+}
+
+export interface MCPToolsResponse {
+  tools: MCPToolInfo[];
+  total_count: number;
+  categories: string[];
+  server_info?: Record<string, any>;
+}
+
+// MCPツール選択の型定義（tool_choiceで使用）
+export type MCPToolChoice = 'auto' | 'none' | 'required' | string; // 特定のツール名も可能

@@ -53,6 +53,7 @@ export interface MCPToolsConfig {
   enabled: boolean;
   autoDetect: boolean;
   defaultToolChoice: string;
+  toolChoice: string; // 'auto', 'none', 'required', または特定のツール名
   executionMode: ToolExecutionMode;
   enableProgressMonitoring: boolean;
   enableDetailedLogging: boolean;
@@ -74,6 +75,7 @@ export const useChatStore = defineStore('chat', () => {
     enabled: true,
     autoDetect: true,
     defaultToolChoice: 'auto',
+    toolChoice: 'auto', // デフォルトは自動選択
     executionMode: 'auto',
     enableProgressMonitoring: true,
     enableDetailedLogging: true
@@ -218,8 +220,8 @@ export const useChatStore = defineStore('chat', () => {
       if (forceToolChoice) {
         toolChoice = forceToolChoice;
       } else if (useTools) {
-        // MCPツールが有効な場合は、executionModeに基づいて決定
-        toolChoice = mcpToolsConfig.value.executionMode; // 'auto' または 'required'
+        // MCPツールが有効な場合は、toolChoiceを使用（'auto', 'none', 'required', または特定のツール名）
+        toolChoice = mcpToolsConfig.value.toolChoice;
       } else {
         toolChoice = 'none';
       }
@@ -938,8 +940,8 @@ ${currentDoc.content.content}`;
       if (forceToolChoice) {
         toolChoice = forceToolChoice;
       } else if (useTools) {
-        // MCPツールが有効な場合は、executionModeに基づいて決定
-        toolChoice = mcpToolsConfig.value.executionMode; // 'auto' または 'required'
+        // MCPツールが有効な場合は、toolChoiceを使用（'auto', 'none', 'required', または特定のツール名）
+        toolChoice = mcpToolsConfig.value.toolChoice;
       } else {
         toolChoice = 'none';
       }

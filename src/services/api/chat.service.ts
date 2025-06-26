@@ -15,9 +15,10 @@ import type {
   DocumentResponse,
   RepositoryContext,
   DocumentMetadataInput,
-  DocumentTypeInput,
-  GitService
+  MCPToolsResponse,
+  MCPToolInfo
 } from './types';
+import { DocumentTypeInput, GitService } from './types';
 
 /**
  * LLMとのチャット
@@ -900,7 +901,47 @@ export async function streamLLMQueryWithTools(
 }
 
 /**
- * MCPツール機能を使用すべきかを判断するヘルパー関数
+ * MCPツール情報を取得
+ */
+export async function getMCPTools(): Promise<MCPToolsResponse> {
+  try {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const response = await fetch(`${apiBaseUrl}/api/v1/llm/tools`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch MCP tools:', error);
+    throw error;
+  }
+}
+
+/**
+ * 特定のMCPツールの詳細情報を取得
+ */
+export async function getMCPToolInfo(toolName: string): Promise<MCPToolInfo> {
+  try {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const response = await fetch(`${apiBaseUrl}/api/v1/llm/tools/${encodeURIComponent(toolName)}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Failed to fetch MCP tool info for ${toolName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * MCPツール機能を使用すべべきかを判断するヘルパー関数
  * @param prompt ユーザーのプロンプト
  * @param enableAutoDetection 自動検出を有効にするかどうか
  * @returns ツール使用推奨の判定結果
@@ -1095,5 +1136,7 @@ export default {
   shouldUseMCPTools,
   integrateMCPToolResults,
   createDocumentMetadataInput,
-  createRepositoryContext
+  createRepositoryContext,
+  getMCPTools,
+  getMCPToolInfo
 };

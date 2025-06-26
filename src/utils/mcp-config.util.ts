@@ -16,7 +16,7 @@ export function getMCPToolsConfig(): {
   
   // 実行モード
   const executionModeStr = import.meta.env.VITE_MCP_DEFAULT_EXECUTION_MODE || 'auto';
-  const executionMode: ToolExecutionMode = executionModeStr === 'required' ? 'required' : 'auto';
+  const executionMode: ToolExecutionMode = ['auto', 'none', 'required'].includes(executionModeStr) ? executionModeStr as ToolExecutionMode : 'auto';
   
   // 利用可能なツールのリスト
   const toolsString = import.meta.env.VITE_MCP_AVAILABLE_TOOLS || '';

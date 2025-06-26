@@ -176,6 +176,10 @@
                 <label for="auto-execute">自動実行 (auto)</label>
               </div>
               <div class="p-field-radiobutton">
+                <RadioButton v-model="executionMode" inputId="none-execute" name="executionMode" value="none" />
+                <label for="none-execute">ツール無効 (none)</label>
+              </div>
+              <div class="p-field-radiobutton">
                 <RadioButton v-model="executionMode" inputId="required-execute" name="executionMode" value="required" />
                 <label for="required-execute">必須実行 (required)</label>
               </div>
@@ -362,6 +366,7 @@ import Tag from 'primevue/tag';
 import Dropdown from 'primevue/dropdown';
 import { updateStreamingConfig, StreamingType } from '@/services/api/streaming-config.service';
 import { getMCPToolsConfig, logMCPToolsConfig } from '@/utils/mcp-config.util';
+import { loadMCPToolsFromBackend, recommendToolForPrompt } from '@/utils/mcp-tools.util';
 import type { ToolExecution, MCPToolConfig, ToolExecutionMode } from '@/services/api/types';
 
 // 状態
@@ -489,7 +494,8 @@ watch([mcpToolsEnabled, executionMode, availableTools], ([enabled, mode, tools])
   // chatStoreのMCPツール設定を更新
   chatStore.updateMCPToolsConfig({
     enabled,
-    executionMode: mode, // 'auto' または 'required'
+    executionMode: mode, // 'auto', 'none', 'required'
+    toolChoice: mode, // toolChoiceとexecutionModeを同期
     autoDetect: mode === 'auto',
     defaultToolChoice: mode === 'auto' ? 'auto' : 'none',
     enableProgressMonitoring: true,
@@ -710,7 +716,7 @@ watch(() => documentStore.currentPath, () => {
 });
 
 // コンポーネントマウント時の処理
-onMounted(() => {
+onMounted(async () => {
   scrollToBottom();
   
   // MCPツール設定をデバッグ出力
@@ -723,6 +729,17 @@ onMounted(() => {
   
   // 利用可能なシステムプロンプトテンプレートをロード
   loadAvailableTemplates();
+  
+  // バックエンドからMCPツールリストを動的に読み込み
+  try {
+    console.log('🔧 バックエンドからMCPツールリストを読み込み中...');
+    const backendTools = await loadMCPToolsFromBackend();
+    availableTools.value = backendTools;
+    console.log('✅ MCPツールリストを読み込みました:', backendTools.map(t => t.name));
+  } catch (error) {
+    console.error('❌ MCPツールリストの読み込みに失敗:', error);
+    // デフォルトツールリストを使用
+  }
 });
 
 // 現在のドキュメント情報の計算プロパティ

@@ -46,8 +46,8 @@ const documentStore = useDocumentStore();
 
 // コンポーネントマウント時の処理
 onMounted(() => {
-  // 環境変数からのデフォルト設定を使用（storeのデフォルト値を使用）
-  documentStore.fetchRepositoryStructure();
+  // ファイルツリー機能を一時的に無効化しているため、リポジトリ構造の取得をスキップ
+  // documentStore.fetchRepositoryStructure();
   
   // デフォルトのパスを使用（環境変数から取得）
   const defaultConfig = getDefaultRepositoryConfig();

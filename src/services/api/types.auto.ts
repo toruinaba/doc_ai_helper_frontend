@@ -625,11 +625,6 @@ export interface components {
             /** @description Metadata of currently displayed document */
             document_metadata?: components["schemas"]["DocumentMetadata-Input"] | null;
             /**
-             * Document Content
-             * @description Current document content for system prompt inclusion
-             */
-            document_content?: string | null;
-            /**
              * Include Document In System Prompt
              * @description Whether to include document content in system prompt
              * @default true

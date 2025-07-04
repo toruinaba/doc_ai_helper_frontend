@@ -572,7 +572,7 @@ ${currentDoc.content.content}`;
                 console.log(`Adding message ${index} with role ${msg.role}`);
                 const clientMsg: ClientChatMessage = {
                   id: generateMessageId(),
-                  role: msg.role as 'user' | 'assistant' | 'system',
+                  role: msg.role as '
                   content: msg.content,
                   timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
                 };
@@ -616,17 +616,9 @@ ${currentDoc.content.content}`;
       // 現在のドキュメントコンテキストを取得
       const currentDoc = documentStore.currentDocument;
       
-      // 設定とデフォルトをマージ
-      const effectiveConfig = {
-        includeDocumentInSystemPrompt: true,
-        systemPromptTemplate: 'contextual_document_assistant_ja',
-        enableRepositoryContext: true,
-        enableDocumentMetadata: true,
-        completeToolFlow: true,
-        ...config
-      };
-      
-      console.log('📋 Streaming with document context config:', effectiveConfig);
+      if (!currentDoc) {
+        throw new Error('ドキュメントが選択されていません');
+      }
       
       // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
       const service = documentStore.currentService || defaultConfig.service;
@@ -669,11 +661,6 @@ ${currentDoc.content.content}`;
           encoding: currentDoc.content.encoding || 'utf-8',
           language: null
         } : null,
-        
-        // 新しいフィールド：ドキュメントコンテンツ
-        document_content: (effectiveConfig.includeDocumentInSystemPrompt && currentDoc) 
-          ? currentDoc.content.content 
-          : null,
         
         // 新しいフィールド：システムプロンプト設定
         include_document_in_system_prompt: effectiveConfig.includeDocumentInSystemPrompt,
@@ -689,210 +676,9 @@ ${currentDoc.content.content}`;
         tool_choice: 'none'
       };
       
-      console.log('🌊 Sending streaming request with new backend specification:', {
+      console.log('📤 Sending message request with new backend specification:', {
         hasRepositoryContext: !!request.repository_context,
         hasDocumentMetadata: !!request.document_metadata,
-        hasDocumentContent: !!request.document_content,
-        includeDocumentInSystemPrompt: request.include_document_in_system_prompt,
-        systemPromptTemplate: request.system_prompt_template
-      });
-      
-      // リポジトリコンテキストの詳細をログ出力
-      if (request.repository_context) {
-        console.log('📁 Repository context details:', {
-          service: request.repository_context.service,
-          owner: request.repository_context.owner,
-          repo: request.repository_context.repo,
-          ref: request.repository_context.ref,
-          current_path: request.repository_context.current_path,
-          base_url: request.repository_context.base_url
-        });
-      } else {
-        console.log('❌ No repository context included in request');
-        console.log('Current document data:', {
-          hasCurrentDoc: !!currentDoc,
-          docService: currentDoc?.service,
-          docOwner: currentDoc?.owner,
-          docRepo: currentDoc?.repository,
-          enableRepositoryContext: effectiveConfig.enableRepositoryContext
-        });
-      }
-      
-      // 送信する完全なリクエストオブジェクトもログ出力
-      console.log('📦 Complete request object to be sent:', JSON.stringify(request, null, 2));
-      
-      // アシスタントの空メッセージを追加（ストリーミング表示用）
-      const assistantMessage = addAssistantMessage('');
-      let accumulatedContent = '';
-      
-      // モジュールからストリーミング関数をインポート
-      const { streamLLMQuery } = await import('../services/api/modules');
-      
-      // ストリーミングコールバックの設定
-      const cleanup = await streamLLMQuery(
-        request,
-        {
-          onStart: (data) => {
-            console.log('Streaming started with model:', data?.model);
-          },
-          onToken: (token) => {
-            console.log('Received token in chat store:', token);
-            // 新しいトークンを受信したら累積コンテンツに追加
-            accumulatedContent += token;
-            console.log('Accumulated content so far:', accumulatedContent);
-            
-            // アシスタントメッセージを更新
-            const messageIndex = messages.value.findIndex(m => m.id === assistantMessage.id);
-            console.log('Found message at index:', messageIndex, 'with ID:', assistantMessage.id);
-            if (messageIndex !== -1) {
-              // Vueのリアクティビティを確実にトリガーするため、新しいオブジェクトを作成
-              messages.value[messageIndex] = {
-                ...messages.value[messageIndex],
-                content: accumulatedContent
-              };
-            }
-          },
-          onError: (errorMsg) => {
-            console.error('Streaming error:', errorMsg);
-            error.value = errorMsg;
-            
-            // エラーメッセージを表示
-            addSystemMessage(`ストリーミングエラー: ${errorMsg}`);
-          },
-          onEnd: (data) => {
-            console.log('Streaming ended');
-            console.log('Final accumulated content:', accumulatedContent);
-            
-            // 最終的なメッセージ内容を確認
-            const finalMessage = messages.value.find(m => m.id === assistantMessage.id);
-            if (finalMessage) {
-              console.log('Final message content:', finalMessage.content);
-            }
-            
-            // 会話履歴の最適化があった場合は適用
-            if (data?.optimized_conversation_history && data.optimized_conversation_history.length > 0) {
-              console.log('🗂️ Server provided optimized conversation history for streaming:', 
-                data.optimized_conversation_history.length, 'messages');
-            }
-            
-            isLoading.value = false;
-          }
-        }
-      );
-      
-      console.log('Streaming message sent successfully with new specification');
-      
-      // AbortControllerを返す（必要に応じて中断できるように）
-      return {
-        abort: cleanup || (() => {})
-      };
-      
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown streaming error occurred';
-      console.error('Error sending streaming message with config:', err);
-      error.value = errorMessage;
-      
-      // エラーメッセージを表示
-      addSystemMessage(`ストリーミングエラーが発生しました: ${errorMessage}`);
-      isLoading.value = false;
-      
-      return {
-        abort: () => {}
-      };
-    }
-  }
-  
-  // MCPツール対応ストリーミングメッセージ送信
-  // 新しいバックエンド仕様に対応したメッセージ送信（設定付き）
-  async function sendMessageWithConfig(content: string, config?: Partial<DocumentContextConfig>) {
-    console.log('Start sending message with config:', content, config);
-    isLoading.value = true;
-    error.value = null;
-    
-    try {
-      // ユーザーメッセージを追加
-      addUserMessage(content);
-      
-      // 現在のドキュメントコンテキストを取得
-      const currentDoc = documentStore.currentDocument;
-      
-      // 設定とデフォルトをマージ
-      const effectiveConfig = {
-        includeDocumentInSystemPrompt: true,
-        systemPromptTemplate: 'contextual_document_assistant_ja',
-        enableRepositoryContext: true,
-        enableDocumentMetadata: true,
-        completeToolFlow: true,
-        ...config
-      };
-      
-      console.log('📋 Message with document context config:', effectiveConfig);
-      
-      // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
-      const service = documentStore.currentService || defaultConfig.service;
-      const owner = documentStore.currentOwner || defaultConfig.owner;
-      const repo = documentStore.currentRepo || defaultConfig.repo;
-      const path = documentStore.currentPath || defaultConfig.path;
-      const ref = documentStore.currentRef || defaultConfig.ref;
-      
-      // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
-      const conversationHistory = messages.value.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp.toISOString()
-      }));
-      
-      // 新しいバックエンド仕様に合わせたLLMクエリリクエストの構築
-      const request: LLMQueryRequest = {
-        prompt: content,
-        context_documents: [path],
-        conversation_history: conversationHistory,
-        
-        // 新しいフィールド：リポジトリコンテキスト
-        repository_context: (effectiveConfig.enableRepositoryContext && currentDoc) ? {
-          service: currentDoc.service as any,
-          owner: currentDoc.owner,
-          repo: currentDoc.repository,
-          ref: currentDoc.ref || 'main',
-          current_path: currentDoc.path,
-          base_url: null
-        } : null,
-        
-        // 新しいフィールド：ドキュメントメタデータ
-        document_metadata: (effectiveConfig.enableDocumentMetadata && currentDoc) ? {
-          title: currentDoc.name,
-          type: 'markdown' as any,
-          filename: currentDoc.name,
-          file_extension: currentDoc.name.includes('.') ? currentDoc.name.split('.').pop() || null : null,
-          last_modified: currentDoc.metadata.last_modified,
-          file_size: currentDoc.metadata.size,
-          encoding: currentDoc.content.encoding || 'utf-8',
-          language: null
-        } : null,
-        
-        // 新しいフィールド：ドキュメントコンテンツ
-        document_content: (effectiveConfig.includeDocumentInSystemPrompt && currentDoc) 
-          ? currentDoc.content.content 
-          : null,
-        
-        // 新しいフィールド：システムプロンプト設定
-        include_document_in_system_prompt: effectiveConfig.includeDocumentInSystemPrompt,
-        system_prompt_template: effectiveConfig.systemPromptTemplate,
-        
-        // MCPツール設定
-        enable_tools: false, // 通常のメッセージ送信ではツールを無効
-        complete_tool_flow: effectiveConfig.completeToolFlow,
-        
-        // 必須フィールド
-        provider: 'openai',
-        disable_cache: false,
-        tool_choice: 'none'
-      };
-      
-      console.log('� Sending message request with new backend specification:', {
-        hasRepositoryContext: !!request.repository_context,
-        hasDocumentMetadata: !!request.document_metadata,
-        hasDocumentContent: !!request.document_content,
         includeDocumentInSystemPrompt: request.include_document_in_system_prompt,
         systemPromptTemplate: request.system_prompt_template
       });
@@ -1028,11 +814,6 @@ ${currentDoc.content.content}`;
           language: null
         } : null,
         
-        // 新しいフィールド：ドキュメントコンテンツ
-        document_content: (effectiveConfig.includeDocumentInSystemPrompt && currentDoc) 
-          ? currentDoc.content.content 
-          : null,
-        
         // 新しいフィールド：システムプロンプト設定
         include_document_in_system_prompt: effectiveConfig.includeDocumentInSystemPrompt,
         system_prompt_template: effectiveConfig.systemPromptTemplate,
@@ -1047,7 +828,6 @@ ${currentDoc.content.content}`;
       console.log('🌊🛠️ Sending streaming MCP tools request with new backend specification:', {
         hasRepositoryContext: !!request.repository_context,
         hasDocumentMetadata: !!request.document_metadata,
-        hasDocumentContent: !!request.document_content,
         includeDocumentInSystemPrompt: request.include_document_in_system_prompt,
         systemPromptTemplate: request.system_prompt_template,
         useTools,

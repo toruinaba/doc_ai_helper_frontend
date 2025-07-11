@@ -663,11 +663,10 @@ async function sendStreamingMessage() {
     } else {
       console.log('📨 Sending regular streaming message');
       // 通常のストリーミングメッセージ送信（設定付き）
-      const controller = await chatStore.sendStreamingMessageWithConfig(
+      await chatStore.sendStreamingMessageWithConfig(
         newMessage.value.trim(),
         documentContextConfig.value
       );
-      streamingController.value = controller;
     }
     newMessage.value = '';
   }
@@ -685,7 +684,10 @@ function sendMessage() {
     // 新しいsendMessageWithConfig関数を使用して設定を渡す
     chatStore.sendMessageWithConfig(
       newMessage.value.trim(), 
-      documentContextConfig.value
+      {
+        provider: 'openai',
+        includeHistory: true
+      }
     );
     newMessage.value = '';
   }

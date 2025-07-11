@@ -76,7 +76,7 @@ describe('ApiClient', () => {
   it('searchRepository メソッドが正しいURLとデータで呼び出されること', async () => {
     mockAxiosInstance.post.mockResolvedValueOnce({ data: { results: [] } });
 
-    const searchQuery = { query: 'test' };
+    const searchQuery = { query: 'test', limit: 10, offset: 0 };
     await apiClient.searchRepository('github', 'user', 'repo', searchQuery);
 
     expect(mockAxiosInstance.post).toHaveBeenCalledWith(

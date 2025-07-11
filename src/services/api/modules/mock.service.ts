@@ -133,14 +133,12 @@ const mockRepoStructure: FileTreeItem[] = [
   {
     path: 'docs',
     name: 'docs',
-    type: 'directory',
-    children: [
-      {
-        path: 'docs/advanced.md',
-        name: 'advanced.md',
-        type: 'file'
-      }
-    ]
+    type: 'directory'
+  },
+  {
+    path: 'docs/advanced.md',
+    name: 'advanced.md',
+    type: 'file'
   }
 ];
 

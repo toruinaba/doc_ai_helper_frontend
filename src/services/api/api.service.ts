@@ -27,7 +27,9 @@ import type {
   LLMQueryRequest,
   LLMResponse,
   LLMStreamingRequest,
-  StreamingLLMResponse
+  StreamingLLMResponse,
+  MCPToolsResponse,
+  MCPToolInfo
 } from './types';
 import { getApiConfig } from '../../utils/config.util';
 
@@ -345,6 +347,23 @@ export class ApiClient {
       `/llm/format-prompt?template_id=${templateId}`, 
       variables
     );
+  }
+
+  /**
+   * 利用可能なMCPツール一覧を取得
+   * @returns MCPツール情報のレスポンス
+   */
+  async getMCPTools(): Promise<MCPToolsResponse> {
+    return this.get<MCPToolsResponse>('/llm/tools');
+  }
+
+  /**
+   * 特定のMCPツール情報を取得
+   * @param toolName ツール名
+   * @returns MCPツール情報
+   */
+  async getMCPTool(toolName: string): Promise<MCPToolInfo> {
+    return this.get<MCPToolInfo>(`/llm/tools/${toolName}`);
   }
 
   /**

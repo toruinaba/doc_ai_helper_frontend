@@ -104,9 +104,9 @@ describe('新しいバックエンド仕様対応テスト', () => {
 
     // カスタム設定でメッセージ送信
     await chatStore.sendMessageWithConfig('コード解析をして', {
-      systemPromptTemplate: 'code_analysis_assistant',
-      includeDocumentInSystemPrompt: false,
-      enableRepositoryContext: false
+      provider: 'openai',
+      model: 'gpt-4',
+      includeHistory: true
     });
 
     // 設定が正しく適用されたことを確認

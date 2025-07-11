@@ -270,7 +270,8 @@ ${currentDoc.content.content}`;
         include_document_in_system_prompt: true,
         system_prompt_template: 'contextual_document_assistant_ja',
         enable_tools: useTools,
-        tool_choice: toolChoice || 'auto'
+        tool_choice: toolChoice || 'auto',
+        auto_include_document: true
       };
       
       let response: LLMResponse;
@@ -380,7 +381,8 @@ ${currentDoc.content.content}`;
         tool_choice: 'none',
         complete_tool_flow: true,
         include_document_in_system_prompt: true,
-        system_prompt_template: 'contextual_document_assistant_ja'
+        system_prompt_template: 'contextual_document_assistant_ja',
+        auto_include_document: true
       };
       
       console.log('Sending LLM query with conversation history:', 
@@ -501,7 +503,8 @@ ${currentDoc.content.content}`;
         tool_choice: 'none',
         complete_tool_flow: true,
         include_document_in_system_prompt: true,
-        system_prompt_template: 'contextual_document_assistant_ja'
+        system_prompt_template: 'contextual_document_assistant_ja',
+        auto_include_document: true
       };
       
       console.log('Sending streaming chat message with conversation history:', conversationHistory.length, 'messages');
@@ -572,7 +575,7 @@ ${currentDoc.content.content}`;
                 console.log(`Adding message ${index} with role ${msg.role}`);
                 const clientMsg: ClientChatMessage = {
                   id: generateMessageId(),
-                  role: msg.role as '
+                  role: msg.role as 'user' | 'assistant' | 'system',
                   content: msg.content,
                   timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
                 };
@@ -627,6 +630,14 @@ ${currentDoc.content.content}`;
       const path = documentStore.currentPath || defaultConfig.path;
       const ref = documentStore.currentRef || defaultConfig.ref;
       
+      // 設定の統合（デフォルト設定とパラメータのマージ）
+      const effectiveConfig = {
+        enableRepositoryContext: config?.enableRepositoryContext ?? true,
+        enableDocumentMetadata: config?.enableDocumentMetadata ?? true,
+        includeDocumentInSystemPrompt: config?.includeDocumentInSystemPrompt ?? true,
+        systemPromptTemplate: config?.systemPromptTemplate ?? 'contextual_document_assistant_ja'
+      };
+      
       // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
       const conversationHistory = messages.value.map(msg => ({
         role: msg.role,
@@ -668,12 +679,13 @@ ${currentDoc.content.content}`;
         
         // MCPツール設定
         enable_tools: false, // 通常のストリーミングではツールを無効
-        complete_tool_flow: effectiveConfig.completeToolFlow,
+        complete_tool_flow: true,
         
         // 必須フィールド
         provider: 'openai',
         disable_cache: false,
-        tool_choice: 'none'
+        tool_choice: 'none',
+        auto_include_document: true
       };
       
       console.log('📤 Sending message request with new backend specification:', {
@@ -822,7 +834,8 @@ ${currentDoc.content.content}`;
         complete_tool_flow: effectiveConfig.completeToolFlow,
         
         // 必須フィールド
-        disable_cache: false
+        disable_cache: false,
+        auto_include_document: true
       };
       
       console.log('🌊🛠️ Sending streaming MCP tools request with new backend specification:', {
@@ -951,7 +964,7 @@ ${currentDoc.content.content}`;
     sendTemplateQuery,
     sendStreamingMessage,
     sendStreamingMessageWithConfig,
-    sendMessageWithConfig,
+    sendMessageWithConfig: sendDirectQuery,
     
     // MCPツール対応関数
     sendMessageWithTools,

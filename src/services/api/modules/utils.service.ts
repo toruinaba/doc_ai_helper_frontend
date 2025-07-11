@@ -1,9 +1,9 @@
 /**
- * API URLヘルパー関数
+ * Utilities Service
  * 
- * APIエンドポイントのURLを正しく構築するためのヘルパー関数群
+ * API関連のユーティリティ機能を提供
  */
-import apiClient from '.';
+import apiClient from '..';
 
 /**
  * baseURLを正規化し、二重の/api/v1を防止する
@@ -43,19 +43,29 @@ export function getNormalizedApiUrl(endpoint: string): string {
  */
 export function normalizeUrl(baseUrl: string, endpoint: string): string {
   // baseUrlの末尾のスラッシュを削除
-  let normalizedBase = baseUrl.replace(/\/$/, '')
+  let normalizedBase = baseUrl.replace(/\/$/, '');
   
   // endpointの先頭のスラッシュを確保
-  let normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  let normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
-  // /api/v1が重複しないようにする
-  if (normalizedBase.endsWith('/api/v1')) {
-    normalizedBase = normalizedBase.slice(0, -7)
+  // エンドポイントが既に/api/v1で始まっている場合は、baseUrlから/api/v1を削除
+  if (normalizedEndpoint.startsWith('/api/v1')) {
+    if (normalizedBase.endsWith('/api/v1')) {
+      normalizedBase = normalizedBase.slice(0, -7);
+    }
+    // エンドポイントは既に完全なAPI パスなのでそのまま使用
+    const result = `${normalizedBase}${normalizedEndpoint}`;
+    console.log(`URL正規化 (API path included): 元のURL=${baseUrl}, 正規化後=${normalizedBase}, エンドポイント=${normalizedEndpoint}, 結果=${result}`);
+    return result;
+  } else {
+    // エンドポイントが相対パスの場合は、/api/v1を追加
+    if (normalizedBase.endsWith('/api/v1')) {
+      normalizedBase = normalizedBase.slice(0, -7);
+    }
+    const result = `${normalizedBase}/api/v1${normalizedEndpoint}`;
+    console.log(`URL正規化 (relative path): 元のURL=${baseUrl}, 正規化後=${normalizedBase}, エンドポイント=${normalizedEndpoint}, 結果=${result}`);
+    return result;
   }
-  
-  const result = `${normalizedBase}/api/v1${normalizedEndpoint}`
-  console.log(`URL正規化: 元のURL=${baseUrl}, 正規化後=${normalizedBase}, エンドポイント=${normalizedEndpoint}`)
-  return result
 }
 
 /**

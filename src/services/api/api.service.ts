@@ -24,8 +24,6 @@ import type {
   RepositoryUpdate,
   SearchQuery,
   SearchResponse,
-  ChatRequest,
-  ChatResponse,
   LLMQueryRequest,
   LLMResponse,
   LLMStreamingRequest,
@@ -307,15 +305,6 @@ export class ApiClient {
   }
 
   /**
-   * LLMとのチャット
-   * @param request チャットリクエスト
-   * @returns チャットレスポンス
-   */
-  async sendChatMessage(request: ChatRequest): Promise<ChatResponse> {
-    return this.post<ChatResponse>('/chat/message', request);
-  }
-
-  /**
    * LLMにクエリを送信
    * @param request LLMクエリリクエスト
    * @returns LLMレスポンス
@@ -356,6 +345,51 @@ export class ApiClient {
       `/llm/format-prompt?template_id=${templateId}`, 
       variables
     );
+  }
+
+  /**
+   * MCPツールを有効にしたLLMクエリを送信
+   * @param request LLMクエリリクエスト
+   * @param enableTools ツールを有効にするかどうか
+   * @param toolChoice ツール選択戦略
+   * @returns LLMレスポンス（ツール実行結果を含む）
+   */
+  async sendLLMQueryWithTools(
+    request: Omit<LLMQueryRequest, 'enable_tools' | 'tool_choice'>,
+    enableTools: boolean = true,
+    toolChoice: string = 'auto'
+  ): Promise<LLMResponse> {
+    const toolsRequest: LLMQueryRequest = {
+      ...request,
+      enable_tools: enableTools,
+      tool_choice: toolChoice
+    };
+    
+    console.log('Sending LLM query with MCP tools:', {
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      prompt: request.prompt.substring(0, 100) + '...'
+    });
+    
+    const response = await this.post<LLMResponse>('/llm/query', toolsRequest);
+    
+    // ツール実行結果をログ出力
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      console.log('Tool calls executed:', response.tool_calls.length);
+      response.tool_calls.forEach((toolCall, index) => {
+        console.log(`Tool call ${index + 1}:`, {
+          id: toolCall.id,
+          function: toolCall.function.name,
+          arguments: toolCall.function.arguments
+        });
+      });
+    }
+    
+    if (response.tool_execution_results && response.tool_execution_results.length > 0) {
+      console.log('Tool execution results received:', response.tool_execution_results.length);
+    }
+    
+    return response;
   }
 
   /**
@@ -420,8 +454,9 @@ export class ApiClient {
     // エラーイベントハンドラ
     eventSource.addEventListener('error', (event) => {
       try {
-        if (event.data) {
-          const data = JSON.parse(event.data);
+        const messageEvent = event as MessageEvent;
+        if (messageEvent.data) {
+          const data = JSON.parse(messageEvent.data);
           callbacks.onError?.(data.error || 'Unknown streaming error');
         } else {
           callbacks.onError?.('Connection error');
@@ -476,118 +511,90 @@ export class ApiClient {
   }
 
   /**
-   * LLMにストリーミングチャットメッセージを送信
-   * @param request チャットリクエスト
-   * @param callbacks ストリーミングイベントのコールバック関数
-   * @returns イベントソースを閉じるためのクリーンアップ関数
+   * MCPツールを有効にしたLLMストリーミングクエリを送信
+   * このメソッドは高度なストリーミング機能のためにmodules/tools.serviceを使用します
+   * @param request LLMクエリリクエスト
+   * @param enableTools ツールを有効にするかどうか
+   * @param toolChoice ツール選択戦略
+   * @param callbacks ストリーミングイベントのコールバック関数（MCPツール対応）
+   * @returns ストリーミングを中止するためのAbortController
    */
-  streamChatMessage(
-    request: ChatRequest & { stream?: boolean }, 
+  async streamLLMQueryWithTools(
+    request: LLMQueryRequest, // 完全なLLMQueryRequestを受け取る
+    enableTools: boolean = true,
+    toolChoice: string = 'auto',
     callbacks: {
-      onStart?: (data: StreamingLLMResponse['data']) => void;
+      onStart?: (data?: any) => void;
       onToken?: (token: string) => void;
       onError?: (error: string) => void;
-      onEnd?: (data: StreamingLLMResponse['data']) => void;
+      onEnd?: (data?: any) => void;
+      onToolCall?: (toolCall: any) => void;           // ツール呼び出し開始時
+      onToolResult?: (result: any) => void;           // ツール実行結果受信時
     }
-  ): () => void {
-    // リクエストがストリーミングを要求していることを確認
-    const streamingRequest = {
+  ): Promise<AbortController> {
+    // MCPツール対応のストリーミングサービスを動的にインポート
+    const { streamLLMQueryWithTools } = await import('./modules');
+    
+    // リクエストが既に完全なLLMQueryRequestの場合はそのまま使用
+    const toolsRequest: LLMQueryRequest = {
       ...request,
-      stream: true
+      enable_tools: enableTools,
+      tool_choice: toolChoice
     };
     
-    // URL構築
-    const baseUrl = this.baseUrl.endsWith('/') 
-      ? this.baseUrl.slice(0, -1) 
-      : this.baseUrl;
-    const url = `${baseUrl}/api/v1/chat/stream`;
+    console.log('Streaming LLM query with MCP tools:', {
+      enable_tools: enableTools,
+      tool_choice: toolChoice,
+      prompt: request.prompt.substring(0, 100) + '...'
+    });
     
-    // クエリパラメータの構築
-    const params = new URLSearchParams();
-    if (request.model) params.append('model', request.model);
-    
-    // URLにクエリパラメータを追加
-    const fullUrl = `${url}?${params.toString()}`;
-    
-    // イベントソースの作成
-    const eventSource = new EventSource(fullUrl);
-    
-    // 開始イベントハンドラ
-    eventSource.addEventListener('start', (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    // MCPツール対応のコールバック関数を定義
+    const mcpCallbacks = {
+      onStart: (data?: any) => {
+        console.log('MCP streaming started:', data);
         callbacks.onStart?.(data);
-      } catch (error) {
-        console.error('SSE start event parsing error:', error);
-      }
-    });
-    
-    // トークンイベントハンドラ
-    eventSource.addEventListener('token', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        callbacks.onToken?.(data.content || '');
-      } catch (error) {
-        console.error('SSE token event parsing error:', error);
-      }
-    });
-    
-    // エラーイベントハンドラ
-    eventSource.addEventListener('error', (event) => {
-      try {
-        if (event.data) {
-          const data = JSON.parse(event.data);
-          callbacks.onError?.(data.error || 'Unknown streaming error');
-        } else {
-          callbacks.onError?.('Connection error');
-        }
-      } catch (error) {
-        console.error('SSE error event parsing error:', error);
-        callbacks.onError?.('Error parsing error event');
-      }
-      // エラー時にはイベントソースを閉じる
-      eventSource.close();
-    });
-    
-    // 終了イベントハンドラ
-    eventSource.addEventListener('end', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        callbacks.onEnd?.(data);
-      } catch (error) {
-        console.error('SSE end event parsing error:', error);
-      }
-      // 終了時にはイベントソースを閉じる
-      eventSource.close();
-    });
-    
-    // イベントソースの一般的なエラーハンドラ
-    eventSource.onerror = (error) => {
-      console.error('EventSource error:', error);
-      callbacks.onError?.('EventSource connection error');
-      eventSource.close();
-    };
-    
-    // POST本文のJSONデータ
-    const jsonData = JSON.stringify(streamingRequest);
-    
-    // fetchを使用してPOSTリクエストを送信し、EventSourceを開始
-    fetch(fullUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
       },
-      body: jsonData,
-    }).catch((error) => {
-      console.error('Fetch error for streaming request:', error);
-      callbacks.onError?.(`Failed to initiate streaming request: ${error.message}`);
-      eventSource.close();
+      onToken: (token: string) => {
+        console.log('MCP token received:', token.substring(0, 50) + (token.length > 50 ? '...' : ''));
+        callbacks.onToken?.(token);
+      },
+      onToolCall: (toolCall: any) => {
+        console.log('Tool call detected during streaming:', toolCall);
+        callbacks.onToolCall?.(toolCall);
+      },
+      onToolResult: (result: any) => {
+        console.log('Tool result received during streaming:', result);
+        callbacks.onToolResult?.(result);
+      },
+      onError: (error: string) => {
+        console.error('MCP streaming error:', error);
+        callbacks.onError?.(error);
+      },
+      onEnd: (data?: any) => {
+        console.log('MCP streaming ended with final data:', data);
+        callbacks.onEnd?.(data);
+      }
+    };
+    
+    // MCPツール専用ストリーミングを使用
+    const cleanupFn = await streamLLMQueryWithTools(
+      toolsRequest,
+      {
+        onStart: mcpCallbacks.onStart,
+        onToken: mcpCallbacks.onToken,
+        onError: mcpCallbacks.onError,
+        onEnd: mcpCallbacks.onEnd
+      },
+      enableTools
+    );
+    
+    // クリーンアップ関数をAbortControllerに変換
+    const controller = new AbortController();
+    controller.signal.addEventListener('abort', () => {
+      cleanupFn();
     });
     
-    // クリーンアップ関数を返す
-    return () => {
-      eventSource.close();
-    };
+    return controller;
   }
 }
 

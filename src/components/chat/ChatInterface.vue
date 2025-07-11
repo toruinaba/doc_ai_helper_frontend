@@ -2,6 +2,225 @@
   <div class="chat-container">
     <div class="chat-header">
       <h2>ドキュメント AI チャット</h2>
+      
+      <!-- 新しいドキュメントコンテキスト設定パネル -->
+      <div class="document-context-panel">
+        <div class="context-settings-header">
+          <Button 
+            icon="pi pi-file-text" 
+            size="small" 
+            text 
+            severity="secondary"
+            @click="showDocumentContextConfig = !showDocumentContextConfig"
+            v-tooltip.bottom="'ドキュメントコンテキスト設定'"
+            class="context-config-toggle"
+          />
+          <span class="context-status">
+            <i v-if="documentContextConfig.includeDocumentInSystemPrompt" 
+               class="pi pi-check-circle text-green-500" 
+               v-tooltip.bottom="'ドキュメントコンテキスト有効'" />
+            <i v-else 
+               class="pi pi-times-circle text-red-500" 
+               v-tooltip.bottom="'ドキュメントコンテキスト無効'" />
+          </span>
+        </div>
+        
+        <div v-if="showDocumentContextConfig" class="document-context-config">
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.includeDocumentInSystemPrompt" 
+                :binary="true" 
+                inputId="includeDocument" 
+              />
+              <label for="includeDocument">システムプロンプトにドキュメントを含める</label>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.enableRepositoryContext" 
+                :binary="true" 
+                inputId="enableRepoContext" 
+              />
+              <label for="enableRepoContext">リポジトリコンテキストを有効にする</label>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.enableDocumentMetadata" 
+                :binary="true" 
+                inputId="enableDocMetadata" 
+              />
+              <label for="enableDocMetadata">ドキュメントメタデータを含める</label>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <label class="config-label">システムプロンプトテンプレート:</label>
+            <Dropdown 
+              v-model="documentContextConfig.systemPromptTemplate" 
+              :options="systemPromptTemplates" 
+              optionLabel="name" 
+              optionValue="id" 
+              placeholder="テンプレートを選択"
+              class="w-full"
+            />
+          </div>
+          
+          <div class="config-section">
+            <div class="p-field-checkbox">
+              <Checkbox 
+                v-model="documentContextConfig.completeToolFlow" 
+                :binary="true" 
+                inputId="completeToolFlow" 
+              />
+              <label for="completeToolFlow">完全なツールフローを使用</label>
+            </div>
+          </div>
+          
+          <!-- 現在のコンテキスト情報表示 -->
+          <div v-if="currentDocumentInfo" class="current-context-info">
+            <h5>現在のドキュメントコンテキスト</h5>
+            <div class="context-details">
+              <div class="context-item">
+                <strong>ファイル:</strong> {{ currentDocumentInfo.name }}
+              </div>
+              <div class="context-item">
+                <strong>リポジトリ:</strong> {{ currentDocumentInfo.owner }}/{{ currentDocumentInfo.repository }}
+              </div>
+              <div class="context-item">
+                <strong>パス:</strong> {{ currentDocumentInfo.path }}
+              </div>
+              <div class="context-item">
+                <strong>サイズ:</strong> {{ formatFileSize(currentDocumentInfo.metadata.size) }}
+              </div>
+            </div>
+          </div>
+          
+          <!-- 設定操作ボタン -->
+          <div class="config-actions">
+            <Button 
+              icon="pi pi-refresh" 
+              size="small" 
+              text 
+              severity="secondary"
+              @click="loadAvailableTemplates"
+              v-tooltip.bottom="'テンプレート一覧を更新'"
+              label="更新"
+            />
+            <Button 
+              icon="pi pi-undo" 
+              size="small" 
+              text 
+              severity="secondary"
+              @click="resetDocumentContextConfig"
+              v-tooltip.bottom="'設定をリセット'"
+              label="リセット"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <!-- MCPツール設定パネル -->
+      <div class="mcp-tools-panel">
+        <div class="mcp-tools-header">
+          <Checkbox v-model="mcpToolsEnabled" :binary="true" inputId="mcpTools" />
+          <label for="mcpTools" class="ml-2">MCPツール機能を有効にする</label>
+          <Button 
+            icon="pi pi-cog" 
+            size="small" 
+            text 
+            severity="secondary"
+            @click="showMCPToolsConfig = !showMCPToolsConfig"
+            v-tooltip.bottom="'MCPツール設定'"
+            class="mcp-config-toggle"
+          />
+          <Button 
+            icon="pi pi-history" 
+            size="small" 
+            text 
+            severity="secondary"
+            @click="showToolHistory = !showToolHistory"
+            v-tooltip.bottom="'ツール実行履歴'"
+            class="mcp-history-toggle"
+          />
+        </div>
+        
+        <div v-if="showMCPToolsConfig" class="mcp-tools-config">
+          <div class="config-section">
+            <label class="config-label">利用可能なツール:</label>
+            <div class="available-tools">
+              <div v-for="tool in availableTools" :key="tool.name" class="tool-item">
+                <Checkbox 
+                  v-model="tool.enabled" 
+                  :binary="true" 
+                  :inputId="`tool-${tool.name}`" 
+                />
+                <label :for="`tool-${tool.name}`" class="tool-label">
+                  {{ tool.name }}
+                  <span class="tool-description">{{ tool.description }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <label class="config-label">実行モード:</label>
+            <div class="execution-mode-options">
+              <div class="p-field-radiobutton">
+                <RadioButton v-model="executionMode" inputId="auto-execute" name="executionMode" value="auto" />
+                <label for="auto-execute">自動実行 (auto)</label>
+              </div>
+              <div class="p-field-radiobutton">
+                <RadioButton v-model="executionMode" inputId="none-execute" name="executionMode" value="none" />
+                <label for="none-execute">ツール無効 (none)</label>
+              </div>
+              <div class="p-field-radiobutton">
+                <RadioButton v-model="executionMode" inputId="required-execute" name="executionMode" value="required" />
+                <label for="required-execute">必須実行 (required)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="showToolHistory" class="tool-history">
+          <div class="tool-history-header">
+            <h4>ツール実行履歴</h4>
+            <Button 
+              icon="pi pi-trash" 
+              size="small" 
+              text 
+              severity="danger"
+              @click="clearToolHistory"
+              v-tooltip.bottom="'履歴をクリア'"
+            />
+          </div>
+          <div v-if="toolExecutionHistory.length === 0" class="no-history">
+            <small>ツール実行履歴がありません</small>
+          </div>
+          <div v-else class="history-list">
+            <div v-for="execution in toolExecutionHistory.slice(-5)" :key="execution.id" class="history-item">
+              <div class="history-item-header">
+                <span class="history-tool-name">{{ execution.toolCall.function.name }}</span>
+                <Tag 
+                  :value="execution.status" 
+                  :severity="getExecutionStatusSeverity(execution.status)"
+                  size="small"
+                />
+              </div>
+              <div class="history-item-time">
+                {{ formatHistoryTime(execution.startTime) }}
+                {{ execution.endTime ? ` - ${formatHistoryTime(execution.endTime)}` : '' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div v-if="showDebugPanel" class="debug-panel">
         <div class="debug-options">
           <div>
@@ -46,6 +265,46 @@
         </div>
         <div class="message-content">
           <div class="message-text" v-html="formatMessageContent(message.content)"></div>
+          
+          <!-- MCPツール実行情報の表示 -->
+          <div v-if="message.toolCalls && message.toolCalls.length > 0" class="tool-calls-section">
+            <div class="tool-calls-header">
+              <i class="pi pi-wrench"></i>
+              <span>ツール実行</span>
+            </div>
+            <div v-for="toolCall in message.toolCalls" :key="toolCall.id" class="tool-call-item">
+              <div class="tool-call-header">
+                <span class="tool-name">{{ toolCall.function?.name || 'Unknown Tool' }}</span>
+                <Tag 
+                  :value="getToolCallStatus(toolCall.id)" 
+                  :severity="getToolCallStatusSeverity(toolCall.id)"
+                  class="tool-status"
+                />
+              </div>
+              <div v-if="toolCall.function?.arguments" class="tool-arguments">
+                <details>
+                  <summary>引数</summary>
+                  <pre>{{ formatToolArguments(toolCall.function.arguments) }}</pre>
+                </details>
+              </div>
+              <div v-if="getToolExecutionResult(toolCall.id)" class="tool-result">
+                <div class="tool-result-header">実行結果:</div>
+                <div class="tool-result-content">
+                  {{ formatToolResult(getToolExecutionResult(toolCall.id)) }}
+                </div>
+              </div>
+              <div v-if="getToolExecutionProgress(toolCall.id)" class="tool-progress">
+                <ProgressBar 
+                  :value="getToolExecutionProgress(toolCall.id)?.percentage || 0" 
+                  class="tool-progress-bar"
+                />
+                <small class="tool-progress-text">
+                  {{ getToolExecutionProgress(toolCall.id)?.message || '実行中...' }}
+                </small>
+              </div>
+            </div>
+          </div>
+          
           <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
         </div>
       </div>
@@ -57,9 +316,15 @@
     </div>
     
     <div class="chat-input">
-      <div class="streaming-toggle">
-        <Checkbox v-model="useStreaming" :binary="true" inputId="streaming" />
-        <label for="streaming" class="ml-2">ストリーミングモード</label>
+      <div class="input-options">
+        <div class="streaming-toggle">
+          <Checkbox v-model="useStreaming" :binary="true" inputId="streaming" />
+          <label for="streaming" class="ml-2">ストリーミングモード</label>
+        </div>
+        <div v-if="mcpToolsEnabled" class="tools-toggle">
+          <Checkbox v-model="useToolsForMessage" :binary="true" inputId="useTools" />
+          <label for="useTools" class="ml-2">ツール使用</label>
+        </div>
       </div>
       <div class="p-inputgroup">
         <Textarea 
@@ -94,9 +359,15 @@ import hljs from 'highlight.js';
 import Textarea from 'primevue/textarea';
 import Button from 'primevue/button';
 import ProgressSpinner from 'primevue/progressspinner';
+import ProgressBar from 'primevue/progressbar';
 import Checkbox from 'primevue/checkbox';
 import RadioButton from 'primevue/radiobutton';
-import { updateStreamingConfig, StreamingType } from '@/services/api/streaming-config.service';
+import Tag from 'primevue/tag';
+import Dropdown from 'primevue/dropdown';
+import { updateStreamingConfig, StreamingType } from '@/services/api/modules';
+import { getMCPToolsConfig, logMCPToolsConfig } from '@/utils/mcp-config.util';
+import { loadMCPToolsFromBackend, recommendToolForPrompt } from '@/utils/mcp-tools.util';
+import type { ToolExecution, MCPToolConfig, ToolExecutionMode } from '@/services/api/types';
 
 // 状態
 const chatStore = useChatStore();
@@ -113,9 +384,100 @@ const error = computed(() => chatStore.error);
 const useStreaming = ref(true);
 const streamingController = ref<{ abort: () => void } | null>(null);
 
+// 環境変数からMCPツール設定を取得
+const mcpConfig = getMCPToolsConfig();
+
+// MCPツール関連の状態（環境変数から初期化）
+const mcpToolsEnabled = ref(mcpConfig.enabled);
+const showMCPToolsConfig = ref(false);
+const showToolHistory = ref(false);
+const useToolsForMessage = ref(mcpConfig.enabled); // MCPツールが有効な場合はデフォルトで使用
+const executionMode = ref<ToolExecutionMode>(mcpConfig.executionMode);
+
+// MCPツール設定（環境変数から取得）
+const availableTools = ref<MCPToolConfig[]>(mcpConfig.availableTools);
+
+// chatStoreからのツール実行履歴の計算プロパティ
+const toolExecutionHistory = computed(() => chatStore.toolExecutionHistory);
+
 // デバッグパネル
 const showDebugPanel = ref(import.meta.env.DEV || import.meta.env.VITE_SHOW_DEBUG_PANEL === 'true');
 const streamingType = ref<string>(StreamingType.FETCH);
+
+// 新しいドキュメントコンテキスト設定
+const showDocumentContextConfig = ref(false);
+const documentContextConfig = ref({
+  includeDocumentInSystemPrompt: true,
+  systemPromptTemplate: 'contextual_document_assistant_ja',
+  enableRepositoryContext: true,
+  enableDocumentMetadata: true,
+  completeToolFlow: true
+});
+
+// システムプロンプトテンプレートのオプション
+const systemPromptTemplates = ref([
+  { 
+    id: 'contextual_document_assistant_ja', 
+    name: 'ドキュメントアシスタント（日本語）' 
+  },
+  { 
+    id: 'contextual_document_assistant_en', 
+    name: 'Document Assistant (English)' 
+  },
+  { 
+    id: 'code_analysis_assistant', 
+    name: 'コード解析アシスタント' 
+  },
+  { 
+    id: 'technical_writer_assistant', 
+    name: 'テクニカルライターアシスタント' 
+  }
+]);
+
+// システムプロンプトテンプレート一覧を取得する関数
+const loadAvailableTemplates = async () => {
+  try {
+    // APIから利用可能なテンプレート一覧を取得
+    const { getLLMTemplates } = await import('@/services/api/modules');
+    const templates = await getLLMTemplates();
+    
+    // テンプレート選択肢を更新
+    systemPromptTemplates.value = templates.map(id => ({
+      id,
+      name: getTemplateDisplayName(id)
+    }));
+    
+    console.log('利用可能なシステムプロンプトテンプレート:', systemPromptTemplates.value);
+  } catch (error) {
+    console.warn('システムプロンプトテンプレート一覧の取得に失敗しました:', error);
+  }
+};
+
+// テンプレートIDから表示名を生成
+const getTemplateDisplayName = (templateId: string): string => {
+  const nameMap: Record<string, string> = {
+    'contextual_document_assistant_ja': 'ドキュメントアシスタント（日本語）',
+    'contextual_document_assistant_en': 'Document Assistant (English)',
+    'code_analysis_assistant': 'コード解析アシスタント',
+    'technical_writer_assistant': 'テクニカルライターアシスタント',
+    'api_documentation_assistant': 'API仕様書アシスタント',
+    'tutorial_assistant': 'チュートリアルアシスタント'
+  };
+  
+  return nameMap[templateId] || templateId;
+};
+
+// 設定リセット機能
+const resetDocumentContextConfig = () => {
+  documentContextConfig.value = {
+    includeDocumentInSystemPrompt: true,
+    systemPromptTemplate: 'contextual_document_assistant_ja',
+    enableRepositoryContext: true,
+    enableDocumentMetadata: true,
+    completeToolFlow: true
+  };
+  console.log('ドキュメントコンテキスト設定をリセットしました');
+};
 
 // ストリーミングタイプが変更されたときの処理
 watch(streamingType, (newType) => {
@@ -127,18 +489,76 @@ watch(streamingType, (newType) => {
   console.log(`ストリーミングタイプを変更しました: ${newType}`);
 });
 
+// MCPツール設定の変更を監視
+watch([mcpToolsEnabled, executionMode, availableTools], ([enabled, mode, tools]) => {
+  // chatStoreのMCPツール設定を更新
+  chatStore.updateMCPToolsConfig({
+    enabled,
+    executionMode: mode, // 'auto', 'none', 'required'
+    toolChoice: mode, // toolChoiceとexecutionModeを同期
+    autoDetect: mode === 'auto',
+    defaultToolChoice: mode === 'auto' ? 'auto' : 'none',
+    enableProgressMonitoring: true,
+    enableDetailedLogging: true
+  });
+  console.log('MCPツール設定を更新しました:', { enabled, mode, tools: tools.map(t => t.name) });
+}, { deep: true });
+
+// ドキュメントコンテキスト設定の変更を監視
+watch(documentContextConfig, (newConfig) => {
+  console.log('ドキュメントコンテキスト設定が変更されました:', newConfig);
+  // 必要に応じて設定をローカルストレージに保存
+  localStorage.setItem('documentContextConfig', JSON.stringify(newConfig));
+}, { deep: true });
+
+// ドキュメントコンテキスト設定の初期化（ローカルストレージから復元）
+const initializeDocumentContextConfig = () => {
+  const savedConfig = localStorage.getItem('documentContextConfig');
+  if (savedConfig) {
+    try {
+      const parsedConfig = JSON.parse(savedConfig);
+      documentContextConfig.value = { ...documentContextConfig.value, ...parsedConfig };
+      console.log('ドキュメントコンテキスト設定を復元しました:', documentContextConfig.value);
+    } catch (error) {
+      console.warn('保存された設定の読み込みに失敗しました:', error);
+    }
+  }
+};
+
 // メッセージの変更を監視（デバッグ用）
 watch(messages, (newMessages, oldMessages) => {
-  console.log('Messages array changed from', oldMessages?.length, 'to', newMessages.length);
+  console.log('📝 Messages array changed from', oldMessages?.length || 0, 'to', newMessages.length);
   if (newMessages.length > 0) {
     const lastMessage = newMessages[newMessages.length - 1];
-    console.log('Last message:', lastMessage);
+    console.log('📝 Last message:', {
+      id: lastMessage.id,
+      role: lastMessage.role,
+      content: lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : ''),
+      contentLength: lastMessage.content.length,
+      hasToolCalls: !!lastMessage.toolCalls,
+      toolCallsCount: lastMessage.toolCalls?.length || 0
+    });
+    
+    // 空のコンテンツのアシスタントメッセージを詳細調査
+    if (lastMessage.role === 'assistant' && lastMessage.content.length === 0) {
+      console.warn('🚨 Empty assistant message detected:', {
+        messageId: lastMessage.id,
+        timestamp: lastMessage.timestamp,
+        allMessages: newMessages.map(m => ({
+          id: m.id,
+          role: m.role,
+          contentLength: m.content.length,
+          contentPreview: m.content.substring(0, 30)
+        }))
+      });
+    }
   }
+  scrollToBottom();
 }, { deep: true });
 
 // マークダウンパーサーの設定
-// @ts-ignore
 marked.setOptions({
+  // @ts-ignore - marked v4+では langPrefix オプションは非推奨
   langPrefix: 'hljs language-'
 });
 
@@ -157,6 +577,69 @@ function formatMessageTime(timestamp: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// MCPツール関連のヘルパー関数
+function getToolCallStatus(toolCallId: string): string {
+  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  if (!execution) return 'unknown';
+  return execution.status;
+}
+
+function getToolCallStatusSeverity(toolCallId: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | undefined {
+  const status = getToolCallStatus(toolCallId);
+  switch (status) {
+    case 'completed': return 'success';
+    case 'running': return 'info';
+    case 'pending': return 'warning';
+    case 'error': return 'danger';
+    default: return 'secondary';
+  }
+}
+
+function formatToolArguments(args: string): string {
+  try {
+    return JSON.stringify(JSON.parse(args), null, 2);
+  } catch {
+    return args;
+  }
+}
+
+function getToolExecutionResult(toolCallId: string): any {
+  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  return execution?.result;
+}
+
+function formatToolResult(result: any): string {
+  if (typeof result === 'string') return result;
+  return JSON.stringify(result, null, 2);
+}
+
+function getToolExecutionProgress(toolCallId: string) {
+  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  return execution?.progress ? {
+    percentage: execution.progress * 100,
+    message: `実行中... ${Math.round(execution.progress * 100)}%`
+  } : null;
+}
+
+// ツール履歴関連のヘルパー関数
+function clearToolHistory() {
+  chatStore.clearToolExecutionHistory();
+}
+
+function getExecutionStatusSeverity(status: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | undefined {
+  switch (status) {
+    case 'completed': return 'success';
+    case 'running': return 'info';
+    case 'pending': return 'warning';
+    case 'error': return 'danger';
+    default: return 'secondary';
+  }
+}
+
+function formatHistoryTime(time: Date): string {
+  return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 // ストリーミングメッセージ送信
 async function sendStreamingMessage() {
   if (newMessage.value.trim() && !isLoading.value) {
@@ -166,8 +649,26 @@ async function sendStreamingMessage() {
       streamingController.value = null;
     }
     
-    // ストリーミングメッセージ送信
-    streamingController.value = await chatStore.sendStreamingMessage(newMessage.value.trim());
+    console.log('🌊 Sending streaming message with new backend specification');
+    console.log('Document context config:', documentContextConfig.value);
+    
+    // MCPツールを使用するかどうかの判定
+    if (mcpToolsEnabled.value && useToolsForMessage.value) {
+      console.log('🛠️ Sending streaming message with MCP tools enabled');
+      // MCPツール対応のストリーミングメッセージ送信（設定付き）
+      await chatStore.sendStreamingMessageWithToolsAndConfig(
+        newMessage.value.trim(),
+        documentContextConfig.value
+      );
+    } else {
+      console.log('📨 Sending regular streaming message');
+      // 通常のストリーミングメッセージ送信（設定付き）
+      const controller = await chatStore.sendStreamingMessageWithConfig(
+        newMessage.value.trim(),
+        documentContextConfig.value
+      );
+      streamingController.value = controller;
+    }
     newMessage.value = '';
   }
 }
@@ -177,7 +678,15 @@ function sendMessage() {
   if (useStreaming.value) {
     sendStreamingMessage();
   } else if (newMessage.value.trim() && !isLoading.value) {
-    chatStore.sendMessage(newMessage.value.trim());
+    // 新しいバックエンド仕様に対応したメッセージ送信
+    console.log('📨 Sending message with new backend specification');
+    console.log('Document context config:', documentContextConfig.value);
+    
+    // 新しいsendMessageWithConfig関数を使用して設定を渡す
+    chatStore.sendMessageWithConfig(
+      newMessage.value.trim(), 
+      documentContextConfig.value
+    );
     newMessage.value = '';
   }
 }
@@ -207,9 +716,43 @@ watch(() => documentStore.currentPath, () => {
 });
 
 // コンポーネントマウント時の処理
-onMounted(() => {
+onMounted(async () => {
   scrollToBottom();
+  
+  // MCPツール設定をデバッグ出力
+  if (import.meta.env.DEV) {
+    logMCPToolsConfig();
+  }
+  
+  // ドキュメントコンテキスト設定の初期化
+  initializeDocumentContextConfig();
+  
+  // 利用可能なシステムプロンプトテンプレートをロード
+  loadAvailableTemplates();
+  
+  // バックエンドからMCPツールリストを動的に読み込み
+  try {
+    console.log('🔧 バックエンドからMCPツールリストを読み込み中...');
+    const backendTools = await loadMCPToolsFromBackend();
+    availableTools.value = backendTools;
+    console.log('✅ MCPツールリストを読み込みました:', backendTools.map(t => t.name));
+  } catch (error) {
+    console.error('❌ MCPツールリストの読み込みに失敗:', error);
+    // デフォルトツールリストを使用
+  }
 });
+
+// 現在のドキュメント情報の計算プロパティ
+const currentDocumentInfo = computed(() => documentStore.currentDocument);
+
+// ファイルサイズのフォーマット関数
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 </script>
 
 <style scoped>
@@ -500,5 +1043,339 @@ onMounted(() => {
 .recommended {
   color: #2196F3;
   font-weight: bold;
+}
+
+/* MCPツールパネルのスタイル */
+.mcp-tools-panel {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f0f8ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.mcp-tools-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mcp-config-toggle {
+  margin-left: auto;
+}
+
+.mcp-tools-config {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #b3d9ff;
+}
+
+.config-section {
+  margin-bottom: 1rem;
+}
+
+.config-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.available-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.5rem;
+  background-color: white;
+}
+
+.tool-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tool-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.tool-description {
+  color: #666;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.execution-mode-options {
+  display: flex;
+  gap: 1rem;
+}
+
+/* MCPツール実行情報のスタイル */
+.tool-calls-section {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.tool-calls-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.75rem;
+}
+
+.tool-call-item {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.tool-call-item:last-child {
+  margin-bottom: 0;
+}
+
+.tool-call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tool-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-family: monospace;
+}
+
+.tool-status {
+  font-size: 0.8rem;
+}
+
+.tool-arguments {
+  margin: 0.5rem 0;
+}
+
+.tool-arguments details {
+  font-size: 0.85rem;
+}
+
+.tool-arguments summary {
+  cursor: pointer;
+  color: #007bff;
+  margin-bottom: 0.25rem;
+}
+
+.tool-arguments pre {
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 3px;
+  border: 1px solid #e9ecef;
+  font-size: 0.8rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.tool-result {
+  margin: 0.5rem 0;
+}
+
+.tool-result-header {
+  font-weight: 600;
+  color: #28a745;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.tool-result-content {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  padding: 0.5rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.tool-progress {
+  margin: 0.5rem 0;
+}
+
+.tool-progress-bar {
+  margin-bottom: 0.25rem;
+}
+
+.tool-progress-text {
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+/* 入力オプションのスタイル */
+.input-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #f0f0f0;
+  border-top: 1px solid #e0e0e0;
+  font-size: 0.8rem;
+}
+
+.tools-toggle {
+  display: flex;
+  align-items: center;
+  color: #555;
+}
+
+/* ツール履歴のスタイル */
+.tool-history {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #b3d9ff;
+}
+
+.tool-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tool-history-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #2c3e50;
+}
+
+.no-history {
+  text-align: center;
+  color: #6c757d;
+  padding: 1rem;
+  font-style: italic;
+}
+
+.history-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: white;
+}
+
+.history-item {
+  padding: 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.history-tool-name {
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.history-item-time {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.mcp-history-toggle {
+  margin-left: 0.25rem;
+}
+
+/* ドキュメントコンテキスト設定パネルのスタイル */
+.document-context-panel {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.context-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.context-config-toggle {
+  margin-left: auto;
+}
+
+.document-context-config {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #c8e6c9;
+}
+
+.config-section {
+  margin-bottom: 1rem;
+}
+
+.config-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.current-context-info {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #f1f8e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+}
+
+.context-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.context-item {
+  font-size: 0.85rem;
+  color: #333;
+}
+
+/* 設定操作ボタンのスタイル */
+.config-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #c8e6c9;
+  justify-content: flex-end;
+}
+
+.config-actions .p-button {
+  font-size: 0.8rem;
 }
 </style>

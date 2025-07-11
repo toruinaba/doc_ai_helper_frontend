@@ -25,6 +25,17 @@ export interface ApiConfig {
 }
 
 /**
+ * 新しいバックエンド仕様用の設定
+ */
+export interface DocumentContextConfig {
+  includeDocumentInSystemPrompt: boolean;
+  systemPromptTemplate: string;
+  enableRepositoryContext: boolean;
+  enableDocumentMetadata: boolean;
+  completeToolFlow: boolean;
+}
+
+/**
  * 環境変数からリポジトリのデフォルト設定を取得
  * @returns リポジトリのデフォルト設定
  */
@@ -57,4 +68,17 @@ export function getApiConfig(): ApiConfig {
 export function shouldUseMockApi(): boolean {
   // 環境変数が文字列なので、明示的に'true'と比較して判定
   return import.meta.env.VITE_USE_MOCK_API === 'true';
+}
+
+/**
+ * デフォルトのドキュメントコンテキスト設定を取得
+ */
+export function getDefaultDocumentContextConfig(): DocumentContextConfig {
+  return {
+    includeDocumentInSystemPrompt: true,
+    systemPromptTemplate: 'contextual_document_assistant_ja',
+    enableRepositoryContext: true,
+    enableDocumentMetadata: true,
+    completeToolFlow: true
+  };
 }

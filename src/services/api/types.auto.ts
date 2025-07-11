@@ -546,7 +546,7 @@ export interface components {
          * @description Supported Git services.
          * @enum {string}
          */
-        GitService: "github" | "gitlab" | "bitbucket";
+        GitService: "github" | "gitlab" | "bitbucket" | "forgejo";
         /**
          * GitServiceType
          * @description Git service type enum.
@@ -625,17 +625,28 @@ export interface components {
             /** @description Metadata of currently displayed document */
             document_metadata?: components["schemas"]["DocumentMetadata-Input"] | null;
             /**
+             * Document Content
+             * @description Current document content for system prompt inclusion (DEPRECATED - will be removed)
+             */
+            document_content?: string | null;
+            /**
              * Include Document In System Prompt
-             * @description Whether to include document content in system prompt
+             * @description Whether to include document content in system prompt (DEPRECATED - will be removed)
              * @default true
              */
             include_document_in_system_prompt: boolean;
             /**
              * System Prompt Template
-             * @description Template ID for system prompt generation
+             * @description Template ID for system prompt generation (DEPRECATED - will be removed)
              * @default contextual_document_assistant_ja
              */
             system_prompt_template: string | null;
+            /**
+             * Auto Include Document
+             * @description Whether to automatically fetch document content from repository_context and include in conversation history for initial requests
+             * @default true
+             */
+            auto_include_document: boolean;
         };
         /**
          * LLMResponse
@@ -1339,7 +1350,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description Git service (github, gitlab, etc.) */
+                /** @description Git service (github, forgejo, mock) */
                 service: string;
                 /** @description Repository owner */
                 owner: string;
@@ -1382,7 +1393,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description Git service (github, gitlab, etc.) */
+                /** @description Git service (github, forgejo, mock) */
                 service: string;
                 /** @description Repository owner */
                 owner: string;

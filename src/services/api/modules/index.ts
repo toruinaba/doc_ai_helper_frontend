@@ -4,7 +4,10 @@
  * 機能ベースに分割されたAPIサービスモジュールの統合エクスポート
  */
 
-// LLMコア機能
+// 統一LLMサービス（新アーキテクチャ）
+export { llmService } from '../llm.service';
+
+// LLMコア機能（後方互換性のため保持）
 export {
   sendLLMQuery,
   getLLMCapabilities,

@@ -8,6 +8,7 @@ import { ref, computed } from 'vue';
 import apiClient from '../services/api';
 import { types } from '../services/api';
 import { getDefaultRepositoryConfig, getApiConfig } from '../utils/config.util';
+import { useAsyncOperation } from '../composables/useAsyncOperation';
 
 export const useDocumentStore = defineStore('document', () => {
   // デフォルト設定を取得
@@ -17,8 +18,14 @@ export const useDocumentStore = defineStore('document', () => {
   // 状態
   const currentDocument = ref<types.DocumentResponse | null>(null);
   const repositoryStructure = ref<types.FileTreeItem[]>([]);
-  const isLoading = ref(false);
-  const error = ref<string | null>(null);
+  
+  // 非同期操作管理
+  const asyncOp = useAsyncOperation({
+    defaultErrorMessage: 'ドキュメント操作に失敗しました',
+    logPrefix: 'DocumentStore'
+  });
+  
+  const { isLoading, error } = asyncOp;
   const currentService = ref<string>(defaultConfig.service);
   const currentOwner = ref<string>(defaultConfig.owner);
   const currentRepo = ref<string>(defaultConfig.repo);
@@ -80,12 +87,9 @@ export const useDocumentStore = defineStore('document', () => {
         timestamp: new Date().toISOString()
       });
       currentPath.value = path;
-    } catch (err: any) {
-      error.value = err.message || 'ドキュメントの取得に失敗しました';
-      console.error('ドキュメント取得エラー:', err);
-    } finally {
-      isLoading.value = false;
-    }
+      
+      return currentDocument.value;
+    });
   }
 
   // リポジトリ設定

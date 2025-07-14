@@ -41,6 +41,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
+import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
 import ProgressSpinner from 'primevue/progressspinner';
@@ -100,18 +101,7 @@ const frontmatter = computed(() => {
  * 日付をフォーマットする
  */
 function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (e) {
-    return dateString;
-  }
+  return DateFormatter.documentDate(dateString, { fallback: dateString });
 }
 
 /**

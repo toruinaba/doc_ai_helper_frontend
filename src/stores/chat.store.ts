@@ -7,6 +7,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { llmService } from '../services/api/llm.service';
 import { shouldUseMCPTools, integrateMCPToolResults, formatPrompt } from '../services/api/modules';
+import { useAsyncOperation } from '../composables/useAsyncOperation';
 
 // ツール実行モードの型定義
 type ToolExecutionMode = 'auto' | 'manual' | 'required' | 'none';
@@ -61,8 +62,14 @@ export const useChatStore = defineStore('chat', () => {
 
   // 基本状態
   const messages = ref<ClientChatMessage[]>([]);
-  const isLoading = ref(false);
-  const error = ref<string | null>(null);
+  
+  // 非同期操作管理
+  const asyncOp = useAsyncOperation({
+    defaultErrorMessage: 'チャット操作に失敗しました',
+    logPrefix: 'ChatStore'
+  });
+  
+  const { isLoading, error } = asyncOp;
   const documentStore = useDocumentStore();
   const repositoryStore = useRepositoryStore();
   
@@ -200,10 +207,8 @@ export const useChatStore = defineStore('chat', () => {
   // MCPツール対応メッセージ送信
   async function sendMessageWithTools(content: string, forceToolChoice?: string) {
     console.log('Start sending message with MCP tools:', content);
-    isLoading.value = true;
-    error.value = null;
     
-    try {
+    return await asyncOp.executeWithLoading(async () => {
       // ユーザーメッセージを追加
       const userMessage = addUserMessage(content);
       
@@ -314,15 +319,11 @@ ${currentDoc.content.content}`;
       }
       
       console.log('Message with MCP tools sent successfully');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      console.error('Error sending message with MCP tools:', err);
-      error.value = errorMessage;
-      
-      // エラーメッセージを表示
-      addSystemMessage(`エラーが発生しました: ${errorMessage}`);
-    } finally {
-      isLoading.value = false;
+    });
+    
+    // エラーハンドリングはasyncOpが自動で処理
+    if (asyncOp.error.value) {
+      addSystemMessage(`エラーが発生しました: ${asyncOp.error.value}`);
     }
   }
   
@@ -417,16 +418,7 @@ ${currentDoc.content.content}`;
       }
       
       return response;
-    } catch (err: any) {
-      error.value = err.message || 'LLMクエリの送信に失敗しました';
-      console.error('LLMクエリ送信エラー:', err);
-      
-      // エラーメッセージを表示
-      addSystemMessage(`エラー: ${error.value}`);
-      throw err;
-    } finally {
-      isLoading.value = false;
-    }
+    });
   }
   
   // テンプレートを使用してLLMにクエリを送信する関数
@@ -435,17 +427,13 @@ ${currentDoc.content.content}`;
     model?: string;
     customOptions?: Record<string, any>;
   }) {
-    try {
+    return await asyncOp.execute(async () => {
       // テンプレートをフォーマット
       const formattedPrompt = await formatPrompt(templateId, variables);
       
       // フォーマットされたプロンプトを使用してクエリを送信
       return await sendDirectQuery(formattedPrompt, options);
-    } catch (err: any) {
-      error.value = err.message || 'テンプレートクエリの送信に失敗しました';
-      console.error('テンプレートクエリ送信エラー:', err);
-      throw err;
-    }
+    });
   }
   
   // ストリーミングモードでLLMにメッセージ送信
@@ -567,16 +555,11 @@ ${currentDoc.content.content}`;
       
       // 新しいストリーミング実装では中断機能は内部で管理される
       console.log('Streaming chat message sent successfully');
-    } catch (err: any) {
-      error.value = err.message || 'メッセージの送信に失敗しました';
-      console.error('メッセージ送信エラー:', err);
-      
-      // エラーメッセージを表示
-      addSystemMessage(`エラー: ${error.value}`);
-      
-      return null;
-    } finally {
-      isLoading.value = false;
+    });
+    
+    // エラーハンドリングはasyncOpが自動で処理
+    if (asyncOp.error.value) {
+      addSystemMessage(`エラー: ${asyncOp.error.value}`);
     }
   }
   

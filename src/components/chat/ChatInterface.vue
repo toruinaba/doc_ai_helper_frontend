@@ -367,6 +367,8 @@ import Dropdown from 'primevue/dropdown';
 import { updateStreamingConfig, StreamingType } from '@/services/api/modules';
 import { getMCPToolsConfig, logMCPToolsConfig } from '@/utils/mcp-config.util';
 import { loadMCPToolsFromBackend, recommendToolForPrompt } from '@/utils/mcp-tools.util';
+import { DateFormatter } from '@/utils/date-formatter.util';
+import { usePersistedConfig } from '@/composables/usePersistedConfig';
 import type { ToolExecution, MCPToolConfig, ToolExecutionMode } from '@/services/api/types';
 
 // 状態
@@ -406,12 +408,20 @@ const streamingType = ref<string>(StreamingType.FETCH);
 
 // 新しいドキュメントコンテキスト設定
 const showDocumentContextConfig = ref(false);
-const documentContextConfig = ref({
-  includeDocumentInSystemPrompt: true,
-  systemPromptTemplate: 'contextual_document_assistant_ja',
-  enableRepositoryContext: true,
-  enableDocumentMetadata: true,
-  completeToolFlow: true
+
+// 永続化されたドキュメントコンテキスト設定
+const { config: documentContextConfig } = usePersistedConfig({
+  key: 'documentContextConfig',
+  defaultConfig: {
+    includeDocumentInSystemPrompt: true,
+    systemPromptTemplate: 'contextual_document_assistant_ja',
+    enableRepositoryContext: true,
+    enableDocumentMetadata: true,
+    completeToolFlow: true
+  },
+  onChange: (newConfig) => {
+    console.log('ドキュメントコンテキスト設定が変更されました:', newConfig);
+  }
 });
 
 // システムプロンプトテンプレートのオプション
@@ -504,26 +514,7 @@ watch([mcpToolsEnabled, executionMode, availableTools], ([enabled, mode, tools])
   console.log('MCPツール設定を更新しました:', { enabled, mode, tools: tools.map(t => t.name) });
 }, { deep: true });
 
-// ドキュメントコンテキスト設定の変更を監視
-watch(documentContextConfig, (newConfig) => {
-  console.log('ドキュメントコンテキスト設定が変更されました:', newConfig);
-  // 必要に応じて設定をローカルストレージに保存
-  localStorage.setItem('documentContextConfig', JSON.stringify(newConfig));
-}, { deep: true });
-
-// ドキュメントコンテキスト設定の初期化（ローカルストレージから復元）
-const initializeDocumentContextConfig = () => {
-  const savedConfig = localStorage.getItem('documentContextConfig');
-  if (savedConfig) {
-    try {
-      const parsedConfig = JSON.parse(savedConfig);
-      documentContextConfig.value = { ...documentContextConfig.value, ...parsedConfig };
-      console.log('ドキュメントコンテキスト設定を復元しました:', documentContextConfig.value);
-    } catch (error) {
-      console.warn('保存された設定の読み込みに失敗しました:', error);
-    }
-  }
-};
+// 設定管理はusePersistedConfigで自動化されました
 
 // メッセージの変更を監視（デバッグ用）
 watch(messages, (newMessages, oldMessages) => {
@@ -573,8 +564,7 @@ function formatMessageContent(content: string): string {
 
 // メッセージ時間をフォーマット
 function formatMessageTime(timestamp: Date): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return DateFormatter.messageTime(timestamp);
 }
 
 // MCPツール関連のヘルパー関数
@@ -637,7 +627,7 @@ function getExecutionStatusSeverity(status: string): 'success' | 'info' | 'warni
 }
 
 function formatHistoryTime(time: Date): string {
-  return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return DateFormatter.historyTime(time);
 }
 
 // ストリーミングメッセージ送信

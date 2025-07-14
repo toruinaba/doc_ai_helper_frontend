@@ -3,7 +3,7 @@
  * 
  * API関連のユーティリティ機能を提供
  */
-import apiClient from '..';
+import { getApiConfig } from '../../../utils/config.util';
 
 /**
  * baseURLを正規化し、二重の/api/v1を防止する
@@ -16,7 +16,10 @@ export function getNormalizedApiUrl(endpoint: string): string {
   }
   
   // APIクライアントのベースURLを取得
-  const baseUrl = apiClient['baseUrl'] as string;
+  const apiConfig = getApiConfig();
+  const baseUrl = apiConfig.apiBaseUrl.endsWith('/api/v1') 
+    ? apiConfig.apiBaseUrl 
+    : `${apiConfig.apiBaseUrl}/api/v1`;
   
   // バックエンドのURLを正規化（/api/v1を含まないようにする）
   let baseUrlWithoutApiPath = baseUrl;

@@ -352,7 +352,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue';
-import { useChatStore } from '@/stores/chat.store';
+import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { useDocumentStore } from '@/stores/document.store';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
@@ -372,15 +372,15 @@ import { usePersistedConfig } from '@/composables/usePersistedConfig';
 import type { ToolExecution, MCPToolConfig, ToolExecutionMode } from '@/services/api/types';
 
 // 状態
-const chatStore = useChatStore();
+const assistantStore = useDocumentAssistantStore();
 const documentStore = useDocumentStore();
 const newMessage = ref('');
 const chatMessagesRef = ref<HTMLElement | null>(null);
 
 // 計算された値
-const messages = computed(() => chatStore.messages);
-const isLoading = computed(() => chatStore.isLoading);
-const error = computed(() => chatStore.error);
+const messages = computed(() => assistantStore.messages);
+const isLoading = computed(() => assistantStore.isLoading);
+const error = computed(() => assistantStore.error);
 
 // ストリーミング有効フラグ
 const useStreaming = ref(true);
@@ -399,8 +399,8 @@ const executionMode = ref<ToolExecutionMode>(mcpConfig.executionMode);
 // MCPツール設定（環境変数から取得）
 const availableTools = ref<MCPToolConfig[]>(mcpConfig.availableTools);
 
-// chatStoreからのツール実行履歴の計算プロパティ
-const toolExecutionHistory = computed(() => chatStore.toolExecutionHistory);
+// assistantStoreからのツール実行履歴の計算プロパティ
+const toolExecutionHistory = computed(() => assistantStore.toolExecutionHistory);
 
 // デバッグパネル
 const showDebugPanel = ref(import.meta.env.DEV || import.meta.env.VITE_SHOW_DEBUG_PANEL === 'true');
@@ -501,8 +501,8 @@ watch(streamingType, (newType) => {
 
 // MCPツール設定の変更を監視
 watch([mcpToolsEnabled, executionMode, availableTools], ([enabled, mode, tools]) => {
-  // chatStoreのMCPツール設定を更新
-  chatStore.updateMCPToolsConfig({
+  // assistantStoreのMCPツール設定を更新
+  assistantStore.updateMCPToolsConfig({
     enabled,
     executionMode: mode, // 'auto', 'none', 'required'
     toolChoice: mode, // toolChoiceとexecutionModeを同期
@@ -569,7 +569,7 @@ function formatMessageTime(timestamp: Date): string {
 
 // MCPツール関連のヘルパー関数
 function getToolCallStatus(toolCallId: string): string {
-  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  const execution = assistantStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
   if (!execution) return 'unknown';
   return execution.status;
 }
@@ -594,7 +594,7 @@ function formatToolArguments(args: string): string {
 }
 
 function getToolExecutionResult(toolCallId: string): any {
-  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  const execution = assistantStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
   return execution?.result;
 }
 
@@ -604,7 +604,7 @@ function formatToolResult(result: any): string {
 }
 
 function getToolExecutionProgress(toolCallId: string) {
-  const execution = chatStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
+  const execution = assistantStore.activeToolExecutions.find(e => e.toolCall.id === toolCallId);
   return execution?.progress ? {
     percentage: execution.progress * 100,
     message: `実行中... ${Math.round(execution.progress * 100)}%`
@@ -613,7 +613,7 @@ function getToolExecutionProgress(toolCallId: string) {
 
 // ツール履歴関連のヘルパー関数
 function clearToolHistory() {
-  chatStore.clearToolExecutionHistory();
+  assistantStore.clearToolExecutionHistory();
 }
 
 function getExecutionStatusSeverity(status: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | undefined {
@@ -646,14 +646,14 @@ async function sendStreamingMessage() {
     if (mcpToolsEnabled.value && useToolsForMessage.value) {
       console.log('🛠️ Sending streaming message with MCP tools enabled');
       // MCPツール対応のストリーミングメッセージ送信（設定付き）
-      await chatStore.sendStreamingMessageWithToolsAndConfig(
+      await assistantStore.sendStreamingMessageWithToolsAndConfig(
         newMessage.value.trim(),
         documentContextConfig.value
       );
     } else {
       console.log('📨 Sending regular streaming message');
       // 通常のストリーミングメッセージ送信（設定付き）
-      await chatStore.sendStreamingMessageWithConfig(
+      await assistantStore.sendStreamingMessageWithConfig(
         newMessage.value.trim(),
         documentContextConfig.value
       );
@@ -672,7 +672,7 @@ function sendMessage() {
     console.log('Document context config:', documentContextConfig.value);
     
     // 新しいsendMessageWithConfig関数を使用して設定を渡す
-    chatStore.sendMessageWithConfig(
+    assistantStore.sendMessageWithConfig(
       newMessage.value.trim(), 
       {
         provider: 'openai',
@@ -704,7 +704,7 @@ watch(() => messages.value.length, (newLength, oldLength) => {
 
 // ドキュメントが変更されたら会話をクリア
 watch(() => documentStore.currentPath, () => {
-  chatStore.clearMessages();
+  assistantStore.clearMessages();
 });
 
 // コンポーネントマウント時の処理

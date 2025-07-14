@@ -2,11 +2,11 @@
  * ストアのエクスポート
  */
 import { useDocumentStore } from './document.store';
-import { useChatStore } from './chat.store';
+import { useDocumentAssistantStore } from './document-assistant.store';
 import { useRepositoryStore } from './repository.store';
 
 export {
   useDocumentStore,
-  useChatStore,
+  useDocumentAssistantStore,
   useRepositoryStore
 };

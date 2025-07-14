@@ -1,5 +1,5 @@
 /**
- * チャットストア
+ * ドキュメントアシスタントストア
  * 
  * LLMとの対話状態を管理するPiniaストア
  */
@@ -56,7 +56,7 @@ export interface MCPToolsConfig {
   enableDetailedLogging: boolean;
 }
 
-export const useChatStore = defineStore('chat', () => {
+export const useDocumentAssistantStore = defineStore('documentAssistant', () => {
   // デフォルト設定を取得
   const defaultConfig = getDefaultRepositoryConfig();
 
@@ -65,8 +65,8 @@ export const useChatStore = defineStore('chat', () => {
   
   // 非同期操作管理
   const asyncOp = useAsyncOperation({
-    defaultErrorMessage: 'チャット操作に失敗しました',
-    logPrefix: 'ChatStore'
+    defaultErrorMessage: 'ドキュメントアシスタント操作に失敗しました',
+    logPrefix: 'DocumentAssistantStore'
   });
   
   const { isLoading, error } = asyncOp;

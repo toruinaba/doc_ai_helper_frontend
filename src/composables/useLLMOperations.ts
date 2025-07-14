@@ -4,7 +4,7 @@
  * LLMとの直接的な通信とクエリ処理を管理するコンポーザブル
  */
 import { llmService } from '@/services/api/llm.service';
-import { shouldUseMCPTools, formatPrompt } from '@/services/api/modules';
+import { shouldUseMCPTools, formatPrompt } from '@/services/api/llm';
 import { useAsyncOperation } from '@/composables/useAsyncOperation';
 import { useMessageManagement } from '@/composables/useMessageManagement';
 import { useDocumentContext } from '@/composables/useDocumentContext';

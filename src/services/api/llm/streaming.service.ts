@@ -4,7 +4,7 @@
  * LLMストリーミング機能を提供（自己完結実装）
  */
 import { shouldUseMockApi } from '../../../utils/config.util';
-import { normalizeUrl } from './utils.service';
+import { normalizeUrl } from '../infrastructure';
 import type { 
   LLMQueryRequest,
   LLMResponse

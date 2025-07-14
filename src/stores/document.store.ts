@@ -89,7 +89,13 @@ export const useDocumentStore = defineStore('document', () => {
       currentPath.value = path;
       
       return currentDocument.value;
-    });
+    } catch (err) {
+      console.error('Failed to fetch document:', err);
+      error.value = err instanceof Error ? err.message : 'Failed to fetch document';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   // リポジトリ設定

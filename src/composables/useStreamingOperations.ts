@@ -1,12 +1,20 @@
 import { ref, type Ref } from 'vue'
-import type { DocumentResponse } from '@/services/api/types.auto'
+import type { components } from '@/services/api/types.auto'
 import { useDocumentStore } from '@/stores/document.store'
-import { useLLMService } from '@/services/api/llm.service'
+import { llmService } from '@/services/api/llm.service'
 import { useAsyncOperation } from '@/composables/useAsyncOperation'
-import { defaultConfig } from '@/utils/config.util'
-import type { MessageItem } from '@/services/api/types'
-import type { ClientMessage } from '@/services/api/types'
-import type { DocumentContextConfig } from '@/composables/useDocumentContext'
+import { getDefaultRepositoryConfig } from '@/utils/config.util'
+import type { ClientMessage } from '@/composables/useMessageManagement'
+
+type DocumentResponse = components['schemas']['DocumentResponse']
+type MessageItem = components['schemas']['MessageItem']
+
+export interface DocumentContextConfig {
+  enableRepositoryContext?: boolean
+  enableDocumentMetadata?: boolean
+  includeDocumentInSystemPrompt?: boolean
+  systemPromptTemplate?: string
+}
 
 export interface StreamingCallbacks {
   onStart?: () => void
@@ -44,7 +52,6 @@ export function useStreamingOperations(
   updateToolExecutionStatus: (executionId: string, status: string, result?: any) => void
 ): StreamingOperations {
   const documentStore = useDocumentStore()
-  const llmService = useLLMService()
   const asyncOp = useAsyncOperation()
   
   const isStreamingWithTools = ref(false)
@@ -66,6 +73,7 @@ export function useStreamingOperations(
       }
       
       // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
+      const defaultConfig = getDefaultRepositoryConfig()
       const service = documentStore.currentService || defaultConfig.service
       const owner = documentStore.currentOwner || defaultConfig.owner
       const repo = documentStore.currentRepo || defaultConfig.repo
@@ -189,6 +197,7 @@ export function useStreamingOperations(
       }
       
       // リポジトリ情報を取得 (ドキュメントストアの値があればそれを使用し、なければデフォルト値を使用)
+      const defaultConfig = getDefaultRepositoryConfig()
       const service = documentStore.currentService || defaultConfig.service
       const owner = documentStore.currentOwner || defaultConfig.owner
       const repo = documentStore.currentRepo || defaultConfig.repo

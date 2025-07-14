@@ -36,7 +36,7 @@ export async function sendLLMQuery(
   // 環境変数の設定に基づいてモックを使用するかどうかを判断
   if (shouldUseMockApi()) {
     console.log('Using mock LLM response as configured by environment variables');
-    const { getMockLLMResponse } = await import('./mock.service');
+    const { getMockLLMResponse } = await import('../testing');
     const mockResponse = getMockLLMResponse(request.prompt, request.conversation_history || []) as LLMResponse;
     
     // モックレスポンスに会話履歴が含まれていなければ作成する

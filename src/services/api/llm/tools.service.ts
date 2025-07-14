@@ -244,13 +244,13 @@ export async function sendLLMQueryWithTools(
 ): Promise<LLMResponse> {
   if (!enableTools) {
     // ツール無効時は通常のLLMクエリを実行
-    const { sendLLMQuery } = await import('./llm-core.service');
+    const { sendLLMQuery } = await import('./core.service');
     return sendLLMQuery(request);
   }
   
   if (shouldUseMockApi()) {
     console.log('Using mock LLM response with tools as configured by environment variables');
-    const { getMockLLMResponse } = await import('./mock.service');
+    const { getMockLLMResponse } = await import('../testing');
     return getMockLLMResponse(request.prompt, request.conversation_history || []) as LLMResponse;
   }
   

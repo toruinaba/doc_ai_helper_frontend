@@ -12,12 +12,12 @@ import { useMCPTools } from '@/composables/useMCPTools'
 import { useLLMOperations } from '@/composables/useLLMOperations'
 import { useStreamingOperations } from '@/composables/useStreamingOperations'
 import { useAsyncOperation } from '@/composables/useAsyncOperation'
-import { shouldUseMCPTools, formatPrompt } from '@/services/api/modules'
+import { shouldUseMCPTools, formatPrompt } from '@/services/api/llm'
 
 // 型定義は各composableから再エクスポート
 export type { ClientMessage } from '@/composables/useMessageManagement'
 export type { MCPToolExecution, MCPToolsConfig } from '@/composables/useMCPTools'
-export type { DocumentContextConfig } from '@/composables/useDocumentContext'
+export type { DocumentContextConfig } from '@/composables/useStreamingOperations'
 
 export const useDocumentAssistantStore = defineStore('documentAssistant', () => {
   // 基本的な非同期操作管理
@@ -38,7 +38,13 @@ export const useDocumentAssistantStore = defineStore('documentAssistant', () => 
     messageOps.addSystemMessage,
     messageOps.generateMessageId,
     mcpTools.mcpToolsConfig,
-    shouldUseMCPTools,
+    (content: string, autoDetect: boolean) => {
+      const result = shouldUseMCPTools(content, autoDetect)
+      return { 
+        recommended: result.recommended, 
+        reasons: [result.reason || 'No specific reason provided'] 
+      }
+    },
     mcpTools.activeToolExecutions,
     mcpTools.startToolExecution,
     mcpTools.updateToolExecutionStatus

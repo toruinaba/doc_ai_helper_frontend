@@ -7,7 +7,7 @@ import { ref, computed, nextTick } from 'vue';
 import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { useDocumentStore } from '@/stores/document.store';
 import { getMCPToolsConfig } from '@/utils/mcp-config.util';
-import { updateStreamingConfig, StreamingType } from '@/services/api/modules';
+import { updateStreamingConfig, StreamingType } from '@/services/api/infrastructure';
 
 // Type definitions
 type ToolExecutionMode = 'auto' | 'manual' | 'required' | 'none';

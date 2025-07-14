@@ -1,7 +1,7 @@
 /**
  * MCP ツール管理ユーティリティ
  */
-import { getMCPTools, getMCPToolInfo } from '@/services/api/modules';
+import { getMCPTools, getMCPToolInfo } from '@/services/api/llm';
 import type { MCPToolsResponse, MCPToolInfo, MCPToolConfig } from '@/services/api/types';
 
 /**

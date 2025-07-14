@@ -16,6 +16,14 @@ type ProviderCapabilities = components['schemas']['ProviderCapabilities'];
 type MCPToolsResponse = components['schemas']['MCPToolsResponse'];
 type MCPToolInfo = components['schemas']['MCPToolInfo'];
 import type { DocumentResponse } from './types';
+import { 
+  sendLLMQuery as _sendLLMQuery,
+  getLLMCapabilities as _getLLMCapabilities,
+  getLLMTemplates as _getLLMTemplates,
+  formatPrompt as _formatPrompt,
+  getMCPTools as _getMCPTools,
+  getMCPToolInfo as _getMCPToolInfo
+} from './llm';
 
 export interface LLMQueryOptions {
   prompt: string;
@@ -104,7 +112,7 @@ class LLMService {
 
     try {
       // 既存のストリーミング機能を使用
-      const { streamLLMQuery } = await import('./modules');
+      const { streamLLMQuery } = await import('./llm');
       await streamLLMQuery(request as any, {
         onToken: callbacks.onChunk,
         onToolCall: callbacks.onToolCall,
@@ -175,6 +183,7 @@ class LLMService {
           }
         }
       }
+      */
     } catch (error) {
       callbacks.onError?.(error instanceof Error ? error : new Error(String(error)));
     }
@@ -185,7 +194,7 @@ class LLMService {
    */
   async getCapabilities(): Promise<ProviderCapabilities> {
     if (shouldUseMockApi()) {
-      const { getMockLLMCapabilities } = await import('./modules/mock.service');
+      const { getMockLLMCapabilities } = await import('./testing');
       return getMockLLMCapabilities();
     }
 
@@ -197,7 +206,7 @@ class LLMService {
    */
   async getTemplates(): Promise<string[]> {
     if (shouldUseMockApi()) {
-      const { getMockLLMTemplates } = await import('./modules/mock.service');
+      const { getMockLLMTemplates } = await import('./testing');
       return getMockLLMTemplates();
     }
 
@@ -209,7 +218,7 @@ class LLMService {
    */
   async formatPrompt(templateId: string, variables: Record<string, any>): Promise<string> {
     if (shouldUseMockApi()) {
-      const { getMockFormattedPrompt } = await import('./modules/mock.service');
+      const { getMockFormattedPrompt } = await import('./testing');
       return getMockFormattedPrompt(templateId, variables);
     }
 
@@ -276,7 +285,7 @@ class LLMService {
    * モックレスポンスを取得
    */
   private async getMockResponse(request: LLMQueryRequest): Promise<LLMResponse> {
-    const { getMockLLMResponse } = await import('./modules/mock.service');
+    const { getMockLLMResponse } = await import('./testing');
     return getMockLLMResponse(request.query.prompt, request.query.conversation_history || []) as LLMResponse;
   }
 
@@ -284,7 +293,7 @@ class LLMService {
    * ツール付きモックレスポンスを取得
    */
   private async getMockResponseWithTools(request: LLMQueryRequest): Promise<LLMResponse> {
-    const { getMockLLMResponse } = await import('./modules/mock.service');
+    const { getMockLLMResponse } = await import('./testing');
     const baseResponse = getMockLLMResponse(request.query.prompt, request.query.conversation_history || []) as LLMResponse;
     
     // ツール実行のモックを追加

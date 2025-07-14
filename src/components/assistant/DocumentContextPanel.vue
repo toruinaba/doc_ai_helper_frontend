@@ -197,7 +197,7 @@ const systemPromptTemplates = ref([
 const loadTemplates = async () => {
   try {
     // APIから利用可能なテンプレート一覧を取得
-    const { getLLMTemplates } = await import('@/services/api/modules');
+    const { getLLMTemplates } = await import('@/services/api/llm');
     const templates = await getLLMTemplates();
     
     // テンプレート選択肢を更新

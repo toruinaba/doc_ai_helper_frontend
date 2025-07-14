@@ -552,7 +552,7 @@ export class ApiClient {
     }
   ): Promise<AbortController> {
     // MCPツール対応のストリーミングサービスを動的にインポート
-    const { streamLLMQueryWithTools } = await import('./modules');
+    const { streamLLMQueryWithTools } = await import('./llm');
     
     // リクエストが既に完全なLLMQueryRequestの場合はそのまま使用
     const toolsRequest: LLMQueryRequest = {

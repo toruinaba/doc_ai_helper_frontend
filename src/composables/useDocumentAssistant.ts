@@ -1,7 +1,7 @@
 /**
- * Chat UI Composable
+ * Document Assistant Composable
  * 
- * チャットUIの状態とロジックを管理するコンポーザブル
+ * ドキュメントアシスタントUIの状態とロジックを管理するコンポーザブル
  */
 import { ref, computed, nextTick } from 'vue';
 import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
@@ -18,7 +18,7 @@ interface MCPToolConfig {
   enabled: boolean;
 }
 
-export interface ChatUIState {
+export interface DocumentAssistantState {
   // メッセージ関連
   messages: any[];
   isLoading: boolean;
@@ -38,7 +38,7 @@ export interface ChatUIState {
   streamingType: string;
 }
 
-export interface ChatUIActions {
+export interface DocumentAssistantActions {
   // メッセージ送信
   sendMessage: (options: {
     message: string;
@@ -60,7 +60,7 @@ export interface ChatUIActions {
   clearToolHistory: () => void;
 }
 
-export function useChatUI(chatMessagesRef?: any) {
+export function useDocumentAssistant(messagesRef?: any) {
   const assistantStore = useDocumentAssistantStore();
   const documentStore = useDocumentStore();
   
@@ -128,9 +128,9 @@ export function useChatUI(chatMessagesRef?: any) {
    */
   const scrollToBottom = async () => {
     await nextTick();
-    if (chatMessagesRef?.value) {
-      console.log('Scrolling to bottom, scrollHeight:', chatMessagesRef.value.scrollHeight);
-      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
+    if (messagesRef?.value) {
+      console.log('Scrolling to bottom, scrollHeight:', messagesRef.value.scrollHeight);
+      messagesRef.value.scrollTop = messagesRef.value.scrollHeight;
     }
   };
   
@@ -229,7 +229,7 @@ export function useChatUI(chatMessagesRef?: any) {
   };
   
   // 状態オブジェクト
-  const state: ChatUIState = {
+  const state: DocumentAssistantState = {
     messages: messages.value,
     isLoading: isLoading.value,
     error: error.value,
@@ -243,7 +243,7 @@ export function useChatUI(chatMessagesRef?: any) {
   };
   
   // アクションオブジェクト
-  const actions: ChatUIActions = {
+  const actions: DocumentAssistantActions = {
     sendMessage,
     updateStreamingMode,
     updateToolsForMessage,

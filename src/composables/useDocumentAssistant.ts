@@ -33,6 +33,7 @@ export interface DocumentAssistantState {
   executionMode: ToolExecutionMode;
   availableTools: MCPToolConfig[];
   toolExecutionHistory: any[];
+  activeToolExecutions: any[];
   
   // ストリーミング設定
   streamingType: string;
@@ -80,6 +81,7 @@ export function useDocumentAssistant(messagesRef?: any) {
   const isLoading = computed(() => assistantStore.isLoading);
   const error = computed(() => assistantStore.error);
   const toolExecutionHistory = computed(() => assistantStore.toolExecutionHistory);
+  const activeToolExecutions = computed(() => assistantStore.activeToolExecutions);
   
   /**
    * メッセージ送信
@@ -239,6 +241,7 @@ export function useDocumentAssistant(messagesRef?: any) {
     executionMode: executionMode.value,
     availableTools: availableTools.value,
     toolExecutionHistory: toolExecutionHistory.value,
+    activeToolExecutions: activeToolExecutions.value,
     streamingType: streamingType.value
   };
   
@@ -268,6 +271,7 @@ export function useDocumentAssistant(messagesRef?: any) {
     availableTools,
     toolExecutionHistory,
     streamingType,
+    activeToolExecutions,
     
     // 計算されたプロパティ
     currentDocument: computed(() => documentStore.currentDocument),

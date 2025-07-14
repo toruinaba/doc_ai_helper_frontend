@@ -33,7 +33,7 @@
       ref="chatMessagesRef"
       :messages="messages"
       :is-loading="isLoading"
-      :active-tool-executions="assistantStore.activeToolExecutions"
+      :active-tool-executions="activeToolExecutions"
     />
     
     <!-- メッセージ入力フォーム -->
@@ -92,7 +92,7 @@ const {
   availableTools,
   toolExecutionHistory,
   streamingType,
-  assistantStore,
+  activeToolExecutions,
   currentDocument,
   
   // Actions

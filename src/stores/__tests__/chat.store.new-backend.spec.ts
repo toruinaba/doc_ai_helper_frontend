@@ -129,15 +129,15 @@ describe('新しいバックエンド仕様対応テスト', () => {
     documentStore.currentDocument = mockDocument;
     await assistantStore.sendMessageWithConfig('続きの質問');
 
-    // 会話履歴が含まれていることを確認
+    // 会話履歴が含まれていることを確認 (新しい階層構造)
     const callArgs = mockLLMQuery.mock.calls[0][0] as LLMQueryRequest;
-    expect(callArgs.conversation_history).toHaveLength(3); // システム + ユーザー + アシスタント + 新しいユーザー
-    expect(callArgs.conversation_history![0].role).toBe('user');
-    expect(callArgs.conversation_history![0].content).toBe('最初の質問');
-    expect(callArgs.conversation_history![1].role).toBe('assistant');
-    expect(callArgs.conversation_history![1].content).toBe('最初の回答');
-    expect(callArgs.conversation_history![2].role).toBe('user');
-    expect(callArgs.conversation_history![2].content).toBe('続きの質問');
+    expect(callArgs.query.conversation_history).toHaveLength(3); // システム + ユーザー + アシスタント + 新しいユーザー
+    expect(callArgs.query.conversation_history![0].role).toBe('user');
+    expect(callArgs.query.conversation_history![0].content).toBe('最初の質問');
+    expect(callArgs.query.conversation_history![1].role).toBe('assistant');
+    expect(callArgs.query.conversation_history![1].content).toBe('最初の回答');
+    expect(callArgs.query.conversation_history![2].role).toBe('user');
+    expect(callArgs.query.conversation_history![2].content).toBe('続きの質問');
   });
 
   it('ドキュメントがない場合のコンテキスト処理', async () => {

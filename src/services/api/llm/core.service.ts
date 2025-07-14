@@ -22,14 +22,14 @@ export async function sendLLMQuery(
   systemPrompt?: string
 ): Promise<LLMResponse> {
   // システムプロンプトがある場合は会話履歴に追加
-  if (systemPrompt && (!request.conversation_history || request.conversation_history.length === 0)) {
+  if (systemPrompt && (!request.query.conversation_history || request.query.conversation_history.length === 0)) {
     const { createConversationWithSystemPrompt } = await import('./conversation.service');
-    request.conversation_history = createConversationWithSystemPrompt(systemPrompt);
+    request.query.conversation_history = createConversationWithSystemPrompt(systemPrompt);
   } else if (systemPrompt) {
     const { createConversationWithSystemPrompt } = await import('./conversation.service');
-    request.conversation_history = createConversationWithSystemPrompt(
+    request.query.conversation_history = createConversationWithSystemPrompt(
       systemPrompt, 
-      request.conversation_history || []
+      request.query.conversation_history || []
     );
   }
 
@@ -37,13 +37,13 @@ export async function sendLLMQuery(
   if (shouldUseMockApi()) {
     console.log('Using mock LLM response as configured by environment variables');
     const { getMockLLMResponse } = await import('../testing');
-    const mockResponse = getMockLLMResponse(request.prompt, request.conversation_history || []) as LLMResponse;
+    const mockResponse = getMockLLMResponse(request.query.prompt, request.query.conversation_history || []) as LLMResponse;
     
     // モックレスポンスに会話履歴が含まれていなければ作成する
-    if (!mockResponse.optimized_conversation_history && request.conversation_history) {
+    if (!mockResponse.optimized_conversation_history && request.query.conversation_history) {
       // 最新のユーザーメッセージとシステムメッセージを保持
-      const systemMessages = request.conversation_history.filter(msg => msg.role === 'system');
-      const userMessages = request.conversation_history.filter(msg => msg.role === 'user');
+      const systemMessages = request.query.conversation_history.filter(msg => msg.role === 'system');
+      const userMessages = request.query.conversation_history.filter(msg => msg.role === 'user');
       const latestUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
       
       mockResponse.optimized_conversation_history = [
@@ -62,12 +62,12 @@ export async function sendLLMQuery(
   try {
     // モックモードでない場合は実際のAPIを呼び出し
     console.log('Sending LLM query with conversation history:', 
-      request.conversation_history ? request.conversation_history.length : 0, 'messages');
+      request.query.conversation_history ? request.query.conversation_history.length : 0, 'messages');
     
     // デバッグ用：最初と最後のメッセージを表示
-    if (request.conversation_history && request.conversation_history.length > 0) {
-      console.log('First message:', request.conversation_history[0]);
-      console.log('Last message:', request.conversation_history[request.conversation_history.length - 1]);
+    if (request.query.conversation_history && request.query.conversation_history.length > 0) {
+      console.log('First message:', request.query.conversation_history[0]);
+      console.log('Last message:', request.query.conversation_history[request.query.conversation_history.length - 1]);
     }
     
     const response = await apiClient.sendLLMQuery(request);

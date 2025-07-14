@@ -9,12 +9,24 @@ import apiClient from '../services/api';
 import { types } from '../services/api';
 import { getDefaultRepositoryConfig } from '../utils/config.util';
 
+type GitServiceType = 'github' | 'gitlab' | 'bitbucket' | 'mock';
+
+interface Repository {
+  id: number;
+  name: string;
+  owner: string;
+  service: GitServiceType;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const useRepositoryStore = defineStore('repository', () => {
   // デフォルト設定を取得
   const defaultConfig = getDefaultRepositoryConfig();
 
   // 状態
-  const repositories = ref<types.RepositoryResponse[]>([]);
+  const repositories = ref<Repository[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const currentService = ref<string>(defaultConfig.service);
@@ -28,7 +40,7 @@ export const useRepositoryStore = defineStore('repository', () => {
     error.value = null;
     
     try {
-      repositories.value = await apiClient.listRepositories();
+      repositories.value = await apiClient.listRepositories() as Repository[];
     } catch (err: any) {
       error.value = err.message || 'リポジトリ一覧の取得に失敗しました';
       console.error('リポジトリ一覧取得エラー:', err);
@@ -87,7 +99,7 @@ export const useRepositoryStore = defineStore('repository', () => {
     
     try {
       const newRepository = await apiClient.createRepository(data);
-      repositories.value.push(newRepository);
+      repositories.value.push(newRepository as Repository);
       return newRepository;
     } catch (err: any) {
       error.value = err.message || 'リポジトリの作成に失敗しました';
@@ -105,9 +117,9 @@ export const useRepositoryStore = defineStore('repository', () => {
     
     try {
       const updatedRepository = await apiClient.updateRepository(id, data);
-      const index = repositories.value.findIndex(repo => repo.id === id);
+      const index = repositories.value.findIndex((repo: Repository) => repo.id === id);
       if (index !== -1) {
-        repositories.value[index] = updatedRepository;
+        repositories.value[index] = updatedRepository as Repository;
       }
       return updatedRepository;
     } catch (err: any) {
@@ -126,7 +138,7 @@ export const useRepositoryStore = defineStore('repository', () => {
     
     try {
       await apiClient.deleteRepository(id);
-      repositories.value = repositories.value.filter(repo => repo.id !== id);
+      repositories.value = repositories.value.filter((repo: Repository) => repo.id !== id);
       return true;
     } catch (err: any) {
       error.value = err.message || 'リポジトリの削除に失敗しました';

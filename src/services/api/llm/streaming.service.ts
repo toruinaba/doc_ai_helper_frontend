@@ -39,6 +39,8 @@ export enum StreamingType {
 export interface StreamingCallbacks {
   onStart?: (data?: any) => void;
   onToken?: (token: string) => void;
+  onToolCall?: (toolCall: any) => void;
+  onToolResult?: (result: any) => void;
   onError?: (error: string) => void;
   onEnd?: (data?: any) => void;
 }

@@ -192,7 +192,7 @@ class LLMService {
   /**
    * LLMの機能情報を取得
    */
-  async getCapabilities(): Promise<ProviderCapabilities> {
+  async getCapabilities(): Promise<Record<string, any>> {
     if (shouldUseMockApi()) {
       const { getMockLLMCapabilities } = await import('./testing');
       return getMockLLMCapabilities();

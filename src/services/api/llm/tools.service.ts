@@ -251,7 +251,7 @@ export async function sendLLMQueryWithTools(
   if (shouldUseMockApi()) {
     console.log('Using mock LLM response with tools as configured by environment variables');
     const { getMockLLMResponse } = await import('../testing');
-    return getMockLLMResponse(request.prompt, request.conversation_history || []) as LLMResponse;
+    return getMockLLMResponse(request.query.prompt, request.query.conversation_history || []) as LLMResponse;
   }
   
   try {
@@ -302,8 +302,11 @@ export async function streamLLMQueryWithTools(
     // ツール対応のリクエストを構築
     const toolsRequest: LLMQueryRequest = {
       ...request,
-      enable_tools: enableTools,
-      tool_choice: 'auto' // 自動ツール選択を有効化
+      tools: {
+        enable_tools: enableTools,
+        tool_choice: 'auto',
+        complete_tool_flow: true
+      }
     };
     
     // 拡張コールバックを作成（ツール関連イベントに対応）

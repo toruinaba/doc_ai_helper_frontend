@@ -25,6 +25,25 @@ export interface ApiConfig {
 }
 
 /**
+ * LLM設定
+ */
+export interface LLMConfig {
+  defaultProvider: string;
+  defaultModel?: string;
+  defaultToolChoice: string;
+  systemPromptTemplate: string;
+}
+
+/**
+ * デフォルト値設定
+ */
+export interface DefaultsConfig {
+  encoding: string;
+  documentType: string;
+  branch: string;
+}
+
+/**
  * 新しいバックエンド仕様用の設定
  */
 export interface DocumentContextConfig {
@@ -71,12 +90,38 @@ export function shouldUseMockApi(): boolean {
 }
 
 /**
+ * 環境変数からLLM設定を取得
+ * @returns LLM設定
+ */
+export function getLLMConfig(): LLMConfig {
+  return {
+    defaultProvider: import.meta.env.VITE_LLM_DEFAULT_PROVIDER || 'openai',
+    defaultModel: import.meta.env.VITE_LLM_DEFAULT_MODEL || null,
+    defaultToolChoice: import.meta.env.VITE_LLM_DEFAULT_TOOL_CHOICE || 'auto',
+    systemPromptTemplate: import.meta.env.VITE_LLM_SYSTEM_PROMPT_TEMPLATE || 'contextual_document_assistant_ja'
+  };
+}
+
+/**
+ * 環境変数からデフォルト値設定を取得
+ * @returns デフォルト値設定
+ */
+export function getDefaultsConfig(): DefaultsConfig {
+  return {
+    encoding: import.meta.env.VITE_DEFAULT_ENCODING || 'utf-8',
+    documentType: import.meta.env.VITE_DEFAULT_DOCUMENT_TYPE || 'markdown',
+    branch: import.meta.env.VITE_DEFAULT_BRANCH || 'main'
+  };
+}
+
+/**
  * デフォルトのドキュメントコンテキスト設定を取得
  */
 export function getDefaultDocumentContextConfig(): DocumentContextConfig {
+  const llmConfig = getLLMConfig();
   return {
     includeDocumentInSystemPrompt: true,
-    systemPromptTemplate: 'contextual_document_assistant_ja',
+    systemPromptTemplate: llmConfig.systemPromptTemplate,
     enableRepositoryContext: true,
     enableDocumentMetadata: true,
     completeToolFlow: true

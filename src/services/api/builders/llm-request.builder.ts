@@ -5,6 +5,7 @@
  */
 import type { components } from '../types.auto';
 import type { DocumentResponse } from '../types';
+import { getLLMConfig, getDefaultsConfig } from '@/utils/config.util';
 
 // 型エイリアスを作成
 type LLMQueryRequest = components['schemas']['LLMQueryRequest'];
@@ -97,11 +98,12 @@ export class LLMRequestBuilder {
     this.options.contextDocuments = options?.contextDocuments ?? [document.path];
     
     // ドキュメントからリポジトリコンテキストを自動生成
+    const defaultsConfig = getDefaultsConfig();
     this.options.repositoryContext = {
       service: document.service as any,
       owner: document.owner,
       repo: document.repository,
-      ref: document.ref || 'main',
+      ref: document.ref || defaultsConfig.branch,
       current_path: document.path,
       base_url: null
     };
@@ -109,12 +111,12 @@ export class LLMRequestBuilder {
     // ドキュメントメタデータを自動生成
     this.options.documentMetadata = {
       title: document.name,
-      type: 'markdown' as any,
+      type: defaultsConfig.documentType as any,
       filename: document.name,
       file_extension: document.name.includes('.') ? document.name.split('.').pop() || null : null,
       last_modified: document.metadata.last_modified,
       file_size: document.metadata.size,
-      encoding: document.content.encoding || 'utf-8',
+      encoding: document.content.encoding || defaultsConfig.encoding,
       language: null
     };
 
@@ -141,18 +143,21 @@ export class LLMRequestBuilder {
       throw new Error('Prompt is required');
     }
 
+    // 設定を取得
+    const llmConfig = getLLMConfig();
+
     // Core query parameters (必須グループ)
     const query: CoreQueryRequest = {
       prompt: this.options.prompt,
-      provider: this.options.provider || 'openai',
-      model: this.options.model || null,
+      provider: this.options.provider || llmConfig.defaultProvider,
+      model: this.options.model || llmConfig.defaultModel,
       conversation_history: this.options.conversationHistory || null
     };
 
     // Tool configuration (オプショナル)
     const tools: ToolConfiguration | undefined = this.options.enableTools ? {
       enable_tools: this.options.enableTools,
-      tool_choice: this.options.toolChoice || 'auto',
+      tool_choice: this.options.toolChoice || llmConfig.defaultToolChoice,
       complete_tool_flow: this.options.completeToolFlow ?? true
     } : undefined;
 
@@ -235,35 +240,41 @@ export const LLMRequestPresets = {
   /**
    * ドキュメント付きチャット（ツール有効）
    */
-  documentChatWithTools: (prompt: string, document: DocumentResponse, history?: MessageItem[]) =>
-    LLMRequestBuilder
+  documentChatWithTools: (prompt: string, document: DocumentResponse, history?: MessageItem[]) => {
+    const llmConfig = getLLMConfig();
+    return LLMRequestBuilder
       .create()
       .prompt(prompt)
-      .provider('openai')
+      .provider(llmConfig.defaultProvider, llmConfig.defaultModel)
       .withHistory(history || [])
       .withDocument(document)
-      .withTools({ enabled: true, choice: 'auto' }),
+      .withTools({ enabled: true, choice: llmConfig.defaultToolChoice });
+  },
 
   /**
    * シンプルクエリ（ツール無効）
    */
-  simpleQuery: (prompt: string, provider = 'openai') =>
-    LLMRequestBuilder
+  simpleQuery: (prompt: string, provider?: string) => {
+    const llmConfig = getLLMConfig();
+    return LLMRequestBuilder
       .create()
       .prompt(prompt)
-      .provider(provider)
-      .withTools({ enabled: false, choice: 'none' }),
+      .provider(provider || llmConfig.defaultProvider, llmConfig.defaultModel)
+      .withTools({ enabled: false, choice: 'none' });
+  },
 
   /**
    * ストリーミング用リクエスト
    */
-  streamingRequest: (prompt: string, document: DocumentResponse, history: MessageItem[]) =>
-    LLMRequestBuilder
+  streamingRequest: (prompt: string, document: DocumentResponse, history: MessageItem[]) => {
+    const llmConfig = getLLMConfig();
+    return LLMRequestBuilder
       .create()
       .prompt(prompt)
-      .provider('openai')
+      .provider(llmConfig.defaultProvider, llmConfig.defaultModel)
       .withHistory(history)
       .withDocument(document)
-      .withTools({ enabled: true, choice: 'auto' })
-      .withProcessing({ disableCache: false })
+      .withTools({ enabled: true, choice: llmConfig.defaultToolChoice })
+      .withProcessing({ disableCache: false });
+  }
 };

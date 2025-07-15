@@ -2,7 +2,7 @@ import { ref, type Ref } from 'vue'
 import type { components } from '@/services/api/types.auto'
 import { useDocumentStore } from '@/stores/document.store'
 import { llmService } from '@/services/api/llm.service'
-import { getDefaultRepositoryConfig } from '@/utils/config.util'
+import { getDefaultRepositoryConfig, getLLMConfig } from '@/utils/config.util'
 import type { ClientMessage } from '@/composables/useMessageManagement'
 
 type MessageItem = components['schemas']['MessageItem']
@@ -19,6 +19,7 @@ export function useBasicStreaming(
   generateMessageId: () => string
 ): BasicStreamingOperations {
   const documentStore = useDocumentStore()
+  const llmConfig = getLLMConfig()
 
   // ストリーミングモードでLLMにメッセージ送信
   async function sendStreamingMessage(content: string) {
@@ -60,7 +61,8 @@ export function useBasicStreaming(
       await llmService.stream(
         {
           prompt: content,
-          provider: 'openai',
+          provider: llmConfig.defaultProvider,
+          model: llmConfig.defaultModel,
           conversationHistory,
           includeDocument: true,
           enableTools: false,

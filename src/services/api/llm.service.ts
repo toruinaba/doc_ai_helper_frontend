@@ -286,7 +286,7 @@ class LLMService {
    */
   private async getMockResponse(request: LLMQueryRequest): Promise<LLMResponse> {
     const { getMockLLMResponse } = await import('./testing');
-    return getMockLLMResponse(request.query.prompt, request.query.conversation_history || []) as LLMResponse;
+    return getMockLLMResponse((request as any).query.prompt, (request as any).query.conversation_history || []) as LLMResponse;
   }
 
   /**
@@ -294,7 +294,7 @@ class LLMService {
    */
   private async getMockResponseWithTools(request: LLMQueryRequest): Promise<LLMResponse> {
     const { getMockLLMResponse } = await import('./testing');
-    const baseResponse = getMockLLMResponse(request.query.prompt, request.query.conversation_history || []) as LLMResponse;
+    const baseResponse = getMockLLMResponse((request as any).query.prompt, (request as any).query.conversation_history || []) as LLMResponse;
     
     // ツール実行のモックを追加
     return {

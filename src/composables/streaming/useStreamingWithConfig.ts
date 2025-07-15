@@ -1,7 +1,7 @@
 import { type Ref } from 'vue'
 import { useDocumentStore } from '@/stores/document.store'
 import { llmService } from '@/services/api/llm.service'
-import { getDefaultRepositoryConfig } from '@/utils/config.util'
+import { getDefaultRepositoryConfig, getLLMConfig } from '@/utils/config.util'
 import type { ClientMessage } from '@/composables/useMessageManagement'
 
 export interface DocumentContextConfig {
@@ -22,6 +22,7 @@ export function useStreamingWithConfig(
   addSystemMessage: (content: string) => ClientMessage
 ): StreamingWithConfigOperations {
   const documentStore = useDocumentStore()
+  const llmConfig = getLLMConfig()
 
   // 新しいバックエンド仕様に対応したストリーミングメッセージ送信
   async function sendStreamingMessageWithConfig(content: string, config?: Partial<DocumentContextConfig>) {
@@ -51,7 +52,7 @@ export function useStreamingWithConfig(
         enableRepositoryContext: config?.enableRepositoryContext ?? true,
         enableDocumentMetadata: config?.enableDocumentMetadata ?? true,
         includeDocumentInSystemPrompt: config?.includeDocumentInSystemPrompt ?? true,
-        systemPromptTemplate: config?.systemPromptTemplate ?? 'contextual_document_assistant_ja'
+        systemPromptTemplate: config?.systemPromptTemplate ?? llmConfig.systemPromptTemplate
       }
       
       // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
@@ -66,7 +67,8 @@ export function useStreamingWithConfig(
       // 新しい統一サービスでリクエスト送信
       const response = await llmService.query({
         prompt: content,
-        provider: 'openai',
+        provider: llmConfig.defaultProvider,
+        model: llmConfig.defaultModel,
         conversationHistory,
         includeDocument: true
       }, currentDoc)

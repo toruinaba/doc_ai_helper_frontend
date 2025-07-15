@@ -9,6 +9,7 @@ import { useAsyncOperation } from '@/composables/useAsyncOperation';
 import { useMessageManagement } from '@/composables/useMessageManagement';
 import { useDocumentContext } from '@/composables/useDocumentContext';
 import { useMCPTools } from '@/composables/useMCPTools';
+import { getLLMConfig } from '@/utils/config.util';
 import type { components } from '@/services/api/types.auto';
 import type { DocumentContextConfig } from '@/utils/config.util';
 
@@ -17,6 +18,9 @@ type LLMResponse = components['schemas']['LLMResponse'];
 type MessageItem = components['schemas']['MessageItem'];
 
 export function useLLMOperations() {
+  // 設定を取得
+  const llmConfig = getLLMConfig();
+  
   // 依存する composables
   const { 
     addUserMessage, 
@@ -75,8 +79,8 @@ export function useLLMOperations() {
       // 新しい統一サービスを使用
       const response = await llmService.query({
         prompt,
-        provider: options?.provider || 'openai',
-        model: options?.model,
+        provider: options?.provider || llmConfig.defaultProvider,
+        model: options?.model || llmConfig.defaultModel,
         conversationHistory,
         includeDocument: true,
         customOptions: options?.customOptions
@@ -170,11 +174,12 @@ export function useLLMOperations() {
         // MCPツール付きでクエリを送信
         response = await llmService.queryWithTools({
           prompt: content,
-          provider: 'openai',
+          provider: llmConfig.defaultProvider,
+          model: llmConfig.defaultModel,
           conversationHistory,
           includeDocument: true,
           enableTools: true,
-          toolChoice: toolChoice || 'auto',
+          toolChoice: toolChoice || llmConfig.defaultToolChoice,
           completeToolFlow: true
         }, currentDocument.value!);
         
@@ -199,7 +204,8 @@ export function useLLMOperations() {
         // 通常のクエリを送信
         response = await llmService.query({
           prompt: content,
-          provider: 'openai',
+          provider: llmConfig.defaultProvider,
+          model: llmConfig.defaultModel,
           conversationHistory,
           includeDocument: true,
           systemPrompt: documentContext

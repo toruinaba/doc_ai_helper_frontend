@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 import type { components } from '@/services/api/types.auto'
 import { useDocumentStore } from '@/stores/document.store'
 import { llmService } from '@/services/api/llm.service'
+import { getLLMConfig } from '@/utils/config.util'
 import type { ClientMessage } from '@/composables/useMessageManagement'
 import type { DocumentContextConfig } from './useStreamingWithConfig'
 
@@ -31,6 +32,7 @@ export function useStreamingWithTools(
   updateToolExecutionStatus: (executionId: string, status: 'pending' | 'running' | 'completed' | 'error', result?: any, error?: string, progress?: number) => void
 ): StreamingWithToolsOperations {
   const documentStore = useDocumentStore()
+  const llmConfig = getLLMConfig()
   
   const isStreamingWithTools = ref(false)
   const currentStreamController = ref<AbortController | (() => void) | null>(null)
@@ -116,7 +118,8 @@ export function useStreamingWithTools(
       await llmService.stream(
         {
           prompt: content,
-          provider: 'openai',
+          provider: llmConfig.defaultProvider,
+          model: llmConfig.defaultModel,
           conversationHistory,
           includeDocument: true,
           enableTools: useTools,

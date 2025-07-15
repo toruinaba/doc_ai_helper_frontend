@@ -102,6 +102,8 @@ export function useLLMOperations() {
       
       // 非ストリーミングモードでは常にアシスタントメッセージを追加
       console.log('Adding assistant response to UI');
+      console.log('Response content length:', response.content?.length);
+      console.log('Response content preview:', response.content?.substring(0, 100));
       addAssistantMessage(response.content);
 
       return response;

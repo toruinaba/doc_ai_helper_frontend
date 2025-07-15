@@ -1,7 +1,7 @@
 import { type Ref } from 'vue'
 import { useDocumentStore } from '@/stores/document.store'
 import { llmService } from '@/services/api/llm.service'
-import { getDefaultRepositoryConfig, getLLMConfig } from '@/utils/config.util'
+import { getDefaultRepositoryConfig, getLLMConfig, getAppDefaultsConfig } from '@/utils/config.util'
 import type { ClientMessage } from '@/composables/useMessageManagement'
 
 export interface DocumentContextConfig {
@@ -24,6 +24,7 @@ export function useStreamingWithConfig(
 ): StreamingWithConfigOperations {
   const documentStore = useDocumentStore()
   const llmConfig = getLLMConfig()
+  const appDefaults = getAppDefaultsConfig()
 
   // 新しいバックエンド仕様に対応したストリーミングメッセージ送信
   async function sendStreamingMessageWithConfig(content: string, config?: Partial<DocumentContextConfig>) {

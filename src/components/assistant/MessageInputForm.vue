@@ -1,11 +1,11 @@
 <template>
   <div class="chat-input">
-    <div class="input-options">
-      <div class="streaming-toggle">
+    <div v-if="uiConfig.showStreamingToggle || (uiConfig.showToolsToggle && mcpToolsEnabled)" class="input-options">
+      <div v-if="uiConfig.showStreamingToggle" class="streaming-toggle">
         <Checkbox v-model="useStreaming" :binary="true" inputId="streaming" />
         <label for="streaming" class="ml-2">ストリーミングモード</label>
       </div>
-      <div v-if="mcpToolsEnabled" class="tools-toggle">
+      <div v-if="uiConfig.showToolsToggle && mcpToolsEnabled" class="tools-toggle">
         <Checkbox v-model="useToolsForMessage" :binary="true" inputId="useTools" />
         <label for="useTools" class="ml-2">ツール使用</label>
       </div>
@@ -38,6 +38,7 @@ import { ref } from 'vue';
 import Textarea from 'primevue/textarea';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
+import { getUIConfig, getAppDefaultsConfig } from '@/utils/config.util';
 
 // Props
 interface Props {
@@ -77,10 +78,14 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
+// 設定の取得
+const uiConfig = getUIConfig();
+const appDefaults = getAppDefaultsConfig();
+
 // ローカル状態
 const newMessage = ref('');
-const useStreaming = ref(props.initialUseStreaming);
-const useToolsForMessage = ref(props.initialUseToolsForMessage);
+const useStreaming = ref(props.initialUseStreaming ?? appDefaults.streamingMode);
+const useToolsForMessage = ref(props.initialUseToolsForMessage ?? appDefaults.toolsEnabled);
 
 /**
  * メッセージ送信

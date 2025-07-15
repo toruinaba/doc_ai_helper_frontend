@@ -5,6 +5,7 @@
  */
 import { ref, computed } from 'vue';
 import type { components } from '@/services/api/types.auto';
+import { getAppDefaultsConfig } from '@/utils/config.util';
 
 // 型エイリアス
 type ToolCall = components['schemas']['ToolCall'];
@@ -36,13 +37,16 @@ export interface MCPToolsConfig {
 }
 
 export function useMCPTools() {
+  // アプリケーションデフォルト設定を取得
+  const appDefaults = getAppDefaultsConfig();
+  
   // MCPツール関連の状態
   const mcpToolsConfig = ref<MCPToolsConfig>({
-    enabled: true,
-    autoDetect: true,
-    defaultToolChoice: 'auto',
-    toolChoice: 'auto', // デフォルトは自動選択
-    executionMode: 'auto',
+    enabled: appDefaults.toolsEnabled,
+    autoDetect: appDefaults.mcpAutoDetect,
+    defaultToolChoice: appDefaults.executionMode,
+    toolChoice: appDefaults.executionMode, // デフォルトは設定から取得
+    executionMode: appDefaults.executionMode as ToolExecutionMode,
     enableProgressMonitoring: true,
     enableDetailedLogging: true
   });

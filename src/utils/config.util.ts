@@ -44,6 +44,29 @@ export interface DefaultsConfig {
 }
 
 /**
+ * UI表示制御設定
+ */
+export interface UIConfig {
+  showAdvancedSettings: boolean;
+  showDebugPanel: boolean;
+  showStreamingToggle: boolean;
+  showToolsToggle: boolean;
+  showMCPToolsPanel: boolean;
+  showDocumentContextPanel: boolean;
+}
+
+/**
+ * アプリケーションデフォルト動作設定
+ */
+export interface AppDefaultsConfig {
+  streamingMode: boolean;
+  toolsEnabled: boolean;
+  mcpAutoDetect: boolean;
+  streamingType: string;
+  executionMode: string;
+}
+
+/**
  * 新しいバックエンド仕様用の設定
  */
 export interface DocumentContextConfig {
@@ -111,6 +134,35 @@ export function getDefaultsConfig(): DefaultsConfig {
     encoding: import.meta.env.VITE_DEFAULT_ENCODING || 'utf-8',
     documentType: import.meta.env.VITE_DEFAULT_DOCUMENT_TYPE || 'markdown',
     branch: import.meta.env.VITE_DEFAULT_BRANCH || 'main'
+  };
+}
+
+/**
+ * 環境変数からUI表示制御設定を取得
+ * @returns UI表示制御設定
+ */
+export function getUIConfig(): UIConfig {
+  return {
+    showAdvancedSettings: import.meta.env.VITE_SHOW_ADVANCED_SETTINGS !== 'false',
+    showDebugPanel: import.meta.env.VITE_SHOW_DEBUG_PANEL !== 'false',
+    showStreamingToggle: import.meta.env.VITE_SHOW_STREAMING_TOGGLE !== 'false',
+    showToolsToggle: import.meta.env.VITE_SHOW_TOOLS_TOGGLE !== 'false',
+    showMCPToolsPanel: import.meta.env.VITE_SHOW_MCP_TOOLS_PANEL !== 'false',
+    showDocumentContextPanel: import.meta.env.VITE_SHOW_DOCUMENT_CONTEXT_PANEL !== 'false'
+  };
+}
+
+/**
+ * 環境変数からアプリケーションデフォルト動作設定を取得
+ * @returns アプリケーションデフォルト動作設定
+ */
+export function getAppDefaultsConfig(): AppDefaultsConfig {
+  return {
+    streamingMode: import.meta.env.VITE_DEFAULT_STREAMING_MODE !== 'false',
+    toolsEnabled: import.meta.env.VITE_DEFAULT_TOOLS_ENABLED !== 'false',
+    mcpAutoDetect: import.meta.env.VITE_MCP_AUTO_DETECT !== 'false',
+    streamingType: import.meta.env.VITE_DEFAULT_STREAMING_TYPE || 'fetch',
+    executionMode: import.meta.env.VITE_MCP_DEFAULT_EXECUTION_MODE || 'auto'
   };
 }
 

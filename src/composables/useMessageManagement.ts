@@ -4,7 +4,7 @@
  * メッセージの状態管理を行うコンポーザブル
  * 純粋なメッセージ操作のみを担当し、外部依存なし
  */
-import { ref } from 'vue';
+import { ref, isRef } from 'vue';
 import type { components } from '@/services/api/types.auto';
 
 // 型エイリアス
@@ -88,6 +88,8 @@ export function useMessageManagement() {
     
     messages.value.push(message);
     console.log('Messages after adding assistant message:', messages.value.length);
+    console.log('Full messages array:', messages.value.map(m => ({ id: m.id, role: m.role, contentLength: m.content.length })));
+    console.log('Vue reactivity check - messages.value is reactive:', isRef(messages));
     return message;
   }
 

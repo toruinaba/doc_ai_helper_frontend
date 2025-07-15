@@ -8,6 +8,7 @@ import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { useDocumentStore } from '@/stores/document.store';
 import { getMCPToolsConfig } from '@/utils/mcp-config.util';
 import { updateStreamingConfig, StreamingType } from '@/services/api/infrastructure';
+import { getAppDefaultsConfig } from '@/utils/config.util';
 
 // Type definitions
 type ToolExecutionMode = 'auto' | 'manual' | 'required' | 'none';
@@ -68,16 +69,22 @@ export function useDocumentAssistant(messagesRef?: any) {
   // MCPツール設定を環境変数から取得
   const mcpConfig = getMCPToolsConfig();
   
+  // アプリケーションデフォルト設定を取得
+  const appDefaults = getAppDefaultsConfig();
+  
   // ローカル状態
-  const useStreaming = ref(true);
+  const useStreaming = ref(appDefaults.streamingMode);
   const useToolsForMessage = ref(mcpConfig.enabled);
   const mcpToolsEnabled = ref(mcpConfig.enabled);
   const executionMode = ref<ToolExecutionMode>(mcpConfig.executionMode);
   const availableTools = ref<MCPToolConfig[]>(mcpConfig.availableTools);
-  const streamingType = ref<string>(StreamingType.FETCH);
+  const streamingType = ref<string>(appDefaults.streamingType);
   
   // 計算されたプロパティ
-  const messages = computed(() => assistantStore.messages);
+  const messages = computed(() => {
+    console.log('useDocumentAssistant computed messages triggered:', assistantStore.messages.length);
+    return assistantStore.messages;
+  });
   const isLoading = computed(() => assistantStore.isLoading);
   const error = computed(() => assistantStore.error);
   const toolExecutionHistory = computed(() => assistantStore.toolExecutionHistory);

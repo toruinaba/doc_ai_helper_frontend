@@ -92,6 +92,10 @@ const props = withDefaults(defineProps<Props>(), {
   activeToolExecutions: () => []
 });
 
+// Debug: Check if props are being received
+console.log('MessagesList received props.messages:', props.messages);
+console.log('MessagesList messages length:', props.messages.length);
+
 // Template refs
 const chatMessagesRef = ref<HTMLElement>();
 

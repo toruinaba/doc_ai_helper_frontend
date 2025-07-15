@@ -2,7 +2,7 @@ import { ref, type Ref } from 'vue'
 import type { components } from '@/services/api/types.auto'
 import { useDocumentStore } from '@/stores/document.store'
 import { llmService } from '@/services/api/llm.service'
-import { getLLMConfig } from '@/utils/config.util'
+import { getLLMConfig, getAppDefaultsConfig } from '@/utils/config.util'
 import type { ClientMessage } from '@/composables/useMessageManagement'
 import type { DocumentContextConfig } from './useStreamingWithConfig'
 
@@ -34,6 +34,7 @@ export function useStreamingWithTools(
 ): StreamingWithToolsOperations {
   const documentStore = useDocumentStore()
   const llmConfig = getLLMConfig()
+  const appDefaults = getAppDefaultsConfig()
   
   const isStreamingWithTools = ref(false)
   const currentStreamController = ref<AbortController | (() => void) | null>(null)
@@ -64,7 +65,7 @@ export function useStreamingWithTools(
       // 設定とデフォルトをマージ
       const effectiveConfig = {
         includeDocumentInSystemPrompt: true,
-        systemPromptTemplate: 'contextual_document_assistant_ja',
+        systemPromptTemplate: llmConfig.systemPromptTemplate,
         enableRepositoryContext: true,
         enableDocumentMetadata: true,
         completeToolFlow: true,

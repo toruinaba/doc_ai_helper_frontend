@@ -23,6 +23,7 @@ export function useStreamingOperations(
   addAssistantMessage: (content: string) => ClientMessage,
   addSystemMessage: (content: string) => ClientMessage,
   generateMessageId: () => string,
+  getConversationHistory: () => any[],
   mcpToolsConfig: Ref<any>,
   shouldUseMCPTools: (content: string, autoDetect: boolean) => { recommended: boolean; reasons: string[] },
   activeToolExecutions: Ref<any[]>,
@@ -36,7 +37,8 @@ export function useStreamingOperations(
     addUserMessage,
     addAssistantMessage,
     addSystemMessage,
-    generateMessageId
+    generateMessageId,
+    getConversationHistory
   )
   
   // 設定付きストリーミング機能
@@ -44,7 +46,8 @@ export function useStreamingOperations(
     messages,
     addUserMessage,
     addAssistantMessage,
-    addSystemMessage
+    addSystemMessage,
+    getConversationHistory
   )
   
   // MCPツール対応ストリーミング機能
@@ -53,6 +56,7 @@ export function useStreamingOperations(
     addUserMessage,
     addAssistantMessage,
     addSystemMessage,
+    getConversationHistory,
     mcpToolsConfig,
     shouldUseMCPTools,
     activeToolExecutions,

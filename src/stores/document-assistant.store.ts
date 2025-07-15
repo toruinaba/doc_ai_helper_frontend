@@ -37,6 +37,7 @@ export const useDocumentAssistantStore = defineStore('documentAssistant', () => 
     messageOps.addAssistantMessage,
     messageOps.addSystemMessage,
     messageOps.generateMessageId,
+    messageOps.getConversationHistory,
     mcpTools.mcpToolsConfig,
     (content: string, autoDetect: boolean) => {
       const result = shouldUseMCPTools(content, autoDetect)

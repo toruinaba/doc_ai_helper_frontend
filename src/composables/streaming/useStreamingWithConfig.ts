@@ -19,7 +19,8 @@ export function useStreamingWithConfig(
   messages: Ref<ClientMessage[]>,
   addUserMessage: (content: string) => ClientMessage,
   addAssistantMessage: (content: string) => ClientMessage,
-  addSystemMessage: (content: string) => ClientMessage
+  addSystemMessage: (content: string) => ClientMessage,
+  getConversationHistory: () => any[]
 ): StreamingWithConfigOperations {
   const documentStore = useDocumentStore()
   const llmConfig = getLLMConfig()
@@ -55,12 +56,8 @@ export function useStreamingWithConfig(
         systemPromptTemplate: config?.systemPromptTemplate ?? llmConfig.systemPromptTemplate
       }
       
-      // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
-      const conversationHistory = messages.value.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp.toISOString()
-      }))
+      // 会話履歴の準備（最適化履歴を優先使用）
+      const conversationHistory = getConversationHistory()
       
       console.log('📤 Sending message request with new backend specification')
       
@@ -77,10 +74,12 @@ export function useStreamingWithConfig(
       if (response.content) {
         addAssistantMessage(response.content)
         
-        // 会話履歴の最適化があった場合は適用
+        // 会話履歴の最適化があった場合は保存
         if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
           console.log('🗂️ Server provided optimized conversation history:', 
             response.optimized_conversation_history.length, 'messages')
+          // 注意: 最適化履歴の保存は呼び出し元で管理されるため、ここでは処理しない
+          // 実際の保存は`replaceWithOptimizedHistory`で行われる
         }
       }
       

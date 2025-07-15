@@ -27,7 +27,8 @@ export function useLLMOperations() {
     addAssistantMessage, 
     addSystemMessage, 
     getConversationHistory,
-    replaceWithOptimizedHistory 
+    replaceWithOptimizedHistory,
+    saveOptimizedHistory
   } = useMessageManagement();
   
   const { 
@@ -88,24 +89,20 @@ export function useLLMOperations() {
 
       console.log('Received direct LLM query response:', response);
 
-      // 最適化された会話履歴の処理
+      // 最適化された会話履歴の処理（非ストリーミングモード）
       if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
-        console.log('Using optimized conversation history from the server:', 
+        console.log('Received optimized conversation history from server:', 
           response.optimized_conversation_history.length, 'messages');
 
-        replaceWithOptimizedHistory(response.optimized_conversation_history);
-
-        // 最後のメッセージが assistant でない場合、応答メッセージを追加
-        const lastMsg = response.optimized_conversation_history[response.optimized_conversation_history.length - 1];
-        if (lastMsg.role !== 'assistant') {
-          console.log('Direct query: Last message is not from assistant, adding response content');
-          addAssistantMessage(response.content);
-        }
-      } else {
-        // 最適化された会話履歴がない場合は、応答メッセージを追加
-        console.log('No optimized history in direct query, adding assistant message directly');
-        addAssistantMessage(response.content);
+        // 非ストリーミングモードでは最適化履歴を内部的に保存のみ（UI表示は維持）
+        saveOptimizedHistory(response.optimized_conversation_history);
+        
+        console.log('Optimization saved for next request, keeping current UI messages');
       }
+      
+      // 非ストリーミングモードでは常にアシスタントメッセージを追加
+      console.log('Adding assistant response to UI');
+      addAssistantMessage(response.content);
 
       return response;
     });
@@ -219,11 +216,14 @@ export function useLLMOperations() {
         assistantMessage.toolResults = response.tool_execution_results || undefined;
       }
       
-      // 最適化された会話履歴があれば更新（MCPツール使用時は慎重に処理）
-      if (response.optimized_conversation_history) {
-        console.log('🗂️ Server provided optimized conversation history for MCP tools');
-        console.log('🗂️ Keeping current UI messages, optimization will be applied transparently in next request');
-        // MCPツール使用時は現在のUI表示を維持し、最適化は次回のリクエスト時に透過的に適用
+      // 最適化された会話履歴があれば保存（MCPツール使用時は透過的に処理）
+      if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
+        console.log('🗂️ Received optimized conversation history for MCP tools:', response.optimized_conversation_history.length, 'messages');
+        
+        // 最適化履歴を保存して次回リクエストで使用（UI表示は現在のものを維持）
+        saveOptimizedHistory(response.optimized_conversation_history);
+        
+        console.log('🗂️ Optimization saved for next request, keeping current UI messages');
       }
       
       console.log('Message with MCP tools sent successfully');

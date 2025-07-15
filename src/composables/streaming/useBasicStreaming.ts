@@ -16,7 +16,8 @@ export function useBasicStreaming(
   addUserMessage: (content: string) => ClientMessage,
   addAssistantMessage: (content: string) => ClientMessage,
   addSystemMessage: (content: string) => ClientMessage,
-  generateMessageId: () => string
+  generateMessageId: () => string,
+  getConversationHistory: () => any[]
 ): BasicStreamingOperations {
   const documentStore = useDocumentStore()
   const llmConfig = getLLMConfig()
@@ -44,12 +45,8 @@ export function useBasicStreaming(
       const path = documentStore.currentPath || defaultConfig.path
       const ref = documentStore.currentRef || defaultConfig.ref
       
-      // 会話履歴の準備（クライアントメッセージをAPIの形式に変換）
-      const conversationHistory = messages.value.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp.toISOString()
-      }))
+      // 会話履歴の準備（最適化履歴を優先使用）
+      const conversationHistory = getConversationHistory()
       
       console.log('Sending streaming chat message with conversation history:', conversationHistory.length, 'messages')
       

@@ -25,6 +25,7 @@ export function useStreamingWithTools(
   addUserMessage: (content: string) => ClientMessage,
   addAssistantMessage: (content: string) => ClientMessage,
   addSystemMessage: (content: string) => ClientMessage,
+  getConversationHistory: () => any[],
   mcpToolsConfig: Ref<any>,
   shouldUseMCPTools: (content: string, autoDetect: boolean) => { recommended: boolean; reasons: string[] },
   activeToolExecutions: Ref<any[]>,
@@ -97,12 +98,8 @@ export function useStreamingWithTools(
         throw new Error('ドキュメントが選択されていません')
       }
       
-      // 会話履歴を構築
-      const conversationHistory: MessageItem[] = messages.value.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp.toISOString()
-      }))
+      // 会話履歴を構築（最適化履歴を優先使用）
+      const conversationHistory = getConversationHistory()
       
       // 新しいバックエンド仕様に合わせた処理を開始
       console.log('🌊🛠️ Preparing streaming MCP tools request:', {

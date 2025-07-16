@@ -9,6 +9,7 @@ import { useAsyncOperation } from '@/composables/useAsyncOperation';
 import { useMessageManagement } from '@/composables/useMessageManagement';
 import { useDocumentContext } from '@/composables/useDocumentContext';
 import { useMCPTools } from '@/composables/useMCPTools';
+import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { getLLMConfig } from '@/utils/config.util';
 import type { components } from '@/services/api/types.auto';
 import type { DocumentContextConfig } from '@/utils/config.util';
@@ -21,11 +22,15 @@ export function useLLMOperations() {
   // 設定を取得
   const llmConfig = getLLMConfig();
   
-  // 依存する composables
+  // ストアから統一されたメッセージ操作を取得
+  const assistantStore = useDocumentAssistantStore();
+  
+  // デバッグ: ストアメソッドの確認
+  console.log('assistantStore methods:', Object.keys(assistantStore));
+  console.log('addUserMessage type:', typeof assistantStore.addUserMessage);
+  
+  // その他の必要なメソッドはuseMessageManagementから取得（読み取り専用操作）
   const { 
-    addUserMessage, 
-    addAssistantMessage, 
-    addSystemMessage, 
     getConversationHistory,
     replaceWithOptimizedHistory,
     saveOptimizedHistory
@@ -67,7 +72,7 @@ export function useLLMOperations() {
       }
 
       // ユーザープロンプトを追加（UIに表示用）
-      addUserMessage(prompt);
+      assistantStore.addUserMessage(prompt);
 
       // 会話履歴の準備
       const conversationHistory = options?.includeHistory !== false 
@@ -104,7 +109,7 @@ export function useLLMOperations() {
       console.log('Adding assistant response to UI');
       console.log('Response content length:', response.content?.length);
       console.log('Response content preview:', response.content?.substring(0, 100));
-      addAssistantMessage(response.content);
+      assistantStore.addAssistantMessage(response.content);
 
       return response;
     });
@@ -141,7 +146,7 @@ export function useLLMOperations() {
       }
 
       // ユーザーメッセージを追加
-      addUserMessage(content);
+      assistantStore.addUserMessage(content);
       
       // ツール使用の判定
       const toolRecommendation = shouldUseMCPTools(content, mcpToolsConfig.value.autoDetect);
@@ -200,19 +205,21 @@ export function useLLMOperations() {
           });
         }
       } else {
-        // 通常のクエリを送信
-        response = await llmService.query({
+        // ツール設定に基づいてクエリを送信
+        response = await llmService.queryWithTools({
           prompt: content,
           provider: llmConfig.defaultProvider,
           model: llmConfig.defaultModel,
           conversationHistory,
           includeDocument: true,
-          systemPrompt: documentContext
+          enableTools: useTools,
+          toolChoice: toolChoice,
+          completeToolFlow: mcpToolsConfig.value.completeToolFlow
         }, currentDocument.value!);
       }
       
       // アシスタントメッセージを追加（ツール情報も含む）
-      const assistantMessage = addAssistantMessage(response.content);
+      const assistantMessage = assistantStore.addAssistantMessage(response.content);
       if (useTools && (response.tool_calls || response.tool_execution_results)) {
         assistantMessage.toolCalls = response.tool_calls || undefined;
         assistantMessage.toolResults = response.tool_execution_results || undefined;

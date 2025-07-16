@@ -4,7 +4,7 @@
  * 分散していたLLM関連機能を統合し、新しいバックエンド仕様に対応した統一サービス
  */
 import apiClient from '.';
-import { shouldUseMockApi } from '../../utils/config.util';
+import { shouldUseMockApi, getAppDefaultsConfig } from '../../utils/config.util';
 import { LLMRequestBuilder } from './builders/llm-request.builder';
 import type { components } from './types.auto';
 
@@ -78,10 +78,11 @@ class LLMService {
     options: LLMToolsOptions,
     document?: DocumentResponse
   ): Promise<LLMResponse> {
+    const appDefaults = getAppDefaultsConfig();
     const request = this.buildRequest(options, document, { 
-      enableTools: options.enableTools ?? true,
+      enableTools: options.enableTools ?? appDefaults.toolsEnabled,
       toolChoice: options.toolChoice,
-      completeToolFlow: options.completeToolFlow
+      completeToolFlow: options.completeToolFlow ?? appDefaults.toolsEnabled
     });
     
     if (shouldUseMockApi()) {
@@ -100,10 +101,11 @@ class LLMService {
     document: DocumentResponse | undefined,
     callbacks: StreamingCallbacks
   ): Promise<void> {
+    const appDefaults = getAppDefaultsConfig();
     const request = this.buildRequest(options, document, {
-      enableTools: options.enableTools ?? true,
+      enableTools: options.enableTools ?? appDefaults.toolsEnabled,
       toolChoice: options.toolChoice,
-      completeToolFlow: options.completeToolFlow
+      completeToolFlow: options.completeToolFlow ?? appDefaults.toolsEnabled
     });
 
     if (shouldUseMockApi()) {

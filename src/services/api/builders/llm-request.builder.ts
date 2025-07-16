@@ -5,7 +5,7 @@
  */
 import type { components } from '../types.auto';
 import type { DocumentResponse } from '../types';
-import { getLLMConfig, getDefaultsConfig } from '@/utils/config.util';
+import { getLLMConfig, getDefaultsConfig, getAppDefaultsConfig } from '@/utils/config.util';
 
 // 型エイリアスを作成
 type LLMQueryRequest = components['schemas']['LLMQueryRequest'];
@@ -80,9 +80,11 @@ export class LLMRequestBuilder {
     choice?: string;
     completeFlow?: boolean;
   }): LLMRequestBuilder {
-    this.options.enableTools = config.enabled ?? true;
-    this.options.toolChoice = config.choice ?? 'auto';
-    this.options.completeToolFlow = config.completeFlow ?? true;
+    const appDefaults = getAppDefaultsConfig();
+    const llmConfig = getLLMConfig();
+    this.options.enableTools = config.enabled ?? appDefaults.toolsEnabled;
+    this.options.toolChoice = config.choice ?? llmConfig.defaultToolChoice;
+    this.options.completeToolFlow = config.completeFlow ?? appDefaults.toolsEnabled;
     return this;
   }
 
@@ -155,10 +157,11 @@ export class LLMRequestBuilder {
     };
 
     // Tool configuration (オプショナル)
+    const appDefaults = getAppDefaultsConfig();
     const tools: ToolConfiguration | undefined = this.options.enableTools ? {
       enable_tools: this.options.enableTools,
       tool_choice: this.options.toolChoice || llmConfig.defaultToolChoice,
-      complete_tool_flow: this.options.completeToolFlow ?? true
+      complete_tool_flow: this.options.completeToolFlow ?? appDefaults.toolsEnabled
     } : undefined;
 
     // Document context (オプショナル)
@@ -242,13 +245,14 @@ export const LLMRequestPresets = {
    */
   documentChatWithTools: (prompt: string, document: DocumentResponse, history?: MessageItem[]) => {
     const llmConfig = getLLMConfig();
+    const appDefaults = getAppDefaultsConfig();
     return LLMRequestBuilder
       .create()
       .prompt(prompt)
       .provider(llmConfig.defaultProvider, llmConfig.defaultModel)
       .withHistory(history || [])
       .withDocument(document)
-      .withTools({ enabled: true, choice: llmConfig.defaultToolChoice });
+      .withTools({ enabled: appDefaults.toolsEnabled, choice: llmConfig.defaultToolChoice });
   },
 
   /**
@@ -268,13 +272,14 @@ export const LLMRequestPresets = {
    */
   streamingRequest: (prompt: string, document: DocumentResponse, history: MessageItem[]) => {
     const llmConfig = getLLMConfig();
+    const appDefaults = getAppDefaultsConfig();
     return LLMRequestBuilder
       .create()
       .prompt(prompt)
       .provider(llmConfig.defaultProvider, llmConfig.defaultModel)
       .withHistory(history)
       .withDocument(document)
-      .withTools({ enabled: true, choice: llmConfig.defaultToolChoice })
+      .withTools({ enabled: appDefaults.toolsEnabled, choice: llmConfig.defaultToolChoice })
       .withProcessing({ disableCache: false });
   }
 };

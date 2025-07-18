@@ -62,7 +62,7 @@
       </div>
     </div>
     
-    <div v-if="isLoading" class="chat-loading">
+    <div v-if="isLoading || (messages.length > 0 && messages[messages.length - 1].role === 'user')" class="chat-loading">
       <ProgressSpinner style="width: 30px; height: 30px" />
       <span>応答を生成中...</span>
     </div>

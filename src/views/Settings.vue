@@ -527,6 +527,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background-color: var(--app-surface-50);
+  overflow-y: auto;
 }
 
 .settings-content {

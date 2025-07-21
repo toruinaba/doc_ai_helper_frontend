@@ -4,7 +4,9 @@
       <Textarea 
         v-model="newMessage" 
         placeholder="ドキュメントについて質問する..." 
-        @keydown.enter.exact.prevent="sendMessage"
+        @keydown="handleKeyDown"
+        @compositionstart="handleCompositionStart"
+        @compositionend="handleCompositionEnd"
         :disabled="isLoading"
         rows="3"
         autoResize
@@ -60,6 +62,7 @@ const settings = loadSettings();
 
 // ローカル状態
 const newMessage = ref('');
+const isComposing = ref(false); // IME入力中かどうか
 
 /**
  * メッセージ送信
@@ -77,6 +80,31 @@ function sendMessage() {
 
   // メッセージをクリア
   newMessage.value = '';
+}
+
+/**
+ * キーダウンハンドラー - IME入力を考慮してEnterキーを処理
+ */
+function handleKeyDown(event: KeyboardEvent) {
+  // Enterキーが押され、Shiftキーは押されておらず、IME入力中でない場合にメッセージ送信
+  if (event.key === 'Enter' && !event.shiftKey && !isComposing.value) {
+    event.preventDefault();
+    sendMessage();
+  }
+}
+
+/**
+ * IME入力開始ハンドラー
+ */
+function handleCompositionStart() {
+  isComposing.value = true;
+}
+
+/**
+ * IME入力終了ハンドラー
+ */
+function handleCompositionEnd() {
+  isComposing.value = false;
 }
 
 </script>

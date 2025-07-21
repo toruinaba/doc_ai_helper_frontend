@@ -6,7 +6,16 @@
         <h1 class="app-title">ドキュメントAIヘルパー</h1>
       </div>
       <div class="app-menu">
-        <!-- ここに将来的にメニューアイテムなどを追加 -->
+        <nav class="navigation">
+          <router-link to="/" class="nav-link">
+            <i class="pi pi-home"></i>
+            <span>ホーム</span>
+          </router-link>
+          <router-link to="/repositories" class="nav-link">
+            <i class="pi pi-folder"></i>
+            <span>リポジトリ管理</span>
+          </router-link>
+        </nav>
       </div>
     </header>
 
@@ -87,6 +96,32 @@ onMounted(() => {
   font-size: 1.2rem;
   font-weight: 500;
   margin: 0;
+}
+
+.navigation {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.router-link-active {
+  background-color: rgba(255, 255, 255, 0.2);
+  font-weight: 500;
 }
 
 .app-content {

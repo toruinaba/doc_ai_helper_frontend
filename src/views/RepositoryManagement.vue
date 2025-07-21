@@ -43,9 +43,10 @@
 
     <!-- リポジトリフォーム -->
     <RepositoryForm
-      v-model:visible="showForm"
+      :visible="showForm"
       :repository="selectedRepository"
       :isSubmitting="isSubmitting"
+      @update:visible="showForm = $event"
       @submit="handleSubmitRepository"
       @cancel="handleCancelForm"
     />
@@ -55,11 +56,14 @@
 
     <!-- 詳細情報ダイアログ -->
     <Dialog
-      v-model:visible="showDetails"
+      :visible="showDetails"
       header="リポジトリ詳細"
       :modal="true"
       :draggable="false"
+      :blockScroll="true"
+      appendTo="body"
       class="repository-details-dialog"
+      @update:visible="showDetails = $event"
     >
       <div v-if="selectedRepository" class="repository-details">
         <div class="detail-section">

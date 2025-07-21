@@ -1,11 +1,14 @@
 <template>
   <Dialog 
-    v-model:visible="visible" 
+    :visible="visible" 
     :header="isEdit ? 'リポジトリ編集' : '新規リポジトリ追加'"
     :modal="true"
     :closable="true"
     :draggable="false"
+    :blockScroll="true"
+    appendTo="body"
     class="repository-form-dialog"
+    @update:visible="$emit('update:visible', $event)"
     @hide="handleCancel"
   >
     <form @submit.prevent="handleSubmit" class="repository-form">
@@ -444,6 +447,17 @@ function resetForm() {
 .repository-form-dialog {
   width: 90vw;
   max-width: 600px;
+}
+
+// モーダルスタイルはApp.vueのグローバルスタイルで定義済み
+// フォーム特有のスタイリング
+:global(.repository-form-dialog) {
+  z-index: 1001 !important;
+  
+  .p-dialog {
+    background: white !important;
+    border: 1px solid #e5e7eb;
+  }
 }
 
 .repository-form {

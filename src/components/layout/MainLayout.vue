@@ -70,18 +70,35 @@ const repositoryStore = useRepositoryStore();
 // イベントハンドラー
 function onRepositoryChange(repository: RepositoryResponse | null) {
   console.log('Repository changed:', repository);
-  // リポジトリが変更された場合の処理
-  // 必要に応じて追加のロジックを実装
+  if (repository) {
+    // 新しいリポジトリが選択された場合、現在のドキュメントパスをクリア
+    documentStore.currentPath = '';
+    
+    // リポジトリのデフォルトドキュメントを読み込む可能性がある場合
+    // デフォルトパス（例：README.md）を設定
+    const defaultPath = repository.root_path ? 
+      `${repository.root_path}/README.md` : 
+      'README.md';
+    
+    // ドキュメントの存在確認後に読み込み（オプション）
+    // documentStore.fetchDocument(defaultPath);
+  }
 }
 
 function onBranchChange(branch: string) {
   console.log('Branch changed:', branch);
-  // ブランチが変更された場合の処理
+  // ブランチが変更された場合、現在のパスで再読み込み
+  if (documentStore.currentPath) {
+    documentStore.fetchDocument(documentStore.currentPath);
+  }
 }
 
 function onPathChange(path: string) {
   console.log('Path changed:', path);
-  // パスが変更された場合の処理
+  // パスが変更された場合、ドキュメントを読み込み
+  if (path.trim()) {
+    documentStore.fetchDocument(path);
+  }
 }
 
 // コンポーネントマウント時の処理

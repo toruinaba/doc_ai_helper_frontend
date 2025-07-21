@@ -19,7 +19,7 @@
           <DocumentViewer />
         </SplitterPanel>
         <SplitterPanel :size="30" :minSize="20">
-          <ChatInterface />
+          <DocumentAssistantInterface />
         </SplitterPanel>
       </Splitter>
     </main>
@@ -36,7 +36,7 @@
 import { onMounted } from 'vue';
 import DocumentViewer from '@/components/document/DocumentViewer.vue';
 import RepositoryNavigator from '@/components/repository/RepositoryNavigator.vue';
-import ChatInterface from '@/components/chat/ChatInterface.vue';
+import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue';
 import Splitter from 'primevue/splitter';
 import SplitterPanel from 'primevue/splitterpanel';
 import { useDocumentStore } from '@/stores/document.store';

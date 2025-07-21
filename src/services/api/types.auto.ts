@@ -84,58 +84,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/repositories/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List repositories
-         * @description List all repositories
-         */
-        get: operations["list_repositories_api_v1_repositories__get"];
-        put?: never;
-        /**
-         * Create repository
-         * @description Create a new repository
-         */
-        post: operations["create_repository_api_v1_repositories__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/repositories/{repository_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get repository
-         * @description Get repository by ID
-         */
-        get: operations["get_repository_api_v1_repositories__repository_id__get"];
-        /**
-         * Update repository
-         * @description Update repository by ID
-         */
-        put: operations["update_repository_api_v1_repositories__repository_id__put"];
-        post?: never;
-        /**
-         * Delete repository
-         * @description Delete repository by ID
-         */
-        delete: operations["delete_repository_api_v1_repositories__repository_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/search/{service}/{owner}/{repo}": {
         parameters: {
             query?: never;
@@ -188,6 +136,46 @@ export interface paths {
          * @description Get the capabilities of the configured LLM provider
          */
         get: operations["get_capabilities_api_v1_llm_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get provider information
+         * @description Get information about available LLM providers and their status
+         */
+        get: operations["get_provider_info_api_v1_llm_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/providers/{provider_name}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get specific provider status
+         * @description Get detailed status information for a specific provider
+         */
+        get: operations["get_provider_status_api_v1_llm_providers__provider_name__status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -301,6 +289,35 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * CoreQueryRequest
+         * @description Essential query parameters for LLM requests.
+         *
+         *     This model contains only the fundamental parameters needed for any LLM query.
+         */
+        CoreQueryRequest: {
+            /**
+             * Prompt
+             * @description The prompt to send to the LLM
+             */
+            prompt: string;
+            /**
+             * Provider
+             * @description LLM provider to use (e.g., openai, anthropic)
+             * @default openai
+             */
+            provider: string;
+            /**
+             * Model
+             * @description Specific model to use (if None, default for provider is used)
+             */
+            model?: string | null;
+            /**
+             * Conversation History
+             * @description Previous messages in the conversation for context
+             */
+            conversation_history?: components["schemas"]["MessageItem"][] | null;
+        };
+        /**
          * DocumentContent
          * @description Document content model.
          */
@@ -316,6 +333,29 @@ export interface components {
              * @default utf-8
              */
             encoding: string;
+        };
+        /**
+         * DocumentContext
+         * @description Document integration context for repository-aware queries.
+         *
+         *     This model groups all parameters related to document and repository context.
+         */
+        DocumentContext: {
+            /** @description Repository context from current document view */
+            repository_context?: components["schemas"]["RepositoryContext"] | null;
+            /** @description Metadata of currently displayed document */
+            document_metadata?: components["schemas"]["DocumentMetadata-Input"] | null;
+            /**
+             * Auto Include Document
+             * @description Whether to automatically fetch document content from repository_context and include in conversation history for initial requests
+             * @default true
+             */
+            auto_include_document: boolean;
+            /**
+             * Context Documents
+             * @description List of document paths to include in context
+             */
+            context_documents?: string[] | null;
         };
         /**
          * DocumentMetadata
@@ -546,13 +586,7 @@ export interface components {
          * @description Supported Git services.
          * @enum {string}
          */
-        GitService: "github" | "gitlab" | "bitbucket";
-        /**
-         * GitServiceType
-         * @description Git service type enum.
-         * @enum {string}
-         */
-        GitServiceType: "github" | "gitlab";
+        GitService: "github" | "gitlab" | "bitbucket" | "forgejo";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -560,82 +594,21 @@ export interface components {
         };
         /**
          * LLMQueryRequest
-         * @description Request model for LLM query.
+         * @description LLM query request with structured, grouped parameters.
+         *
+         *     This model provides a cleaner, more maintainable structure by grouping
+         *     related parameters into focused sub-models for better organization
+         *     and easier maintenance.
          */
         LLMQueryRequest: {
-            /**
-             * Prompt
-             * @description The prompt to send to the LLM
-             */
-            prompt: string;
-            /**
-             * Context Documents
-             * @description List of document paths to include in context
-             */
-            context_documents?: string[] | null;
-            /**
-             * Provider
-             * @description LLM provider to use (e.g., openai, anthropic)
-             * @default openai
-             */
-            provider: string;
-            /**
-             * Model
-             * @description Specific model to use (if None, default for provider is used)
-             */
-            model?: string | null;
-            /**
-             * Options
-             * @description Additional options for the LLM provider
-             */
-            options?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Disable Cache
-             * @description If True, bypass cache and always make a fresh API call
-             * @default false
-             */
-            disable_cache: boolean;
-            /**
-             * Conversation History
-             * @description Previous messages in the conversation for context
-             */
-            conversation_history?: components["schemas"]["MessageItem"][] | null;
-            /**
-             * Enable Tools
-             * @description Enable automatic function calling/tool execution
-             * @default false
-             */
-            enable_tools: boolean;
-            /**
-             * Tool Choice
-             * @description Tool selection strategy: auto, none, required, or specific function name
-             * @default auto
-             */
-            tool_choice: string | null;
-            /**
-             * Complete Tool Flow
-             * @description If True, use complete Function Calling flow (tool execution + LLM followup). If False, use legacy flow (direct tool results)
-             * @default true
-             */
-            complete_tool_flow: boolean;
-            /** @description Repository context from current document view */
-            repository_context?: components["schemas"]["RepositoryContext"] | null;
-            /** @description Metadata of currently displayed document */
-            document_metadata?: components["schemas"]["DocumentMetadata-Input"] | null;
-            /**
-             * Include Document In System Prompt
-             * @description Whether to include document content in system prompt
-             * @default true
-             */
-            include_document_in_system_prompt: boolean;
-            /**
-             * System Prompt Template
-             * @description Template ID for system prompt generation
-             * @default contextual_document_assistant_ja
-             */
-            system_prompt_template: string | null;
+            /** @description Core query parameters */
+            query: components["schemas"]["CoreQueryRequest"];
+            /** @description Tool/function calling configuration */
+            tools?: components["schemas"]["ToolConfiguration"] | null;
+            /** @description Document integration context */
+            document?: components["schemas"]["DocumentContext"] | null;
+            /** @description Processing and caching options */
+            processing?: components["schemas"]["ProcessingOptions"] | null;
         };
         /**
          * LLMResponse
@@ -841,6 +814,63 @@ export interface components {
          */
         MessageRole: "user" | "assistant" | "system";
         /**
+         * ProcessingOptions
+         * @description Processing and caching options for LLM requests.
+         *
+         *     This model groups parameters that control how the request is processed and cached.
+         */
+        ProcessingOptions: {
+            /**
+             * Disable Cache
+             * @description If True, bypass cache and always make a fresh API call
+             * @default false
+             */
+            disable_cache: boolean;
+            /**
+             * Options
+             * @description Additional options for the LLM provider
+             */
+            options?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ProviderCapabilities
+         * @description Capabilities of an LLM provider.
+         */
+        ProviderCapabilities: {
+            /**
+             * Available Models
+             * @description List of available models
+             */
+            available_models: string[];
+            /**
+             * Max Tokens
+             * @description Maximum tokens per model
+             */
+            max_tokens: {
+                [key: string]: number;
+            };
+            /**
+             * Supports Streaming
+             * @description Whether the provider supports streaming
+             * @default false
+             */
+            supports_streaming: boolean;
+            /**
+             * Supports Function Calling
+             * @description Whether the provider supports function calling
+             * @default false
+             */
+            supports_function_calling: boolean;
+            /**
+             * Supports Vision
+             * @description Whether the provider supports vision/images
+             * @default false
+             */
+            supports_vision: boolean;
+        };
+        /**
          * RepositoryContext
          * @description Repository context information from current document view.
          *
@@ -876,126 +906,6 @@ export interface components {
              * @description Base URL for the repository
              */
             base_url?: string | null;
-        };
-        /**
-         * RepositoryCreate
-         * @description Repository create model.
-         */
-        RepositoryCreate: {
-            /**
-             * Name
-             * @description Repository name
-             */
-            name: string;
-            /**
-             * Owner
-             * @description Repository owner
-             */
-            owner: string;
-            /** @description Git service type */
-            service_type: components["schemas"]["GitServiceType"];
-            /**
-             * Url
-             * Format: uri
-             * @description Repository URL
-             */
-            url: string;
-            /**
-             * Branch
-             * @description Default branch
-             * @default main
-             */
-            branch: string;
-            /**
-             * Description
-             * @description Repository description
-             */
-            description?: string | null;
-            /**
-             * Is Public
-             * @description Is repository public
-             * @default true
-             */
-            is_public: boolean;
-            /**
-             * Access Token
-             * @description Access token for private repositories
-             */
-            access_token?: string | null;
-            /**
-             * Metadata
-             * @description Repository metadata
-             * @default {}
-             */
-            metadata: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * RepositoryResponse
-         * @description Repository response model.
-         */
-        RepositoryResponse: {
-            /**
-             * Name
-             * @description Repository name
-             */
-            name: string;
-            /**
-             * Owner
-             * @description Repository owner
-             */
-            owner: string;
-            /** @description Git service type */
-            service_type: components["schemas"]["GitServiceType"];
-            /**
-             * Url
-             * Format: uri
-             * @description Repository URL
-             */
-            url: string;
-            /**
-             * Branch
-             * @description Default branch
-             * @default main
-             */
-            branch: string;
-            /**
-             * Description
-             * @description Repository description
-             */
-            description?: string | null;
-            /**
-             * Is Public
-             * @description Is repository public
-             * @default true
-             */
-            is_public: boolean;
-            /**
-             * Id
-             * @description Repository ID
-             */
-            id: number;
-            /**
-             * Created At
-             * Format: date-time
-             * @description Created datetime
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description Updated datetime
-             */
-            updated_at: string;
-            /**
-             * Metadata
-             * @description Repository metadata
-             * @default {}
-             */
-            metadata: {
-                [key: string]: unknown;
-            } | null;
         };
         /**
          * RepositoryStructureResponse
@@ -1036,56 +946,6 @@ export interface components {
             last_updated: string;
         };
         /**
-         * RepositoryUpdate
-         * @description Repository update model.
-         */
-        RepositoryUpdate: {
-            /**
-             * Name
-             * @description Repository name
-             */
-            name?: string | null;
-            /**
-             * Owner
-             * @description Repository owner
-             */
-            owner?: string | null;
-            /** @description Git service type */
-            service_type?: components["schemas"]["GitServiceType"] | null;
-            /**
-             * Url
-             * @description Repository URL
-             */
-            url?: string | null;
-            /**
-             * Branch
-             * @description Default branch
-             */
-            branch?: string | null;
-            /**
-             * Description
-             * @description Repository description
-             */
-            description?: string | null;
-            /**
-             * Is Public
-             * @description Is repository public
-             */
-            is_public?: boolean | null;
-            /**
-             * Access Token
-             * @description Access token for private repositories
-             */
-            access_token?: string | null;
-            /**
-             * Metadata
-             * @description Repository metadata
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
          * SearchQuery
          * @description Search query model.
          */
@@ -1107,23 +967,6 @@ export interface components {
              * @default 0
              */
             offset: number;
-            /**
-             * File Extensions
-             * @description Filter by file extensions
-             */
-            file_extensions?: string[] | null;
-            /**
-             * Path Prefix
-             * @description Filter by path prefix
-             */
-            path_prefix?: string | null;
-            /**
-             * Metadata Filters
-             * @description Filter by metadata
-             */
-            metadata_filters?: {
-                [key: string]: unknown;
-            } | null;
         };
         /**
          * SearchResponse
@@ -1236,6 +1079,32 @@ export interface components {
             function: components["schemas"]["FunctionCall"];
         };
         /**
+         * ToolConfiguration
+         * @description Configuration for tool/function calling capabilities.
+         *
+         *     This model groups all parameters related to LLM tool execution and function calling.
+         */
+        ToolConfiguration: {
+            /**
+             * Enable Tools
+             * @description Enable automatic function calling/tool execution
+             * @default false
+             */
+            enable_tools: boolean;
+            /**
+             * Tool Choice
+             * @description Tool selection strategy: auto, none, required, or specific function name
+             * @default auto
+             */
+            tool_choice: string | null;
+            /**
+             * Complete Tool Flow
+             * @description If True, use complete Function Calling flow (tool execution + LLM followup). If False, use legacy flow (direct tool results)
+             * @default true
+             */
+            complete_tool_flow: boolean;
+        };
+        /**
          * ToolParameter
          * @description Parameter definition for an MCP tool.
          */
@@ -1339,7 +1208,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description Git service (github, gitlab, etc.) */
+                /** @description Git service (github, forgejo, mock) */
                 service: string;
                 /** @description Repository owner */
                 owner: string;
@@ -1382,7 +1251,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description Git service (github, gitlab, etc.) */
+                /** @description Git service (github, forgejo, mock) */
                 service: string;
                 /** @description Repository owner */
                 owner: string;
@@ -1401,171 +1270,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RepositoryStructureResponse"];
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_repositories_api_v1_repositories__get: {
-        parameters: {
-            query?: {
-                /** @description Number of repositories to skip */
-                skip?: number;
-                /** @description Maximum number of repositories to return */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepositoryResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_repository_api_v1_repositories__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RepositoryCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepositoryResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_repository_api_v1_repositories__repository_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Repository ID */
-                repository_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepositoryResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_repository_api_v1_repositories__repository_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Repository ID */
-                repository_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RepositoryUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepositoryResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_repository_api_v1_repositories__repository_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Repository ID */
-                repository_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1653,10 +1357,7 @@ export interface operations {
     };
     get_capabilities_api_v1_llm_capabilities_get: {
         parameters: {
-            query?: {
-                /** @description LLM provider to check capabilities for */
-                provider?: string | null;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -1669,7 +1370,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ProviderCapabilities"];
+                };
+            };
+        };
+    };
+    get_provider_info_api_v1_llm_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_provider_status_api_v1_llm_providers__provider_name__status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Name of the provider to check */
+                provider_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { useChatStore } from '@/stores/chat.store';
+import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { useDocumentStore } from '@/stores/document.store';
 import type { DocumentResponse, LLMQueryRequest } from '@/services/api/types';
 
@@ -49,12 +49,12 @@ vi.mock('@/services/api/modules', () => ({
 }));
 
 describe('新しいバックエンド仕様対応テスト', () => {
-  let chatStore: ReturnType<typeof useChatStore>;
+  let assistantStore: ReturnType<typeof useDocumentAssistantStore>;
   let documentStore: ReturnType<typeof useDocumentStore>;
 
   beforeEach(() => {
     setActivePinia(createPinia());
-    chatStore = useChatStore();
+    assistantStore = useDocumentAssistantStore();
     documentStore = useDocumentStore();
     
     // モックのリセット
@@ -72,7 +72,7 @@ describe('新しいバックエンド仕様対応テスト', () => {
     documentStore.currentDocument = mockDocument;
 
     // メッセージ送信
-    await chatStore.sendMessageWithConfig('このドキュメントについて教えて');
+    await assistantStore.sendMessageWithConfig('このドキュメントについて教えて');
 
     // LLMクエリが正しく呼ばれたことを確認
     expect(mockLLMQuery).toHaveBeenCalledWith(
@@ -103,10 +103,10 @@ describe('新しいバックエンド仕様対応テスト', () => {
     documentStore.currentDocument = mockDocument;
 
     // カスタム設定でメッセージ送信
-    await chatStore.sendMessageWithConfig('コード解析をして', {
-      systemPromptTemplate: 'code_analysis_assistant',
-      includeDocumentInSystemPrompt: false,
-      enableRepositoryContext: false
+    await assistantStore.sendMessageWithConfig('コード解析をして', {
+      provider: 'openai',
+      model: 'gpt-4',
+      includeHistory: true
     });
 
     // 設定が正しく適用されたことを確認
@@ -123,28 +123,28 @@ describe('新しいバックエンド仕様対応テスト', () => {
 
   it('会話履歴が正しく構築される', async () => {
     // 複数のメッセージを送信
-    chatStore.addUserMessage('最初の質問');
-    chatStore.addAssistantMessage('最初の回答');
+    assistantStore.addUserMessage('最初の質問');
+    assistantStore.addAssistantMessage('最初の回答');
     
     documentStore.currentDocument = mockDocument;
-    await chatStore.sendMessageWithConfig('続きの質問');
+    await assistantStore.sendMessageWithConfig('続きの質問');
 
-    // 会話履歴が含まれていることを確認
+    // 会話履歴が含まれていることを確認 (新しい階層構造)
     const callArgs = mockLLMQuery.mock.calls[0][0] as LLMQueryRequest;
-    expect(callArgs.conversation_history).toHaveLength(3); // システム + ユーザー + アシスタント + 新しいユーザー
-    expect(callArgs.conversation_history![0].role).toBe('user');
-    expect(callArgs.conversation_history![0].content).toBe('最初の質問');
-    expect(callArgs.conversation_history![1].role).toBe('assistant');
-    expect(callArgs.conversation_history![1].content).toBe('最初の回答');
-    expect(callArgs.conversation_history![2].role).toBe('user');
-    expect(callArgs.conversation_history![2].content).toBe('続きの質問');
+    expect(callArgs.query.conversation_history).toHaveLength(3); // システム + ユーザー + アシスタント + 新しいユーザー
+    expect(callArgs.query.conversation_history![0].role).toBe('user');
+    expect(callArgs.query.conversation_history![0].content).toBe('最初の質問');
+    expect(callArgs.query.conversation_history![1].role).toBe('assistant');
+    expect(callArgs.query.conversation_history![1].content).toBe('最初の回答');
+    expect(callArgs.query.conversation_history![2].role).toBe('user');
+    expect(callArgs.query.conversation_history![2].content).toBe('続きの質問');
   });
 
   it('ドキュメントがない場合のコンテキスト処理', async () => {
     // ドキュメントストアを空に設定
     documentStore.currentDocument = null;
 
-    await chatStore.sendMessageWithConfig('一般的な質問');
+    await assistantStore.sendMessageWithConfig('一般的な質問');
 
     // ドキュメント関連のコンテキストがnullになることを確認
     expect(mockLLMQuery).toHaveBeenCalledWith(

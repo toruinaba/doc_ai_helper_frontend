@@ -43,112 +43,53 @@ export interface LinkInfo {
 export type DocumentResponse = components["schemas"]["DocumentResponse"];
 
 // リポジトリ構造関連の型定義
-export interface FileTreeItem {
-  path: string;
-  name: string;
-  type: string; // 'file' または 'directory'
-  size?: number | null;
-  sha?: string | null;
-  download_url?: string | null;
-  html_url?: string | null;
-  git_url?: string | null;
-  children?: FileTreeItem[]; // ディレクトリの場合の子要素
-}
+// FileTreeItem: 自動生成版を使用
+export type FileTreeItem = components["schemas"]["FileTreeItem"];
 
-export interface RepositoryStructureResponse {
-  service: string;
-  owner: string;
-  repo: string;
-  ref?: string;
-  tree: FileTreeItem[];
-  last_updated: string;
-}
+// RepositoryStructureResponse: 自動生成版を使用
+export type RepositoryStructureResponse = components["schemas"]["RepositoryStructureResponse"];
 
-// リポジトリ関連の型定義
-export enum GitServiceType {
-  GitHub = "github",
-  GitLab = "gitlab"
-}
+// リポジトリ関連の型定義 - Fallback definitions
+export type GitServiceType = 'github' | 'gitlab' | 'bitbucket' | 'mock';
 
 export interface RepositoryCreate {
   name: string;
   owner: string;
-  service_type: GitServiceType;
-  url: string;
-  branch?: string;
-  description?: string | null;
-  is_public?: boolean;
-  access_token?: string | null;
-  metadata?: Record<string, any> | null;
+  service: GitServiceType;
+  description?: string;
 }
 
 export interface RepositoryResponse {
+  id: number;
   name: string;
   owner: string;
-  service_type: GitServiceType;
-  url: string;
-  branch?: string;
-  description?: string | null;
-  is_public?: boolean;
-  id: number;
+  service: GitServiceType;
+  description?: string;
   created_at: string;
   updated_at: string;
-  metadata?: Record<string, any> | null;
 }
 
 export interface RepositoryUpdate {
-  name?: string | null;
-  owner?: string | null;
-  service_type?: GitServiceType | null;
-  url?: string | null;
-  branch?: string | null;
-  description?: string | null;
-  is_public?: boolean | null;
-  access_token?: string | null;
-  metadata?: Record<string, any> | null;
+  name?: string;
+  description?: string;
 }
 
 // 検索関連の型定義
-export interface SearchQuery {
-  query: string;
-  limit?: number;
-  offset?: number;
-  file_extensions?: string[] | null;
-  path_prefix?: string | null;
-  metadata_filters?: Record<string, any> | null;
-}
+// SearchQuery: 自動生成版を使用
+export type SearchQuery = components["schemas"]["SearchQuery"];
 
-export interface SearchResultItem {
-  path: string;
-  name: string;
-  type: string;
-  repository: string;
-  owner: string;
-  service: string;
-  score: number;
-  highlight?: string | null;
-  metadata?: Record<string, any> | null;
-}
+// SearchResultItem: 自動生成版を使用
+export type SearchResultItem = components["schemas"]["SearchResultItem"];
 
-export interface SearchResponse {
-  total: number;
-  offset: number;
-  limit: number;
-  query: string;
-  results: SearchResultItem[];
-  execution_time_ms: number;
-}
+// SearchResponse: 自動生成版を使用
+export type SearchResponse = components["schemas"]["SearchResponse"];
 
 // バリデーションエラー関連の型定義
-export interface ValidationError {
-  loc: (string | number)[];
-  msg: string;
-  type: string;
-}
+// ValidationError: 自動生成版を使用
+export type ValidationError = components["schemas"]["ValidationError"];
 
-export interface HTTPValidationError {
-  detail: ValidationError[];
-}
+// HTTPValidationError: 自動生成版を使用
+export type HTTPValidationError = components["schemas"]["HTTPValidationError"];
 
 // LLMクエリ関連の型定義
 // MessageItem: 自動生成版を使用
@@ -187,11 +128,7 @@ export interface StreamingLLMResponse {
     error?: string;                // エラーイベントの場合、エラーメッセージ
     model?: string;                // 開始イベントの場合、使用されるモデル
     provider?: string;             // 開始イベントの場合、プロバイダー
-    usage?: {                      // 終了イベントの場合、トークン使用情報
-      prompt_tokens: number;
-      completion_tokens: number;
-      total_tokens: number;
-    };
+    usage?: components["schemas"]["LLMUsage"]; // 終了イベントの場合、トークン使用情報
     optimized_conversation_history?: MessageItem[]; // 終了イベントの場合、最適化された会話履歴
     tool_calls?: ToolCall[];       // ツール呼び出し情報（MCPツール機能）
     tool_execution_results?: Record<string, any>[]; // ツール実行結果（MCPツール機能）

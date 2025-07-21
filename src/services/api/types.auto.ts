@@ -284,6 +284,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Repositories
+         * @description List repositories with pagination.
+         *
+         *     Args:
+         *         skip: Number of records to skip (default: 0)
+         *         limit: Maximum number of records to return (default: 100, max: 1000)
+         *         repository_service: Repository service dependency
+         *
+         *     Returns:
+         *         List of repository responses
+         *
+         *     Raises:
+         *         HTTPException: If feature is disabled or operation fails
+         */
+        get: operations["list_repositories_api_v1_repositories__get"];
+        put?: never;
+        /**
+         * Create Repository
+         * @description Create a new repository.
+         *
+         *     Args:
+         *         repository_data: Repository creation data
+         *         repository_service: Repository service dependency
+         *
+         *     Returns:
+         *         Created repository response
+         *
+         *     Raises:
+         *         HTTPException: If feature is disabled or creation fails
+         */
+        post: operations["create_repository_api_v1_repositories__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{repository_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Repository
+         * @description Get repository by ID.
+         *
+         *     The returned RepositoryResponse supports the delegation pattern via
+         *     create_context() method for LLM integration.
+         *
+         *     Args:
+         *         repository_id: Repository ID
+         *         repository_service: Repository service dependency
+         *
+         *     Returns:
+         *         Repository response with delegation pattern support
+         *
+         *     Raises:
+         *         HTTPException: If feature is disabled, repository not found, or operation fails
+         */
+        get: operations["get_repository_api_v1_repositories__repository_id__get"];
+        /**
+         * Update Repository
+         * @description Update repository.
+         *
+         *     Args:
+         *         repository_id: Repository ID
+         *         updates: Repository update data
+         *         repository_service: Repository service dependency
+         *
+         *     Returns:
+         *         Updated repository response
+         *
+         *     Raises:
+         *         HTTPException: If feature is disabled, repository not found, or update fails
+         */
+        put: operations["update_repository_api_v1_repositories__repository_id__put"];
+        post?: never;
+        /**
+         * Delete Repository
+         * @description Delete repository.
+         *
+         *     Args:
+         *         repository_id: Repository ID
+         *         repository_service: Repository service dependency
+         *
+         *     Raises:
+         *         HTTPException: If feature is disabled, repository not found, or deletion fails
+         */
+        delete: operations["delete_repository_api_v1_repositories__repository_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{repository_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Repository Context
+         * @description Generate RepositoryContext from repository (convenience endpoint).
+         *
+         *     This endpoint demonstrates the delegation pattern where a RepositoryResponse
+         *     can create RepositoryContext instances for LLM integration.
+         *
+         *     Args:
+         *         repository_id: Repository ID
+         *         ref: Branch/tag reference (optional, defaults to repository's default_branch)
+         *         current_path: Current document path (optional)
+         *         repository_service: Repository service dependency
+         *
+         *     Returns:
+         *         RepositoryContext instance ready for LLM queries
+         *
+         *     Raises:
+         *         HTTPException: If feature is disabled, repository not found, or operation fails
+         */
+        get: operations["get_repository_context_api_v1_repositories__repository_id__context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -587,6 +726,12 @@ export interface components {
          * @enum {string}
          */
         GitService: "github" | "gitlab" | "bitbucket" | "forgejo";
+        /**
+         * GitServiceType
+         * @description Git service type enum.
+         * @enum {string}
+         */
+        GitServiceType: "github" | "gitlab" | "bitbucket" | "forgejo";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -908,6 +1053,154 @@ export interface components {
             base_url?: string | null;
         };
         /**
+         * RepositoryCreate
+         * @description Repository create model.
+         */
+        RepositoryCreate: {
+            /**
+             * Name
+             * @description Repository name
+             */
+            name: string;
+            /**
+             * Owner
+             * @description Repository owner
+             */
+            owner: string;
+            /** @description Git service type */
+            service_type: components["schemas"]["GitServiceType"];
+            /**
+             * Url
+             * Format: uri
+             * @description Repository URL
+             */
+            url: string;
+            /**
+             * Base Url
+             * @description Custom git service base URL
+             */
+            base_url?: string | null;
+            /**
+             * Default Branch
+             * @description Default branch
+             * @default main
+             */
+            default_branch: string;
+            /**
+             * Root Path
+             * @description Documentation root directory path
+             */
+            root_path?: string | null;
+            /**
+             * Description
+             * @description Repository description
+             */
+            description?: string | null;
+            /**
+             * Is Public
+             * @description Is repository public
+             * @default true
+             */
+            is_public: boolean;
+            /**
+             * Access Token
+             * @description Access token for private repositories
+             */
+            access_token?: string | null;
+            /**
+             * Metadata
+             * @description Repository metadata
+             * @default {}
+             */
+            metadata: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * RepositoryResponse
+         * @description Repository response model with delegation pattern for RepositoryContext creation.
+         */
+        RepositoryResponse: {
+            /**
+             * Name
+             * @description Repository name
+             */
+            name: string;
+            /**
+             * Owner
+             * @description Repository owner
+             */
+            owner: string;
+            /** @description Git service type */
+            service_type: components["schemas"]["GitServiceType"];
+            /**
+             * Url
+             * Format: uri
+             * @description Repository URL
+             */
+            url: string;
+            /**
+             * Base Url
+             * @description Custom git service base URL
+             */
+            base_url?: string | null;
+            /**
+             * Default Branch
+             * @description Default branch
+             * @default main
+             */
+            default_branch: string;
+            /**
+             * Root Path
+             * @description Documentation root directory path
+             */
+            root_path?: string | null;
+            /**
+             * Description
+             * @description Repository description
+             */
+            description?: string | null;
+            /**
+             * Is Public
+             * @description Is repository public
+             * @default true
+             */
+            is_public: boolean;
+            /**
+             * Id
+             * @description Repository ID
+             */
+            id: number;
+            /**
+             * Supported Branches
+             * @description List of supported branches
+             * @default [
+             *       "main"
+             *     ]
+             */
+            supported_branches: string[];
+            /**
+             * Metadata
+             * @description Repository metadata
+             * @default {}
+             */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             * @description Created datetime
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Updated datetime
+             */
+            updated_at: string;
+        };
+        /**
          * RepositoryStructureResponse
          * @description Repository structure response model.
          */
@@ -944,6 +1237,66 @@ export interface components {
              * @description Last updated datetime
              */
             last_updated: string;
+        };
+        /**
+         * RepositoryUpdate
+         * @description Repository update model.
+         */
+        RepositoryUpdate: {
+            /**
+             * Name
+             * @description Repository name
+             */
+            name?: string | null;
+            /**
+             * Owner
+             * @description Repository owner
+             */
+            owner?: string | null;
+            /** @description Git service type */
+            service_type?: components["schemas"]["GitServiceType"] | null;
+            /**
+             * Url
+             * @description Repository URL
+             */
+            url?: string | null;
+            /**
+             * Base Url
+             * @description Custom git service base URL
+             */
+            base_url?: string | null;
+            /**
+             * Default Branch
+             * @description Default branch
+             */
+            default_branch?: string | null;
+            /**
+             * Root Path
+             * @description Documentation root directory path
+             */
+            root_path?: string | null;
+            /**
+             * Description
+             * @description Repository description
+             */
+            description?: string | null;
+            /**
+             * Is Public
+             * @description Is repository public
+             */
+            is_public?: boolean | null;
+            /**
+             * Access Token
+             * @description Access token for private repositories
+             */
+            access_token?: string | null;
+            /**
+             * Metadata
+             * @description Repository metadata
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * SearchQuery
@@ -1561,6 +1914,200 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MCPToolInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_repositories_api_v1_repositories__get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_repository_api_v1_repositories__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_repository_api_v1_repositories__repository_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repository_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_repository_api_v1_repositories__repository_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repository_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_repository_api_v1_repositories__repository_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repository_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_repository_context_api_v1_repositories__repository_id__context_get: {
+        parameters: {
+            query?: {
+                ref?: string;
+                current_path?: string;
+            };
+            header?: never;
+            path: {
+                repository_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryContext"];
                 };
             };
             /** @description Validation Error */

@@ -7,7 +7,12 @@
     
     <div class="app-center">
       <!-- 選択されたリポジトリの情報表示 -->
-      <div v-if="selectedRepository" class="selected-repository">
+      <div 
+        v-if="selectedRepository" 
+        class="selected-repository clickable"
+        @click="navigateToDocument"
+        v-tooltip.bottom="'ドキュメント画面に戻る'"
+      >
         <i class="pi pi-folder"></i>
         <span class="repo-name">{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
         <Tag :value="selectedRepository.service_type" severity="info" size="small" />
@@ -35,12 +40,33 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import Tag from 'primevue/tag';
 import { useRepositoryStore } from '@/stores/repository.store';
 
+const router = useRouter();
 const repositoryStore = useRepositoryStore();
 
 const selectedRepository = computed(() => repositoryStore.selectedRepository);
+
+/**
+ * 選択されたリポジトリのドキュメント画面に移動
+ */
+function navigateToDocument() {
+  if (selectedRepository.value) {
+    // 現在既にそのリポジトリのドキュメント画面にいる場合は何もしない
+    const currentRoute = router.currentRoute.value;
+    if (currentRoute.name === 'DocumentView' && 
+        currentRoute.params.repositoryId === selectedRepository.value.id.toString()) {
+      return;
+    }
+    
+    router.push({
+      name: 'DocumentView',
+      params: { repositoryId: selectedRepository.value.id }
+    });
+  }
+}
 </script>
 
 <style scoped>
@@ -96,6 +122,17 @@ const selectedRepository = computed(() => repositoryStore.selectedRepository);
   padding: var(--app-spacing-xs) var(--app-spacing-sm);
   border-radius: var(--app-border-radius);
   font-size: var(--app-font-size-sm);
+  transition: var(--app-transition-fast);
+}
+
+.selected-repository.clickable {
+  cursor: pointer;
+}
+
+.selected-repository.clickable:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: var(--app-shadow-sm);
 }
 
 .selected-repository i {

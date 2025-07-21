@@ -22,7 +22,15 @@
     <main class="app-content">
       <Splitter class="main-splitter">
         <SplitterPanel :size="20" :minSize="10">
-          <RepositoryNavigator />
+          <div class="left-panel">
+            <RepositorySelector 
+              @repositoryChange="onRepositoryChange"
+              @branchChange="onBranchChange"
+              @pathChange="onPathChange"
+            />
+            <div class="panel-divider" />
+            <RepositoryNavigator />
+          </div>
         </SplitterPanel>
         <SplitterPanel :size="50" :minSize="30">
           <DocumentViewer />
@@ -45,13 +53,36 @@
 import { onMounted } from 'vue';
 import DocumentViewer from '@/components/document/DocumentViewer.vue';
 import RepositoryNavigator from '@/components/repository/RepositoryNavigator.vue';
+import RepositorySelector from '@/components/repository/RepositorySelector.vue';
 import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue';
 import Splitter from 'primevue/splitter';
 import SplitterPanel from 'primevue/splitterpanel';
 import { useDocumentStore } from '@/stores/document.store';
+import { useRepositoryStore } from '@/stores/repository.store';
 import { getDefaultRepositoryConfig } from '@/utils/config.util';
+import type { components } from '@/services/api/types.auto';
+
+type RepositoryResponse = components['schemas']['RepositoryResponse'];
 
 const documentStore = useDocumentStore();
+const repositoryStore = useRepositoryStore();
+
+// イベントハンドラー
+function onRepositoryChange(repository: RepositoryResponse | null) {
+  console.log('Repository changed:', repository);
+  // リポジトリが変更された場合の処理
+  // 必要に応じて追加のロジックを実装
+}
+
+function onBranchChange(branch: string) {
+  console.log('Branch changed:', branch);
+  // ブランチが変更された場合の処理
+}
+
+function onPathChange(path: string) {
+  console.log('Path changed:', path);
+  // パスが変更された場合の処理
+}
 
 // コンポーネントマウント時の処理
 onMounted(() => {
@@ -159,5 +190,18 @@ onMounted(() => {
 
 :deep(.p-splitter-panel) {
   overflow: auto;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface-card);
+}
+
+.panel-divider {
+  height: 1px;
+  background: var(--surface-border);
+  margin: 0.5rem 0;
 }
 </style>

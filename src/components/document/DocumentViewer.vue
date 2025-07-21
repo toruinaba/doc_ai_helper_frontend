@@ -47,29 +47,20 @@
         </div>
       </div>
 
-      <!-- パン屑とナビゲーション -->
+      <!-- パン屑ナビゲーション -->
       <div v-if="repositoryContext" class="document-navigation">
         <Breadcrumb :model="breadcrumbItems" class="document-breadcrumb">
           <template #item="{ item }">
-            <span v-if="!item.command" class="p-menuitem-text">{{ item.label }}</span>
+            <span v-if="!item.command" class="p-menuitem-text">
+              <i v-if="item.icon" :class="item.icon"></i>
+              <span v-if="item.label">{{ item.label }}</span>
+            </span>
             <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
-              <span class="p-menuitem-text">{{ item.label }}</span>
+              <i v-if="item.icon" :class="item.icon"></i>
+              <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
             </span>
           </template>
         </Breadcrumb>
-        
-        <!-- ルートに戻るボタン -->
-        <Button 
-          v-if="!isRootDocument" 
-          icon="pi pi-home"
-          label="ルートに戻る"
-          severity="secondary"
-          text
-          size="small"
-          @click="navigateToRoot"
-          v-tooltip.bottom="'ルートドキュメントに移動'"
-          class="root-nav-button"
-        />
       </div>
       
       <FrontmatterDisplay v-if="frontmatter" :frontmatter="frontmatter" />
@@ -171,9 +162,15 @@ const currentPath = computed(() => {
 });
 
 const rootPath = computed(() => {
-  // リポジトリのroot_pathが設定されている場合はそれを使用、なければデフォルト
+  // リポジトリのroot_pathが設定されている場合はそれを使用
+  // 設定されていない場合は一般的なドキュメントファイル名を試す
   const selectedRepo = repositoryStore.selectedRepository;
-  return selectedRepo?.root_path || 'index.md';
+  if (selectedRepo?.root_path) {
+    return selectedRepo.root_path;
+  }
+  
+  // デフォルトドキュメントの候補（優先順位順）
+  return 'README.md'; // 最も一般的なルートドキュメント
 });
 
 // ルートドキュメントかどうかの判定
@@ -188,7 +185,7 @@ const isRootDocument = computed(() => {
 // Breadcrumbアイテム
 const breadcrumbItems = computed(() => {
   const items: Array<{
-    label: string;
+    label?: string;
     icon?: string;
     command?: () => void;
   }> = [];
@@ -197,9 +194,8 @@ const breadcrumbItems = computed(() => {
     return items;
   }
 
-  // リポジトリルートを追加
+  // リポジトリルートを追加（アイコンのみ）
   items.push({
-    label: 'ルート',
     icon: 'pi pi-home',
     command: !isRootDocument.value ? () => navigateToRoot() : undefined
   });
@@ -396,21 +392,10 @@ async function navigateToRoot() {
   }
 
   try {
-    // リポジトリのルートパスを取得（デフォルトはindex.md）
-    const rootDocumentPath = rootPath.value;
+    console.log(`Navigating to root document: ${rootPath.value}`);
     
-    console.log(`Navigating to root document: ${rootDocumentPath}`);
-    
-    // ドキュメントを読み込み
-    documentStore.setRepository(
-      selectedRepo.service_type,
-      selectedRepo.owner,
-      selectedRepo.name,
-      selectedRepo.default_branch
-    );
-    await documentStore.fetchDocument(rootDocumentPath, selectedRepo.default_branch);
-    
-    // リポジトリコンテキストの更新は自動で行われる
+    // ドキュメントストアのcurrentPathを更新（watcherが自動的にドキュメントを取得）
+    documentStore.currentPath = rootPath.value;
     
   } catch (error) {
     console.error('Failed to navigate to root document:', error);
@@ -564,10 +549,6 @@ watch(
 }
 
 .document-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-spacing-base);
   margin: var(--app-spacing-base) 0;
   padding: var(--app-spacing-sm);
   background-color: var(--app-surface-50);
@@ -576,11 +557,7 @@ watch(
 }
 
 .document-breadcrumb {
-  flex: 1;
-}
-
-.root-nav-button {
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .document-navigation :deep(.p-breadcrumb) {
@@ -608,6 +585,21 @@ watch(
 
 .document-navigation :deep(.p-menuitem-link:hover) {
   background-color: var(--app-primary-50);
+}
+
+.document-navigation :deep(.p-menuitem-text i) {
+  font-size: 1rem;
+  color: var(--app-primary-color);
+}
+
+.document-navigation :deep(.p-menuitem-link i) {
+  font-size: 1rem;
+  color: var(--app-primary-color);
+  transition: var(--app-transition-fast);
+}
+
+.document-navigation :deep(.p-menuitem-link:hover i) {
+  color: var(--app-primary-600);
 }
 
 .last-modified,

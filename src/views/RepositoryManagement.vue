@@ -1,5 +1,6 @@
 <template>
   <div class="repository-management">
+    <AppNavigation />
     <!-- ヘッダー -->
     <div class="page-header">
       <div class="header-content">
@@ -180,6 +181,7 @@ import {
 } from 'primevue'
 import { useRepositoryStore } from '@/stores/repository.store'
 import { useDocumentStore } from '@/stores/document.store'
+import AppNavigation from '@/components/layout/AppNavigation.vue'
 import RepositoryList from '@/components/repository/RepositoryList.vue'
 import RepositoryForm from '@/components/repository/RepositoryForm.vue'
 import type { components } from '@/services/api/types.auto'
@@ -351,8 +353,8 @@ function handleOpenRepository(repository: RepositoryResponse) {
     })
   })
   
-  // ドキュメントビューアに移動
-  router.push('/')
+  // ドキュメント表示ページに移動
+  router.push(`/documents/${repository.id}`)
 }
 
 async function handleRefreshRepositories() {
@@ -425,9 +427,17 @@ function formatDateTime(dateString: string): string {
 
 <style scoped lang="scss">
 .repository-management {
-  padding: 1.5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--app-surface-50);
+}
+
+.repository-management > *:not(.app-header) {
+  padding: var(--app-spacing-lg);
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .page-header {

@@ -121,7 +121,33 @@
       <div class="loading-grid">
         <Card v-for="i in 6" :key="i" class="loading-card">
           <template #content>
-            <Skeleton height="120px" />
+            <div class="skeleton-content">
+              <!-- ヘッダー部分 -->
+              <div class="skeleton-header">
+                <div class="skeleton-icon">
+                  <Skeleton shape="circle" size="2.5rem" />
+                </div>
+                <div class="skeleton-title-area">
+                  <Skeleton width="8rem" height="1.2rem" class="mb-1" />
+                  <Skeleton width="6rem" height="0.8rem" />
+                </div>
+                <Skeleton width="4rem" height="1.5rem" />
+              </div>
+              
+              <!-- 説明部分 -->
+              <Skeleton width="100%" height="0.8rem" class="mt-2" />
+              <Skeleton width="80%" height="0.8rem" class="mt-1" />
+              
+              <!-- フッター部分 -->
+              <div class="skeleton-footer">
+                <Skeleton width="5rem" height="0.8rem" />
+                <div class="skeleton-actions">
+                  <Skeleton shape="circle" size="2rem" class="mr-1" />
+                  <Skeleton shape="circle" size="2rem" class="mr-1" />
+                  <Skeleton shape="circle" size="2rem" />
+                </div>
+              </div>
+            </div>
           </template>
         </Card>
       </div>
@@ -464,6 +490,35 @@ watch([selectedService, selectedStatus], () => {
   
   .loading-card {
     height: 200px;
+  }
+  
+  .skeleton-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem;
+  }
+  
+  .skeleton-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    
+    .skeleton-title-area {
+      flex: 1;
+    }
+  }
+  
+  .skeleton-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    
+    .skeleton-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
   }
 }
 

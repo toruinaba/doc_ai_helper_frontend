@@ -64,7 +64,7 @@
             />
           </div>
         </template>
-      </AppDropdown>
+      </Select>
     </div>
 
     <!-- ブランチ・パス選択 -->
@@ -74,9 +74,11 @@
           <i class="pi pi-code-branch" />
           <span>ブランチ</span>
         </label>
-        <AppDropdown
+        <Select
           v-model="selectedBranch"
           :options="branchOptions"
+          optionLabel="label"
+          optionValue="value"
           placeholder="ブランチを選択..."
           class="branch-dropdown"
           @change="onBranchChange"

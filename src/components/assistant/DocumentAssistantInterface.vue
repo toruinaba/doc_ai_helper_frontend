@@ -36,12 +36,7 @@
     <MessageInputForm
       :is-loading="isLoading"
       :error="error"
-      :mcp-tools-enabled="mcpToolsEnabled"
-      :initial-use-streaming="useStreaming"
-      :initial-use-tools-for-message="useToolsForMessage"
       @send-message="handleSendMessage"
-      @streaming-changed="updateStreamingMode"
-      @tools-changed="updateToolsForMessage"
     />
   </div>
 </template>
@@ -95,8 +90,6 @@ const {
   
   // Actions
   sendMessage,
-  updateStreamingMode,
-  updateToolsForMessage,
   clearMessages,
   scrollToBottom
 } = useDocumentAssistant(chatMessagesRef);

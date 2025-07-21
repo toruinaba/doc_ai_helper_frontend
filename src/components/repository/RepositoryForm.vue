@@ -57,7 +57,7 @@
         
         <div class="form-field">
           <label for="service_type">サービス *</label>
-          <AppDropdown
+          <Select
             id="service_type"
             v-model="formData.service_type"
             :options="serviceOptions"
@@ -202,7 +202,7 @@ import {
   Button,
   Message
 } from 'primevue'
-import AppDropdown from '@/components/common/AppDropdown.vue'
+import Select from 'primevue/select'
 import type { components } from '@/services/api/types.auto'
 
 type RepositoryCreate = components['schemas']['RepositoryCreate']
@@ -450,12 +450,9 @@ function resetForm() {
 }
 
 // モーダルスタイルはApp.vueのグローバルスタイルで定義済み
-// フォーム特有のスタイリング
+// フォーム特有のスタイリング  
 :global(.repository-form-dialog) {
-  z-index: 1001 !important;
-  
   .p-dialog {
-    background: white !important;
     border: 1px solid #e5e7eb;
   }
 }

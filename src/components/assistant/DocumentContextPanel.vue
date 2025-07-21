@@ -56,7 +56,7 @@
       
       <div class="config-section">
         <label class="config-label">システムプロンプトテンプレート:</label>
-        <AppDropdown 
+        <Select 
           v-model="config.systemPromptTemplate" 
           :options="systemPromptTemplates" 
           optionLabel="name" 
@@ -125,7 +125,7 @@
 import { ref, computed, onMounted } from 'vue';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
-import AppDropdown from '@/components/common/AppDropdown.vue';
+import Select from 'primevue/select';
 import { usePersistedConfig } from '@/composables/usePersistedConfig';
 
 // Props

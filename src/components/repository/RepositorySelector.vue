@@ -7,7 +7,7 @@
         <span>リポジトリ</span>
       </label>
       
-      <AppDropdown
+      <Select
         v-model="selectedRepositoryId"
         :options="repositoryOptions"
         optionLabel="label"
@@ -132,7 +132,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, InputText, Tag } from 'primevue'
-import AppDropdown from '@/components/common/AppDropdown.vue'
+import Select from 'primevue/select'
 import { useRepositoryStore } from '@/stores/repository.store'
 import { useDocumentStore } from '@/stores/document.store'
 import type { components } from '@/services/api/types.auto'

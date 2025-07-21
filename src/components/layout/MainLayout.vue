@@ -6,14 +6,31 @@
         <h1 class="app-title">ドキュメントAIヘルパー</h1>
       </div>
       <div class="app-menu">
-        <!-- ここに将来的にメニューアイテムなどを追加 -->
+        <nav class="navigation">
+          <router-link to="/" class="nav-link">
+            <i class="pi pi-home"></i>
+            <span>ホーム</span>
+          </router-link>
+          <router-link to="/repositories" class="nav-link">
+            <i class="pi pi-folder"></i>
+            <span>リポジトリ管理</span>
+          </router-link>
+        </nav>
       </div>
     </header>
 
     <main class="app-content">
       <Splitter class="main-splitter">
         <SplitterPanel :size="20" :minSize="10">
-          <RepositoryNavigator />
+          <div class="left-panel">
+            <RepositorySelector 
+              @repositoryChange="onRepositoryChange"
+              @branchChange="onBranchChange"
+              @pathChange="onPathChange"
+            />
+            <div class="panel-divider" />
+            <RepositoryNavigator />
+          </div>
         </SplitterPanel>
         <SplitterPanel :size="50" :minSize="30">
           <DocumentViewer />
@@ -36,13 +53,53 @@
 import { onMounted } from 'vue';
 import DocumentViewer from '@/components/document/DocumentViewer.vue';
 import RepositoryNavigator from '@/components/repository/RepositoryNavigator.vue';
+import RepositorySelector from '@/components/repository/RepositorySelector.vue';
 import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue';
 import Splitter from 'primevue/splitter';
 import SplitterPanel from 'primevue/splitterpanel';
 import { useDocumentStore } from '@/stores/document.store';
+import { useRepositoryStore } from '@/stores/repository.store';
 import { getDefaultRepositoryConfig } from '@/utils/config.util';
+import type { components } from '@/services/api/types.auto';
+
+type RepositoryResponse = components['schemas']['RepositoryResponse'];
 
 const documentStore = useDocumentStore();
+const repositoryStore = useRepositoryStore();
+
+// イベントハンドラー
+function onRepositoryChange(repository: RepositoryResponse | null) {
+  console.log('Repository changed:', repository);
+  if (repository) {
+    // 新しいリポジトリが選択された場合、現在のドキュメントパスをクリア
+    documentStore.currentPath = '';
+    
+    // リポジトリのデフォルトドキュメントを読み込む可能性がある場合
+    // デフォルトパス（例：README.md）を設定
+    const defaultPath = repository.root_path ? 
+      `${repository.root_path}/README.md` : 
+      'README.md';
+    
+    // ドキュメントの存在確認後に読み込み（オプション）
+    // documentStore.fetchDocument(defaultPath);
+  }
+}
+
+function onBranchChange(branch: string) {
+  console.log('Branch changed:', branch);
+  // ブランチが変更された場合、現在のパスで再読み込み
+  if (documentStore.currentPath) {
+    documentStore.fetchDocument(documentStore.currentPath);
+  }
+}
+
+function onPathChange(path: string) {
+  console.log('Path changed:', path);
+  // パスが変更された場合、ドキュメントを読み込み
+  if (path.trim()) {
+    documentStore.fetchDocument(path);
+  }
+}
 
 // コンポーネントマウント時の処理
 onMounted(() => {
@@ -89,6 +146,32 @@ onMounted(() => {
   margin: 0;
 }
 
+.navigation {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.router-link-active {
+  background-color: rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+}
+
 .app-content {
   flex: 1;
   overflow: hidden;
@@ -124,5 +207,18 @@ onMounted(() => {
 
 :deep(.p-splitter-panel) {
   overflow: auto;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface-card);
+}
+
+.panel-divider {
+  height: 1px;
+  background: var(--surface-border);
+  margin: 0.5rem 0;
 }
 </style>

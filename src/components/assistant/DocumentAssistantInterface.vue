@@ -1,7 +1,18 @@
 <template>
   <div class="chat-container">
     <div class="chat-header">
-      <h2>ドキュメント AI チャット</h2>
+      <div class="header-title">
+        <h2>ドキュメント AI チャット</h2>
+        <!-- リポジトリ状態インジケータ -->
+        <div v-if="repositoryInfo.repositoryId" class="repository-status">
+          <i 
+            :class="getRepositoryStatusIcon()" 
+            :style="{ color: getRepositoryStatusColor() }"
+            v-tooltip="getRepositoryStatusTooltip()"
+          />
+          <span class="status-text">{{ repositoryInfo.owner }}/{{ repositoryInfo.repo }}</span>
+        </div>
+      </div>
       
       <!-- ドキュメントコンテキスト設定パネル -->
       <DocumentContextPanel 
@@ -58,6 +69,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useDocumentAssistant } from '@/composables/useDocumentAssistant';
+import { useDocumentContext } from '@/composables/useDocumentContext';
 import { getMCPToolsConfig } from '@/utils/mcp-config.util';
 import { loadMCPToolsFromBackend } from '@/utils/mcp-tools.util';
 import { getUIConfig, getAppDefaultsConfig } from '@/utils/config.util';
@@ -117,6 +129,13 @@ const {
   scrollToBottom
 } = useDocumentAssistant(chatMessagesRef);
 
+// Document Context composable for repository info
+const {
+  repositoryInfo,
+  getRepositoryStatus,
+  checkRepositoryHealth
+} = useDocumentContext();
+
 // Debug: Check messages being passed to MessagesList
 console.log('DocumentAssistantInterface messages:', messages.value);
 console.log('DocumentAssistantInterface messages length:', messages.value.length);
@@ -150,6 +169,36 @@ watch(messages, async () => {
 watch(() => documentStore.currentPath, () => {
   clearMessages();
 });
+
+/**
+ * リポジトリ状態表示用の関数
+ */
+function getRepositoryStatusIcon(): string {
+  const status = getRepositoryStatus();
+  switch (status) {
+    case 'healthy': return 'pi pi-check-circle';
+    case 'unhealthy': return 'pi pi-times-circle';
+    default: return 'pi pi-question-circle';
+  }
+}
+
+function getRepositoryStatusColor(): string {
+  const status = getRepositoryStatus();
+  switch (status) {
+    case 'healthy': return '#10b981';
+    case 'unhealthy': return '#ef4444';
+    default: return '#6b7280';
+  }
+}
+
+function getRepositoryStatusTooltip(): string {
+  const status = getRepositoryStatus();
+  switch (status) {
+    case 'healthy': return 'リポジトリ接続正常';
+    case 'unhealthy': return 'リポジトリ接続エラー';
+    default: return 'リポジトリ状態不明';
+  }
+}
 
 // 初期化処理
 onMounted(async () => {
@@ -186,9 +235,32 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 
+.header-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
 .chat-header h2 {
   margin: 0;
   color: #333;
   font-size: 1.2rem;
+}
+
+.repository-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-color-secondary);
+  
+  i {
+    font-size: 0.8rem;
+  }
+  
+  .status-text {
+    font-weight: 500;
+  }
 }
 </style>

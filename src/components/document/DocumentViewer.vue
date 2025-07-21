@@ -20,12 +20,29 @@
     </Card>
 
     <div v-else class="document-content">
+      <!-- リポジトリ情報表示 -->
+      <div v-if="repositoryContext" class="repository-info">
+        <div class="repo-badge">
+          <i class="pi pi-folder" />
+          <span class="repo-name">{{ repositoryContext.owner }}/{{ repositoryContext.repo }}</span>
+          <Tag :value="repositoryContext.service" size="small" />
+          <span class="repo-branch">
+            <i class="pi pi-code-branch" />
+            {{ repositoryContext.ref }}
+          </span>
+        </div>
+      </div>
+
       <div class="document-header">
         <h1 class="document-title">{{ documentTitle }}</h1>
         <div class="document-meta">
           <span v-if="document.metadata.last_modified" class="last-modified">
             <i class="pi pi-calendar"></i> 
             {{ formatDate(document.metadata.last_modified) }}
+          </span>
+          <span v-if="document.path" class="document-path">
+            <i class="pi pi-file" />
+            {{ document.path }}
           </span>
         </div>
       </div>
@@ -40,19 +57,43 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
+import { useRepositoryStore } from '@/stores/repository.store';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
 import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
 import ProgressSpinner from 'primevue/progressspinner';
+import Tag from 'primevue/tag';
 import { types } from '@/services/api';
 
 const documentStore = useDocumentStore();
+const repositoryStore = useRepositoryStore();
 
 // 状態を参照
 const document = computed(() => documentStore.currentDocument);
 const isLoading = computed(() => documentStore.isLoading);
 const error = computed(() => documentStore.error);
+
+// リポジトリコンテキスト
+const repositoryContext = computed(() => {
+  // 選択されたリポジトリがある場合はそれを使用
+  if (repositoryStore.selectedRepository) {
+    return repositoryStore.selectedRepositoryContext;
+  }
+  
+  // ドキュメントにリポジトリ情報が含まれている場合はそれを使用
+  if (document.value) {
+    return {
+      service: document.value.service,
+      owner: document.value.owner,
+      repo: document.value.repository,
+      ref: document.value.ref,
+      current_path: document.value.path
+    };
+  }
+  
+  return null;
+});
 
 // ドキュメントタイトル
 const documentTitle = computed(() => {
@@ -304,6 +345,43 @@ watch(
   margin: 0 auto;
 }
 
+.repository-info {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-border);
+  
+  .repo-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    
+    i {
+      color: var(--primary-color);
+    }
+    
+    .repo-name {
+      font-weight: 500;
+      color: var(--text-color);
+    }
+    
+    .repo-branch {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--text-color-secondary);
+      font-size: 0.8rem;
+      margin-left: auto;
+      
+      i {
+        font-size: 0.7rem;
+      }
+    }
+  }
+}
+
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -353,9 +431,13 @@ watch(
 .document-meta {
   color: #666;
   font-size: 0.9rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.last-modified {
+.last-modified,
+.document-path {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;

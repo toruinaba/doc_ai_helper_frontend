@@ -38,6 +38,7 @@ export function useLLMOperations() {
   
   const { 
     currentDocument, 
+    repositoryInfo,
     createDocumentSystemPrompt, 
     mergeConfig, 
     validateDocumentContext 
@@ -89,6 +90,13 @@ export function useLLMOperations() {
         model: options?.model || llmConfig.defaultModel,
         conversationHistory,
         includeDocument: true,
+        repositoryContext: {
+          service: repositoryInfo.value.service,
+          owner: repositoryInfo.value.owner,
+          repo: repositoryInfo.value.repo,
+          ref: repositoryInfo.value.ref,
+          current_path: repositoryInfo.value.path
+        },
         customOptions: options?.customOptions
       }, currentDocument.value!);
 
@@ -184,7 +192,14 @@ export function useLLMOperations() {
           includeDocument: true,
           enableTools: true,
           toolChoice: toolChoice || llmConfig.defaultToolChoice,
-          completeToolFlow: true
+          completeToolFlow: true,
+          repositoryContext: {
+            service: repositoryInfo.value.service,
+            owner: repositoryInfo.value.owner,
+            repo: repositoryInfo.value.repo,
+            ref: repositoryInfo.value.ref,
+            current_path: repositoryInfo.value.path
+          }
         }, currentDocument.value!);
         
         // ツール実行の追跡
@@ -214,7 +229,14 @@ export function useLLMOperations() {
           includeDocument: true,
           enableTools: useTools,
           toolChoice: toolChoice,
-          completeToolFlow: mcpToolsConfig.value.completeToolFlow
+          completeToolFlow: mcpToolsConfig.value.completeToolFlow,
+          repositoryContext: {
+            service: repositoryInfo.value.service,
+            owner: repositoryInfo.value.owner,
+            repo: repositoryInfo.value.repo,
+            ref: repositoryInfo.value.ref,
+            current_path: repositoryInfo.value.path
+          }
         }, currentDocument.value!);
       }
       

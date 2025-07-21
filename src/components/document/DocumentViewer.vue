@@ -331,9 +331,9 @@ watch(
 <style scoped>
 .document-viewer-container {
   height: 100%;
-  padding: 1rem;
+  padding: var(--app-spacing-base);
   overflow-y: auto;
-  background-color: #fff;
+  background-color: var(--app-surface-0);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -346,37 +346,38 @@ watch(
 }
 
 .repository-info {
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--surface-card);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--surface-border);
+  margin-bottom: var(--app-spacing-base);
+  padding: var(--app-spacing-md) var(--app-spacing-base);
+  background: var(--app-surface-0);
+  border-radius: var(--app-border-radius);
+  border: 1px solid var(--app-surface-border);
+  box-shadow: var(--app-shadow-sm);
   
   .repo-badge {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-size: 0.9rem;
+    gap: var(--app-spacing-md);
+    font-size: var(--app-font-size-sm);
     
     i {
-      color: var(--primary-color);
+      color: var(--app-primary-color);
     }
     
     .repo-name {
       font-weight: 500;
-      color: var(--text-color);
+      color: var(--app-text-color);
     }
     
     .repo-branch {
       display: flex;
       align-items: center;
-      gap: 0.25rem;
-      color: var(--text-color-secondary);
-      font-size: 0.8rem;
+      gap: var(--app-spacing-xs);
+      color: var(--app-text-color-secondary);
+      font-size: var(--app-font-size-xs);
       margin-left: auto;
       
       i {
-        font-size: 0.7rem;
+        font-size: var(--app-font-size-xs);
       }
     }
   }
@@ -388,18 +389,19 @@ watch(
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 2rem;
+  padding: var(--app-spacing-xl);
 }
 
 .loading-text {
-  margin-top: 1rem;
-  color: #666;
+  margin-top: var(--app-spacing-base);
+  color: var(--app-text-color-secondary);
 }
 
 .empty-state-card {
-  margin: 2rem auto;
+  margin: var(--app-spacing-xl) auto;
   max-width: 800px;
   width: 100%;
+  box-shadow: var(--app-shadow-card);
 }
 
 .empty-state-content {
@@ -407,32 +409,35 @@ watch(
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: #999;
+  padding: var(--app-spacing-xl);
+  color: var(--app-text-color-muted);
   text-align: center;
 }
 
 .empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: var(--app-font-size-3xl);
+  margin-bottom: var(--app-spacing-base);
+  color: var(--app-text-color-muted);
 }
 
 .document-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #eee;
+  margin-bottom: var(--app-spacing-lg);
+  padding-bottom: var(--app-spacing-base);
+  border-bottom: 1px solid var(--app-surface-border);
 }
 
 .document-title {
   margin-top: 0;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--app-spacing-sm);
+  color: var(--app-text-color);
+  font-size: var(--app-font-size-2xl);
 }
 
 .document-meta {
-  color: #666;
-  font-size: 0.9rem;
+  color: var(--app-text-color-secondary);
+  font-size: var(--app-font-size-sm);
   display: flex;
-  gap: 1rem;
+  gap: var(--app-spacing-base);
   flex-wrap: wrap;
 }
 
@@ -440,7 +445,7 @@ watch(
 .document-path {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--app-spacing-xs);
 }
 
 /* マークダウンコンテンツのスタイル */
@@ -456,17 +461,18 @@ watch(
 .rendered-content :deep(h6) {
   margin-top: 1.5em;
   margin-bottom: 0.5em;
+  color: var(--app-text-color);
 }
 
 .rendered-content :deep(h1) {
-  font-size: 1.8rem;
-  border-bottom: 1px solid #eee;
+  font-size: var(--app-font-size-2xl);
+  border-bottom: 1px solid var(--app-surface-border);
   padding-bottom: 0.3em;
 }
 
 .rendered-content :deep(h2) {
-  font-size: 1.5rem;
-  border-bottom: 1px solid #eee;
+  font-size: var(--app-font-size-xl);
+  border-bottom: 1px solid var(--app-surface-border);
   padding-bottom: 0.3em;
 }
 
@@ -486,9 +492,9 @@ watch(
 
 .rendered-content :deep(blockquote) {
   margin: 1em 0;
-  padding: 0 1em;
-  color: #6a737d;
-  border-left: 0.25em solid #dfe2e5;
+  padding: 0 var(--app-spacing-base);
+  color: var(--app-text-color-secondary);
+  border-left: 0.25em solid var(--app-surface-border);
 }
 
 .rendered-content :deep(code) {
@@ -518,13 +524,14 @@ watch(
 
 .rendered-content :deep(table th),
 .rendered-content :deep(table td) {
-  padding: 0.5em 1em;
-  border: 1px solid #dfe2e5;
+  padding: var(--app-spacing-sm) var(--app-spacing-base);
+  border: 1px solid var(--app-surface-border);
 }
 
 .rendered-content :deep(table th) {
-  background-color: #f6f8fa;
+  background-color: var(--app-surface-100);
   font-weight: 600;
+  color: var(--app-text-color);
 }
 
 .rendered-content :deep(img) {
@@ -533,18 +540,21 @@ watch(
 }
 
 .rendered-content :deep(a) {
-  color: #0366d6;
+  color: var(--app-primary-color);
   text-decoration: none;
+  transition: var(--app-transition-fast);
 }
 
 .rendered-content :deep(a:hover) {
   text-decoration: underline;
+  color: var(--app-primary-600);
 }
 
 .rendered-content :deep(a.external-link::after) {
   content: '↗';
   display: inline-block;
-  margin-left: 0.25em;
-  font-size: 0.8em;
+  margin-left: var(--app-spacing-xs);
+  font-size: var(--app-font-size-sm);
+  color: var(--app-text-color-muted);
 }
 </style>

@@ -123,59 +123,69 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background-color: #1976d2;
-  color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: var(--app-spacing-sm) var(--app-spacing-base);
+  background-color: var(--app-primary-color);
+  color: var(--app-surface-0);
+  box-shadow: var(--app-shadow-base);
+  height: var(--app-header-height);
 }
 
 .app-logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--app-spacing-sm);
 }
 
 .logo-image {
   height: 2rem;
   width: auto;
+  transition: var(--app-transition-fast);
+}
+
+.logo-image:hover {
+  transform: scale(1.05);
 }
 
 .app-title {
-  font-size: 1.2rem;
+  font-size: var(--app-font-size-lg);
   font-weight: 500;
   margin: 0;
+  color: var(--app-surface-0);
 }
 
 .navigation {
   display: flex;
-  gap: 1rem;
+  gap: var(--app-spacing-base);
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  color: white;
+  gap: var(--app-spacing-xs);
+  padding: var(--app-spacing-sm) var(--app-spacing-base);
+  color: var(--app-surface-0);
   text-decoration: none;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-  font-size: 0.9rem;
+  border-radius: var(--app-border-radius-sm);
+  transition: var(--app-transition-fast);
+  font-size: var(--app-font-size-sm);
+  font-weight: 400;
 }
 
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 .nav-link.router-link-active {
-  background-color: rgba(255, 255, 255, 0.2);
-  font-weight: 500;
+  background-color: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+  box-shadow: var(--app-shadow-sm);
 }
 
 .app-content {
   flex: 1;
   overflow: hidden;
-  background-color: #fff;
+  background-color: var(--app-surface-0);
   display: flex;
   flex-direction: column;
 }
@@ -186,11 +196,11 @@ onMounted(() => {
 }
 
 .app-footer {
-  padding: 0.5rem 1rem;
-  background-color: #f5f5f5;
-  border-top: 1px solid #e0e0e0;
-  font-size: 0.85rem;
-  color: #666;
+  padding: var(--app-spacing-sm) var(--app-spacing-base);
+  background-color: var(--app-surface-100);
+  border-top: 1px solid var(--app-surface-border);
+  font-size: var(--app-font-size-sm);
+  color: var(--app-text-color-secondary);
 }
 
 .footer-content {
@@ -213,12 +223,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--surface-card);
+  background-color: var(--app-surface-100);
+  border-right: 1px solid var(--app-surface-border);
 }
 
 .panel-divider {
   height: 1px;
-  background: var(--surface-border);
-  margin: 0.5rem 0;
+  background-color: var(--app-surface-border);
+  margin: var(--app-spacing-sm) 0;
 }
 </style>

@@ -24,6 +24,7 @@
         @click="sendMessage" 
         :disabled="!newMessage.trim() || isLoading"
         class="send-button"
+        :severity="newMessage.trim() && !isLoading ? 'primary' : 'secondary'"
         v-tooltip.bottom="!newMessage.trim() ? '質問を入力してください' : isLoading ? '処理中です' : '送信'"
       />
     </div>
@@ -119,31 +120,37 @@ watch(useToolsForMessage, (newValue) => {
 
 <style scoped>
 .chat-input {
-  padding: 1rem;
-  background-color: white;
-  border-top: 1px solid #e0e0e0;
+  padding: var(--app-spacing-base);
+  background-color: var(--app-surface-0);
+  border-top: 1px solid var(--app-surface-border);
+  box-shadow: var(--app-shadow-sm);
 }
 
 .input-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background-color: #f0f0f0;
-  border-top: 1px solid #e0e0e0;
-  font-size: 0.8rem;
+  padding: var(--app-spacing-sm) var(--app-spacing-base);
+  background-color: var(--app-surface-100);
+  border-top: 1px solid var(--app-surface-border);
+  font-size: var(--app-font-size-sm);
+  border-radius: var(--app-border-radius-sm) var(--app-border-radius-sm) 0 0;
 }
 
 .streaming-toggle {
   display: flex;
   align-items: center;
-  color: #555;
+  gap: var(--app-spacing-xs);
+  color: var(--app-text-color-secondary);
+  transition: var(--app-transition-fast);
 }
 
 .tools-toggle {
   display: flex;
   align-items: center;
-  color: #555;
+  gap: var(--app-spacing-xs);
+  color: var(--app-text-color-secondary);
+  transition: var(--app-transition-fast);
 }
 
 /* 入力フォームの幅を拡張 */
@@ -172,33 +179,37 @@ watch(useToolsForMessage, (newValue) => {
   align-self: stretch;
   display: flex;
   align-items: center;
-  transition: all 0.2s ease;
+  transition: var(--app-transition-base);
 }
 
 /* 送信ボタンの状態をより明確に */
 .send-button {
   width: 3rem;
-  background-color: #ffffff;
-  border-color: #ced4da;
-  color: #495057;
+  background-color: var(--app-surface-0);
+  border-color: var(--app-surface-border);
+  color: var(--app-text-color-secondary);
   border-radius: 0;
 }
 
 .send-button:enabled:hover {
-  background-color: #f0f0f0;
-  border-color: #ced4da;
-  color: #212529;
+  background-color: var(--app-surface-100);
+  border-color: var(--app-primary-color);
+  color: var(--app-primary-color);
+  transform: translateY(-1px);
 }
 
 .send-button:disabled {
-  background-color: #f8f9fa;
-  border-color: #e9ecef;
-  color: #a0a0a0;
+  opacity: 0.5;
   cursor: not-allowed;
-  opacity: 0.8;
+  background-color: var(--app-surface-200);
+  color: var(--app-text-color-muted);
 }
 
 .chat-error {
-  margin-top: 0.5rem;
+  padding: var(--app-spacing-sm);
+  text-align: center;
+  background-color: var(--app-surface-50);
+  border-radius: var(--app-border-radius-sm);
+  margin-top: var(--app-spacing-xs);
 }
 </style>

@@ -46,6 +46,31 @@
           </span>
         </div>
       </div>
+
+      <!-- パン屑とナビゲーション -->
+      <div v-if="repositoryContext" class="document-navigation">
+        <Breadcrumb :model="breadcrumbItems" class="document-breadcrumb">
+          <template #item="{ item }">
+            <span v-if="!item.command" class="p-menuitem-text">{{ item.label }}</span>
+            <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
+              <span class="p-menuitem-text">{{ item.label }}</span>
+            </span>
+          </template>
+        </Breadcrumb>
+        
+        <!-- ルートに戻るボタン -->
+        <Button 
+          v-if="!isRootDocument" 
+          icon="pi pi-home"
+          label="ルートに戻る"
+          severity="secondary"
+          text
+          size="small"
+          @click="navigateToRoot"
+          v-tooltip.bottom="'ルートドキュメントに移動'"
+          class="root-nav-button"
+        />
+      </div>
       
       <FrontmatterDisplay v-if="frontmatter" :frontmatter="frontmatter" />
       
@@ -64,6 +89,8 @@ import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
 import ProgressSpinner from 'primevue/progressspinner';
 import Tag from 'primevue/tag';
+import Breadcrumb from 'primevue/breadcrumb';
+import Button from 'primevue/button';
 import { types } from '@/services/api';
 
 const documentStore = useDocumentStore();
@@ -136,6 +163,69 @@ const frontmatter = computed(() => {
   const { frontmatter } = extractFrontmatter(content);
   
   return frontmatter;
+});
+
+// 現在のパスとルートパス
+const currentPath = computed(() => {
+  return repositoryContext.value?.current_path || document.value?.path || '';
+});
+
+const rootPath = computed(() => {
+  // リポジトリのroot_pathが設定されている場合はそれを使用、なければデフォルト
+  const selectedRepo = repositoryStore.selectedRepository;
+  return selectedRepo?.root_path || 'index.md';
+});
+
+// ルートドキュメントかどうかの判定
+const isRootDocument = computed(() => {
+  return currentPath.value === rootPath.value || 
+         currentPath.value === '' || 
+         currentPath.value === '/' ||
+         currentPath.value.endsWith('/index.md') ||
+         currentPath.value.endsWith('/README.md');
+});
+
+// Breadcrumbアイテム
+const breadcrumbItems = computed(() => {
+  const items: Array<{
+    label: string;
+    icon?: string;
+    command?: () => void;
+  }> = [];
+  
+  if (!currentPath.value) {
+    return items;
+  }
+
+  // リポジトリルートを追加
+  items.push({
+    label: 'ルート',
+    icon: 'pi pi-home',
+    command: !isRootDocument.value ? () => navigateToRoot() : undefined
+  });
+
+  // パスを分割してBreadcrumbを構築
+  const pathParts = currentPath.value.split('/').filter(part => part !== '');
+  
+  if (pathParts.length > 1) {
+    // ディレクトリ部分（最後のファイル以外）
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      items.push({
+        label: pathParts[i],
+        // 途中のディレクトリにはナビゲーション機能は付けない（要求仕様通り）
+      });
+    }
+  }
+  
+  // 現在のファイル
+  if (pathParts.length > 0) {
+    const fileName = pathParts[pathParts.length - 1];
+    items.push({
+      label: fileName.replace(/\.[^/.]+$/, ''), // 拡張子を除去
+    });
+  }
+
+  return items;
 });
 
 /**
@@ -295,6 +385,38 @@ function handleLinkClick(event: MouseEvent) {
   }
 }
 
+/**
+ * ルートドキュメントに移動
+ */
+async function navigateToRoot() {
+  const selectedRepo = repositoryStore.selectedRepository;
+  if (!selectedRepo) {
+    console.warn('No repository selected');
+    return;
+  }
+
+  try {
+    // リポジトリのルートパスを取得（デフォルトはindex.md）
+    const rootDocumentPath = rootPath.value;
+    
+    console.log(`Navigating to root document: ${rootDocumentPath}`);
+    
+    // ドキュメントを読み込み
+    documentStore.setRepository(
+      selectedRepo.service_type,
+      selectedRepo.owner,
+      selectedRepo.name,
+      selectedRepo.default_branch
+    );
+    await documentStore.fetchDocument(rootDocumentPath, selectedRepo.default_branch);
+    
+    // リポジトリコンテキストの更新は自動で行われる
+    
+  } catch (error) {
+    console.error('Failed to navigate to root document:', error);
+  }
+}
+
 // パラメータが変更されたときにドキュメントを再取得
 watch(
   () => [
@@ -439,6 +561,53 @@ watch(
   display: flex;
   gap: var(--app-spacing-base);
   flex-wrap: wrap;
+}
+
+.document-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-spacing-base);
+  margin: var(--app-spacing-base) 0;
+  padding: var(--app-spacing-sm);
+  background-color: var(--app-surface-50);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-border-radius);
+}
+
+.document-breadcrumb {
+  flex: 1;
+}
+
+.root-nav-button {
+  flex-shrink: 0;
+}
+
+.document-navigation :deep(.p-breadcrumb) {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.document-navigation :deep(.p-breadcrumb .p-breadcrumb-list) {
+  margin: 0;
+}
+
+.document-navigation :deep(.p-menuitem-text) {
+  font-size: var(--app-font-size-sm);
+  color: var(--app-text-color-secondary);
+}
+
+.document-navigation :deep(.p-menuitem-link) {
+  color: var(--app-primary-color);
+  text-decoration: none;
+  border-radius: var(--app-border-radius-sm);
+  padding: var(--app-spacing-xs) var(--app-spacing-sm);
+  transition: var(--app-transition-fast);
+}
+
+.document-navigation :deep(.p-menuitem-link:hover) {
+  background-color: var(--app-primary-50);
 }
 
 .last-modified,

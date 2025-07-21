@@ -24,6 +24,7 @@ import Checkbox from 'primevue/checkbox'
 import RadioButton from 'primevue/radiobutton'
 import Dropdown from 'primevue/dropdown'
 import Select from 'primevue/select'
+import Breadcrumb from 'primevue/breadcrumb'
 import Tag from 'primevue/tag'
 import ProgressBar from 'primevue/progressbar'
 import Dialog from 'primevue/dialog'
@@ -77,6 +78,7 @@ app.component('Checkbox', Checkbox)
 app.component('RadioButton', RadioButton)
 app.component('Dropdown', Dropdown)
 app.component('Select', Select)
+app.component('Breadcrumb', Breadcrumb)
 app.component('Tag', Tag)
 app.component('ProgressBar', ProgressBar)
 app.component('Dialog', Dialog)

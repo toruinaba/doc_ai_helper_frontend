@@ -50,7 +50,11 @@ app.use(createPinia())
 app.use(router)
 app.use(PrimeVue, {
   theme: {
-    preset: Aura
+    preset: Aura,
+    options: {
+      darkModeSelector: '.p-dark', // 明示的にダークモードクラスが必要
+      cssLayer: false
+    }
   }
 })
 app.use(ConfirmationService)

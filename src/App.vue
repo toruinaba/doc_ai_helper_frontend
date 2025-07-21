@@ -7,26 +7,26 @@
 </template>
 
 <style>
-/* デザイントークン - アプリケーション全体で使用する統一変数 */
+/* デザイントークン - PrimeVueテーマと連携する統一変数 */
 :root {
-  /* カラーパレット */
-  --app-primary-color: #3B82F6;
-  --app-primary-50: #EFF6FF;
-  --app-primary-100: #DBEAFE;
-  --app-primary-500: #3B82F6;
-  --app-primary-600: #2563EB;
-  --app-primary-700: #1D4ED8;
+  /* PrimeVue CSS変数を活用したカラーパレット */
+  --app-primary-color: var(--p-primary-color, #3B82F6);
+  --app-primary-50: var(--p-primary-50, #EFF6FF);
+  --app-primary-100: var(--p-primary-100, #DBEAFE);
+  --app-primary-500: var(--p-primary-500, #3B82F6);
+  --app-primary-600: var(--p-primary-600, #2563EB);
+  --app-primary-700: var(--p-primary-700, #1D4ED8);
   
-  --app-surface-0: #FFFFFF;
-  --app-surface-50: #F9FAFB;
-  --app-surface-100: #F3F4F6;
-  --app-surface-200: #E5E7EB;
-  --app-surface-300: #D1D5DB;
-  --app-surface-border: #E5E7EB;
+  --app-surface-0: var(--p-surface-0, #FFFFFF);
+  --app-surface-50: var(--p-surface-50, #F9FAFB);
+  --app-surface-100: var(--p-surface-100, #F3F4F6);
+  --app-surface-200: var(--p-surface-200, #E5E7EB);
+  --app-surface-300: var(--p-surface-300, #D1D5DB);
+  --app-surface-border: var(--p-surface-border, #E5E7EB);
   
-  --app-text-color: #1F2937;
-  --app-text-color-secondary: #6B7280;
-  --app-text-color-muted: #9CA3AF;
+  --app-text-color: var(--p-text-color, #1F2937);
+  --app-text-color-secondary: var(--p-text-muted-color, #6B7280);
+  --app-text-color-muted: var(--p-text-muted-color, #9CA3AF);
   
   /* スペーシング */
   --app-spacing-xs: 0.25rem;   /* 4px */
@@ -92,25 +92,18 @@ html, body {
 .p-dialog {
   border-radius: var(--app-border-radius-lg);
   box-shadow: var(--app-shadow-lg);
-  background-color: var(--app-surface-0) !important;
-  border: 1px solid var(--app-surface-border) !important;
   z-index: 1001 !important;
 }
 
 .p-dialog .p-dialog-header {
-  background-color: var(--app-surface-0) !important;
-  border-bottom: 1px solid var(--app-surface-border);
   padding: var(--app-spacing-base) var(--app-spacing-lg);
 }
 
 .p-dialog .p-dialog-content {
-  background-color: var(--app-surface-0) !important;
   padding: var(--app-spacing-lg);
 }
 
 .p-dialog .p-dialog-footer {
-  background-color: var(--app-surface-0) !important;
-  border-top: 1px solid var(--app-surface-border);
   padding: var(--app-spacing-base) var(--app-spacing-lg);
 }
 

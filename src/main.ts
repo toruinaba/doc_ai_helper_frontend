@@ -3,6 +3,7 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
+import Aura from '@primeuix/themes/aura'
 
 // PrimeVueサービス
 import ConfirmationService from 'primevue/confirmationservice'
@@ -22,6 +23,7 @@ import Tooltip from 'primevue/tooltip'
 import Checkbox from 'primevue/checkbox'
 import RadioButton from 'primevue/radiobutton'
 import Dropdown from 'primevue/dropdown'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ProgressBar from 'primevue/progressbar'
 import Dialog from 'primevue/dialog'
@@ -46,7 +48,11 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
-app.use(PrimeVue)
+app.use(PrimeVue, {
+  theme: {
+    preset: Aura
+  }
+})
 app.use(ConfirmationService)
 app.use(ToastService)
 
@@ -66,6 +72,7 @@ app.component('Textarea', Textarea)
 app.component('Checkbox', Checkbox)
 app.component('RadioButton', RadioButton)
 app.component('Dropdown', Dropdown)
+app.component('Select', Select)
 app.component('Tag', Tag)
 app.component('ProgressBar', ProgressBar)
 app.component('Dialog', Dialog)

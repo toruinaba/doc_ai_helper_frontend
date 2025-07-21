@@ -56,8 +56,8 @@ const dropdownPassThrough = {
 </script>
 
 <style>
-/* グローバルスタイル - プルダウンパネルの背景問題を修正 */
-.app-dropdown-panel {
+/* 特定のAppDropdownコンポーネントのみに適用 */
+.app-dropdown .app-dropdown-panel {
   background-color: var(--app-surface-0) !important;
   border: 1px solid var(--app-surface-border) !important;
   border-radius: var(--app-border-radius) !important;
@@ -72,76 +72,76 @@ const dropdownPassThrough = {
   overflow: hidden !important;
 }
 
-.app-dropdown-wrapper {
+.app-dropdown .app-dropdown-wrapper {
   background-color: var(--app-surface-0) !important;
 }
 
-.app-dropdown-list {
+.app-dropdown .app-dropdown-list {
   background-color: var(--app-surface-0) !important;
   padding: var(--app-spacing-xs) 0 !important;
 }
 
-.app-dropdown-item {
+.app-dropdown .app-dropdown-item {
   padding: var(--app-spacing-sm) var(--app-spacing-base) !important;
   transition: var(--app-transition-fast) !important;
   color: var(--app-text-color) !important;
   background-color: var(--app-surface-0) !important;
 }
 
-.app-dropdown-item:hover {
+.app-dropdown .app-dropdown-item:hover {
   background-color: var(--app-surface-100) !important;
   color: var(--app-text-color) !important;
 }
 
-.app-dropdown-item.p-highlight {
+.app-dropdown .app-dropdown-item.p-highlight {
   background-color: var(--app-primary-50) !important;
   color: var(--app-primary-600) !important;
 }
 
-.app-dropdown-item.p-focus {
+.app-dropdown .app-dropdown-item.p-focus {
   background-color: var(--app-surface-100) !important;
   box-shadow: none !important;
   outline: none !important;
 }
 
 /* Dropdown ルート要素のスタイル */
-.app-dropdown-root {
+.app-dropdown .app-dropdown-root {
   border: 1px solid var(--app-surface-border) !important;
   border-radius: var(--app-border-radius) !important;
   background-color: var(--app-surface-0) !important;
   transition: var(--app-transition-fast) !important;
 }
 
-.app-dropdown-root:hover {
+.app-dropdown .app-dropdown-root:hover {
   border-color: var(--app-primary-color) !important;
 }
 
-.app-dropdown-root.p-focus {
+.app-dropdown .app-dropdown-root.p-focus {
   border-color: var(--app-primary-color) !important;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
 }
 
-.app-dropdown-input {
+.app-dropdown .app-dropdown-input {
   padding: var(--app-spacing-sm) var(--app-spacing-base) !important;
   color: var(--app-text-color) !important;
   background-color: transparent !important;
 }
 
-.app-dropdown-input::placeholder {
+.app-dropdown .app-dropdown-input::placeholder {
   color: var(--app-text-color-muted) !important;
 }
 
-.app-dropdown-trigger {
+.app-dropdown .app-dropdown-trigger {
   color: var(--app-text-color-secondary) !important;
   padding: 0 var(--app-spacing-sm) !important;
 }
 
-.app-dropdown-trigger:hover {
+.app-dropdown .app-dropdown-trigger:hover {
   color: var(--app-primary-color) !important;
 }
 
 /* ローディング状態 */
-.app-dropdown-root.p-disabled {
+.app-dropdown .app-dropdown-root.p-disabled {
   opacity: 0.6 !important;
   cursor: not-allowed !important;
 }
@@ -159,11 +159,11 @@ const dropdownPassThrough = {
 }
 
 /* エラー状態 */
-.app-dropdown-root.p-invalid {
+.app-dropdown .app-dropdown-root.p-invalid {
   border-color: #ef4444 !important;
 }
 
-.app-dropdown-root.p-invalid:focus-within {
+.app-dropdown .app-dropdown-root.p-invalid:focus-within {
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
 }
 </style>

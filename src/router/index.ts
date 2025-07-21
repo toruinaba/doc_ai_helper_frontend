@@ -23,6 +23,11 @@ const router = createRouter({
       name: 'Settings',
       component: () => import('../views/Settings.vue'),
     },
+    {
+      path: '/select-test',
+      name: 'SelectTest',
+      component: () => import('../views/SelectTest.vue'),
+    },
     // レガシーリダイレクト
     {
       path: '/repositories',

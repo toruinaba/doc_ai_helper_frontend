@@ -41,7 +41,7 @@
                 <p class="setting-description">ストリーミング通信の実装方式を選択</p>
               </div>
               <div class="setting-control">
-                <AppDropdown
+                <Select
                   id="streaming-type"
                   v-model="streamingSettings.type"
                   :options="streamingTypeOptions"
@@ -87,7 +87,7 @@
                 <p class="setting-description">ツール実行の自動化レベルを設定</p>
               </div>
               <div class="setting-control">
-                <AppDropdown
+                <Select
                   id="execution-mode"
                   v-model="mcpSettings.executionMode"
                   :options="executionModeOptions"
@@ -204,7 +204,7 @@
                 <p class="setting-description">AIアシスタントの動作パターンを選択</p>
               </div>
               <div class="setting-control">
-                <AppDropdown
+                <Select
                   id="system-prompt-template"
                   v-model="documentSettings.systemPromptTemplate"
                   :options="systemPromptTemplates"
@@ -311,7 +311,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import AppNavigation from '@/components/layout/AppNavigation.vue';
-import AppDropdown from '@/components/common/AppDropdown.vue';
+import Select from 'primevue/select';
 import Card from 'primevue/card';
 import ToggleButton from 'primevue/togglebutton';
 import Checkbox from 'primevue/checkbox';
@@ -621,6 +621,23 @@ onMounted(() => {
   min-width: 200px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* Select コンポーネントのスタイル調整 */
+.setting-control :deep(.p-select) {
+  width: 100%;
+  background: var(--app-surface-0);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-border-radius);
+}
+
+.setting-control :deep(.p-select:hover) {
+  border-color: var(--app-primary-color);
+}
+
+.setting-control :deep(.p-select:focus-within) {
+  border-color: var(--app-primary-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .tool-selection {

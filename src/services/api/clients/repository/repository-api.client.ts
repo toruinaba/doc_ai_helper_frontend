@@ -6,27 +6,10 @@
 import { BaseHttpClient } from '../base'
 import type { components } from '../../types.auto'
 
-// Fallback types for repository operations (not defined in current API spec)
-interface RepositoryResponse {
-  id: number
-  name: string
-  owner: string
-  service: string
-  created_at: string
-  updated_at: string
-}
-
-interface RepositoryCreate {
-  name: string
-  owner: string
-  service: string
-  description?: string
-}
-
-interface RepositoryUpdate {
-  name?: string
-  description?: string
-}
+// Use auto-generated types from OpenAPI spec
+type RepositoryResponse = components['schemas']['RepositoryResponse']
+type RepositoryCreate = components['schemas']['RepositoryCreate']
+type RepositoryUpdate = components['schemas']['RepositoryUpdate']
 
 type SearchQuery = components['schemas']['SearchQuery']
 type SearchResponse = components['schemas']['SearchResponse']

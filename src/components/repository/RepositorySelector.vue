@@ -7,7 +7,7 @@
         <span>リポジトリ</span>
       </label>
       
-      <Dropdown
+      <AppDropdown
         v-model="selectedRepositoryId"
         :options="repositoryOptions"
         optionLabel="label"
@@ -64,7 +64,7 @@
             />
           </div>
         </template>
-      </Dropdown>
+      </AppDropdown>
     </div>
 
     <!-- ブランチ・パス選択 -->
@@ -74,7 +74,7 @@
           <i class="pi pi-code-branch" />
           <span>ブランチ</span>
         </label>
-        <Dropdown
+        <AppDropdown
           v-model="selectedBranch"
           :options="branchOptions"
           placeholder="ブランチを選択..."
@@ -131,7 +131,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Dropdown, Button, InputText, Tag } from 'primevue'
+import { Button, InputText, Tag } from 'primevue'
+import AppDropdown from '@/components/common/AppDropdown.vue'
 import { useRepositoryStore } from '@/stores/repository.store'
 import { useDocumentStore } from '@/stores/document.store'
 import type { components } from '@/services/api/types.auto'

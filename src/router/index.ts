@@ -18,6 +18,11 @@ const router = createRouter({
       name: 'RepositoryManagement',
       component: () => import('../views/RepositoryManagement.vue'),
     },
+    {
+      path: '/settings',
+      name: 'Settings',
+      component: () => import('../views/Settings.vue'),
+    },
     // レガシーリダイレクト
     {
       path: '/repositories',

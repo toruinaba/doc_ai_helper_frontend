@@ -57,7 +57,7 @@
         
         <div class="form-field">
           <label for="service_type">サービス *</label>
-          <Dropdown
+          <AppDropdown
             id="service_type"
             v-model="formData.service_type"
             :options="serviceOptions"
@@ -197,12 +197,12 @@ import {
   Dialog,
   InputText,
   Textarea,
-  Dropdown,
   Checkbox,
   Password,
   Button,
   Message
 } from 'primevue'
+import AppDropdown from '@/components/common/AppDropdown.vue'
 import type { components } from '@/services/api/types.auto'
 
 type RepositoryCreate = components['schemas']['RepositoryCreate']

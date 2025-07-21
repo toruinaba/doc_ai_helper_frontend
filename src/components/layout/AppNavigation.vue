@@ -21,8 +21,12 @@
           <span>ホーム</span>
         </router-link>
         <router-link to="/admin/repositories" class="nav-link">
-          <i class="pi pi-cog"></i>
+          <i class="pi pi-folder"></i>
           <span>リポジトリ管理</span>
+        </router-link>
+        <router-link to="/settings" class="nav-link">
+          <i class="pi pi-cog"></i>
+          <span>設定</span>
         </router-link>
       </nav>
     </div>

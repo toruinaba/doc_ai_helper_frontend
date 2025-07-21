@@ -20,47 +20,43 @@
     </Card>
 
     <div v-else class="document-content">
-      <!-- リポジトリ情報表示 -->
-      <div v-if="repositoryContext" class="repository-info">
-        <div class="repo-badge">
-          <i class="pi pi-folder" />
-          <span class="repo-name">{{ repositoryContext.owner }}/{{ repositoryContext.repo }}</span>
-          <Tag :value="repositoryContext.service" size="small" />
-          <span class="repo-branch">
-            <i class="pi pi-code-branch" />
-            {{ repositoryContext.ref }}
+      <!-- 統合ドキュメントヘッダー -->
+      <div v-if="repositoryContext" class="document-header-unified">
+        <!-- Breadcrumb行 -->
+        <div class="breadcrumb-row">
+          <Breadcrumb :model="breadcrumbItems" class="document-breadcrumb">
+            <template #item="{ item }">
+              <span v-if="!item.command" class="p-menuitem-text">
+                <i v-if="item.icon" :class="item.icon"></i>
+                <span v-if="item.label">{{ item.label }}</span>
+              </span>
+              <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
+                <i v-if="item.icon" :class="item.icon"></i>
+                <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
+              </span>
+            </template>
+          </Breadcrumb>
+        </div>
+        
+        <!-- メタ情報行 -->
+        <div class="meta-row">
+          <span v-if="repositoryContext.ref" class="branch-info">
+            <i class="pi pi-code-branch"></i>
+            {{ repositoryContext.ref }} ブランチ
+          </span>
+          <span v-if="document.metadata.last_modified" class="last-modified">
+            <i class="pi pi-calendar"></i>
+            最終更新: {{ formatDate(document.metadata.last_modified) }}
+          </span>
+          <span v-if="document.metadata.size" class="file-size">
+            <i class="pi pi-file"></i>
+            {{ formatFileSize(document.metadata.size) }}
           </span>
         </div>
       </div>
 
       <div class="document-header">
         <h1 class="document-title">{{ documentTitle }}</h1>
-        <div class="document-meta">
-          <span v-if="document.metadata.last_modified" class="last-modified">
-            <i class="pi pi-calendar"></i> 
-            {{ formatDate(document.metadata.last_modified) }}
-          </span>
-          <span v-if="document.path" class="document-path">
-            <i class="pi pi-file" />
-            {{ document.path }}
-          </span>
-        </div>
-      </div>
-
-      <!-- パン屑ナビゲーション -->
-      <div v-if="repositoryContext" class="document-navigation">
-        <Breadcrumb :model="breadcrumbItems" class="document-breadcrumb">
-          <template #item="{ item }">
-            <span v-if="!item.command" class="p-menuitem-text">
-              <i v-if="item.icon" :class="item.icon"></i>
-              <span v-if="item.label">{{ item.label }}</span>
-            </span>
-            <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
-              <i v-if="item.icon" :class="item.icon"></i>
-              <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
-            </span>
-          </template>
-        </Breadcrumb>
       </div>
       
       <FrontmatterDisplay v-if="frontmatter" :frontmatter="frontmatter" />
@@ -229,6 +225,19 @@ const breadcrumbItems = computed(() => {
  */
 function formatDate(dateString: string): string {
   return DateFormatter.documentDate(dateString, { fallback: dateString });
+}
+
+/**
+ * ファイルサイズをフォーマットする
+ */
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
 /**
@@ -527,17 +536,50 @@ watch(
   color: var(--app-text-color-muted);
 }
 
+.document-header-unified {
+  padding: var(--app-spacing-base);
+  background-color: var(--app-surface-50);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-border-radius);
+  margin-bottom: var(--app-spacing-base);
+}
+
+.breadcrumb-row {
+  margin-bottom: var(--app-spacing-sm);
+}
+
+.meta-row {
+  display: flex;
+  gap: var(--app-spacing-lg);
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: var(--app-font-size-sm);
+  color: var(--app-text-color-secondary);
+}
+
+.meta-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-spacing-xs);
+}
+
+.meta-row i {
+  color: var(--app-primary-color);
+}
+
+.branch-info {
+  font-weight: 500;
+}
+
 .document-header {
-  margin-bottom: var(--app-spacing-lg);
-  padding-bottom: var(--app-spacing-base);
-  border-bottom: 1px solid var(--app-surface-border);
+  padding: var(--app-spacing-base) 0 var(--app-spacing-sm) 0;
 }
 
 .document-title {
-  margin-top: 0;
-  margin-bottom: var(--app-spacing-sm);
+  margin: 0 0 var(--app-spacing-sm) 0;
   color: var(--app-text-color);
   font-size: var(--app-font-size-2xl);
+  font-weight: 600;
 }
 
 .document-meta {
@@ -548,34 +590,27 @@ watch(
   flex-wrap: wrap;
 }
 
-.document-navigation {
-  margin: var(--app-spacing-base) 0;
-  padding: var(--app-spacing-sm);
-  background-color: var(--app-surface-50);
-  border: 1px solid var(--app-surface-border);
-  border-radius: var(--app-border-radius);
-}
-
 .document-breadcrumb {
   width: 100%;
 }
 
-.document-navigation :deep(.p-breadcrumb) {
+.breadcrumb-row :deep(.p-breadcrumb) {
   background: none;
   border: none;
   padding: 0;
 }
 
-.document-navigation :deep(.p-breadcrumb .p-breadcrumb-list) {
+.breadcrumb-row :deep(.p-breadcrumb .p-breadcrumb-list) {
   margin: 0;
 }
 
-.document-navigation :deep(.p-menuitem-text) {
-  font-size: var(--app-font-size-sm);
-  color: var(--app-text-color-secondary);
+.breadcrumb-row :deep(.p-menuitem-text) {
+  font-size: var(--app-font-size-base);
+  color: var(--app-text-color);
+  font-weight: 500;
 }
 
-.document-navigation :deep(.p-menuitem-link) {
+.breadcrumb-row :deep(.p-menuitem-link) {
   color: var(--app-primary-color);
   text-decoration: none;
   border-radius: var(--app-border-radius-sm);
@@ -583,22 +618,23 @@ watch(
   transition: var(--app-transition-fast);
 }
 
-.document-navigation :deep(.p-menuitem-link:hover) {
+.breadcrumb-row :deep(.p-menuitem-link:hover) {
   background-color: var(--app-primary-50);
 }
 
-.document-navigation :deep(.p-menuitem-text i) {
-  font-size: 1rem;
+.breadcrumb-row :deep(.p-menuitem-text i) {
+  font-size: 1.1rem;
   color: var(--app-primary-color);
+  margin-right: var(--app-spacing-xs);
 }
 
-.document-navigation :deep(.p-menuitem-link i) {
-  font-size: 1rem;
+.breadcrumb-row :deep(.p-menuitem-link i) {
+  font-size: 1.1rem;
   color: var(--app-primary-color);
   transition: var(--app-transition-fast);
 }
 
-.document-navigation :deep(.p-menuitem-link:hover i) {
+.breadcrumb-row :deep(.p-menuitem-link:hover i) {
   color: var(--app-primary-600);
 }
 

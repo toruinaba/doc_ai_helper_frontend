@@ -35,6 +35,7 @@
             v-model="config.includeDocumentInSystemPrompt" 
             :binary="true" 
             inputId="includeDocument" 
+            @change="handleConfigChange"
           />
           <label for="includeDocument">システムプロンプトにドキュメントを含める</label>
         </div>
@@ -49,6 +50,7 @@
             v-model="config.enableRepositoryContext" 
             :binary="true" 
             inputId="enableRepoContext" 
+            @change="handleConfigChange"
           />
           <label for="enableRepoContext">ドキュメントコンテキストを有効にする</label>
         </div>
@@ -63,6 +65,7 @@
             v-model="config.enableDocumentMetadata" 
             :binary="true" 
             inputId="enableDocMetadata" 
+            @change="handleConfigChange"
           />
           <label for="enableDocMetadata">ドキュメントメタデータを含める</label>
         </div>
@@ -139,11 +142,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 import Select from 'primevue/select';
 import { usePersistedConfig } from '@/composables/usePersistedConfig';
+import { loadSettings, saveDocumentSettings, type DocumentSettings } from '@/utils/settings.util';
 
 // Props
 interface Props {
@@ -164,21 +168,20 @@ const emit = defineEmits<Emits>();
 // 設定パネルの表示状態
 const showConfig = ref(false);
 
-// 永続化されたドキュメントコンテキスト設定
-const { config } = usePersistedConfig({
-  key: 'documentContextConfig',
-  defaultConfig: {
-    includeDocumentInSystemPrompt: true,
-    systemPromptTemplate: 'contextual_document_assistant_ja',
-    enableRepositoryContext: true,
-    enableDocumentMetadata: true,
-    completeToolFlow: true
-  },
-  onChange: (newConfig) => {
-    console.log('ドキュメントコンテキスト設定が変更されました:', newConfig);
-    emit('config-changed', newConfig);
-  }
+// 統一設定を使用
+const config = ref<DocumentSettings>({
+  includeDocumentInSystemPrompt: true,
+  systemPromptTemplate: 'contextual_document_assistant_ja',
+  enableRepositoryContext: true,
+  enableDocumentMetadata: true
 });
+
+// 設定変更時の処理
+function handleConfigChange() {
+  saveDocumentSettings(config.value);
+  console.log('ドキュメントコンテキスト設定が変更されました:', config.value);
+  emit('config-changed', config.value);
+}
 
 // システムプロンプトテンプレートのオプション
 const systemPromptTemplates = ref([
@@ -270,9 +273,33 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-// 初期化時にテンプレート一覧を読み込み
+// 初期化処理
 onMounted(() => {
   loadTemplates();
+  loadCurrentSettings();
+  
+  // 設定変更イベントをリッスン
+  window.addEventListener('document-settings-changed', handleExternalSettingsChange);
+});
+
+// 現在の設定を読み込み
+function loadCurrentSettings() {
+  const allSettings = loadSettings();
+  Object.assign(config.value, allSettings.document);
+  console.log('ドキュメントコンテキスト設定を読み込みました:', config.value);
+}
+
+// 外部からの設定変更を処理
+function handleExternalSettingsChange(event: CustomEvent) {
+  const newSettings = event.detail as DocumentSettings;
+  Object.assign(config.value, newSettings);
+  console.log('外部からの設定変更を受信:', newSettings);
+  emit('config-changed', config.value);
+}
+
+// クリーンアップ
+onUnmounted(() => {
+  window.removeEventListener('document-settings-changed', handleExternalSettingsChange);
 });
 </script>
 

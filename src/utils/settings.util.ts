@@ -134,6 +134,10 @@ export function saveMCPSettings(settings: MCPSettings): void {
  */
 export function saveDocumentSettings(settings: DocumentSettings): void {
   localStorage.setItem(STORAGE_KEYS.DOCUMENT, JSON.stringify(settings));
+  // 設定変更イベントを発行
+  window.dispatchEvent(new CustomEvent('document-settings-changed', { 
+    detail: settings 
+  }));
 }
 
 /**

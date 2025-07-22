@@ -6,18 +6,27 @@ const router = createRouter({
     {
       path: '/',
       name: 'Home',
-      component: () => import('../components/layout/MainLayout.vue'), // メインレイアウト
+      component: () => import('../views/Home.vue'),
     },
     {
-      path: '/repositories',
+      path: '/documents/:repositoryId',
+      name: 'DocumentView',
+      component: () => import('../views/DocumentView.vue'),
+    },
+    {
+      path: '/admin/repositories',
       name: 'RepositoryManagement',
       component: () => import('../views/RepositoryManagement.vue'),
     },
-    // 将来的に追加される可能性のあるルート
     {
       path: '/settings',
       name: 'Settings',
-      component: () => import('../views/RepositoryManagement.vue'), // 一時的
+      component: () => import('../views/Settings.vue'),
+    },
+    // レガシーリダイレクト
+    {
+      path: '/repositories',
+      redirect: '/admin/repositories'
     }
   ],
 })

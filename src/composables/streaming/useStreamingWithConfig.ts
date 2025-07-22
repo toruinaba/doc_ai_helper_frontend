@@ -60,29 +60,54 @@ export function useStreamingWithConfig(
       // 会話履歴の準備（最適化履歴を優先使用）
       const conversationHistory = getConversationHistory()
       
-      console.log('📤 Sending message request with new backend specification')
+      console.log('📤 Sending streaming message request with new backend specification')
       
-      // 新しい統一サービスでリクエスト送信
-      const response = await llmService.query({
+      // アシスタントの空メッセージを追加（ストリーミング表示用）
+      const assistantMessage = addAssistantMessage('')
+      let accumulatedContent = ''
+      
+      // 新しい統一サービスでストリーミングリクエスト送信
+      await llmService.stream({
         prompt: content,
         provider: llmConfig.defaultProvider,
         model: llmConfig.defaultModel,
         conversationHistory,
-        includeDocument: true
-      }, currentDoc)
-      
-      // レスポンスを処理
-      if (response.content) {
-        addAssistantMessage(response.content)
-        
-        // 会話履歴の最適化があった場合は保存
-        if (response.optimized_conversation_history && response.optimized_conversation_history.length > 0) {
-          console.log('🗂️ Server provided optimized conversation history:', 
-            response.optimized_conversation_history.length, 'messages')
-          // 注意: 最適化履歴の保存は呼び出し元で管理されるため、ここでは処理しない
-          // 実際の保存は`replaceWithOptimizedHistory`で行われる
+        includeDocument: true,
+        enableTools: false, // Tools disabled for config streaming
+        toolChoice: 'none'
+      }, currentDoc, {
+        onStart: () => {
+          console.log('Streaming started with config')
+        },
+        onChunk: (chunk) => {
+          console.log('Received chunk:', chunk)
+          accumulatedContent += chunk
+          
+          // アシスタントメッセージを更新
+          const messageIndex = messages.value.findIndex(m => m.id === assistantMessage.id)
+          if (messageIndex !== -1) {
+            const updatedMessage = {
+              ...messages.value[messageIndex],
+              content: accumulatedContent
+            }
+            messages.value[messageIndex] = updatedMessage
+          }
+        },
+        onError: (error) => {
+          console.error('Streaming error:', error)
+          addSystemMessage(`エラー: ${error.message || 'Unknown streaming error'}`)
+        },
+        onEnd: (data) => {
+          console.log('Streaming completed:', data)
+          
+          // 最適化された会話履歴の処理
+          if (data?.optimized_conversation_history && data.optimized_conversation_history.length > 0) {
+            console.log('🗂️ Server provided optimized conversation history:', 
+              data.optimized_conversation_history.length, 'messages')
+            // 注意: 最適化履歴の保存は呼び出し元で管理されるため、ここでは処理しない
+          }
         }
-      }
+      })
       
       console.log('Message sent successfully with new specification')
       

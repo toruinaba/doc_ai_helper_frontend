@@ -1,8 +1,19 @@
 <template>
   <div class="document-context-panel">
     <div class="context-settings-header">
+      <div class="context-info">
+        <span class="context-title">ドキュメントコンテキスト</span>
+        <span class="context-status">
+          <i v-if="config.includeDocumentInSystemPrompt" 
+             class="pi pi-check-circle text-green-500" 
+             v-tooltip.bottom="'ドキュメントコンテキスト有効'" />
+          <i v-else 
+             class="pi pi-times-circle text-red-500" 
+             v-tooltip.bottom="'ドキュメントコンテキスト無効'" />
+        </span>
+      </div>
       <Button 
-        icon="pi pi-file-text" 
+        icon="pi pi-cog" 
         size="small" 
         text 
         severity="secondary"
@@ -10,15 +21,12 @@
         v-tooltip.bottom="'ドキュメントコンテキスト設定'"
         class="context-config-toggle"
       />
-      <span class="context-status">
-        <i v-if="config.includeDocumentInSystemPrompt" 
-           class="pi pi-check-circle text-green-500" 
-           v-tooltip.bottom="'ドキュメントコンテキスト有効'" />
-        <i v-else 
-           class="pi pi-times-circle text-red-500" 
-           v-tooltip.bottom="'ドキュメントコンテキスト無効'" />
-      </span>
     </div>
+    
+    <p class="context-description">
+      AIがドキュメントの内容を理解してより正確な回答を提供します
+      <span v-if="!config.includeDocumentInSystemPrompt" class="status-warning">（現在無効）</span>
+    </p>
     
     <div v-if="showConfig" class="document-context-config">
       <div class="config-section">
@@ -27,9 +35,13 @@
             v-model="config.includeDocumentInSystemPrompt" 
             :binary="true" 
             inputId="includeDocument" 
+            @change="handleConfigChange"
           />
           <label for="includeDocument">システムプロンプトにドキュメントを含める</label>
         </div>
+        <p class="config-description">
+          現在表示しているドキュメントの内容をAIに提供します。AIがドキュメントの内容を理解して、より正確な回答ができるようになります。
+        </p>
       </div>
       
       <div class="config-section">
@@ -38,9 +50,13 @@
             v-model="config.enableRepositoryContext" 
             :binary="true" 
             inputId="enableRepoContext" 
+            @change="handleConfigChange"
           />
-          <label for="enableRepoContext">リポジトリコンテキストを有効にする</label>
+          <label for="enableRepoContext">ドキュメントコンテキストを有効にする</label>
         </div>
+        <p class="config-description">
+          ドキュメントソースの情報（オーナー、ブランチ、パスなど）をAIに提供します。
+        </p>
       </div>
       
       <div class="config-section">
@@ -49,14 +65,18 @@
             v-model="config.enableDocumentMetadata" 
             :binary="true" 
             inputId="enableDocMetadata" 
+            @change="handleConfigChange"
           />
           <label for="enableDocMetadata">ドキュメントメタデータを含める</label>
         </div>
+        <p class="config-description">
+          ファイルサイズ、更新日時、ファイル形式などの詳細情報をAIに提供します。
+        </p>
       </div>
       
       <div class="config-section">
         <label class="config-label">システムプロンプトテンプレート:</label>
-        <Dropdown 
+        <Select 
           v-model="config.systemPromptTemplate" 
           :options="systemPromptTemplates" 
           optionLabel="name" 
@@ -122,11 +142,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import { usePersistedConfig } from '@/composables/usePersistedConfig';
+import { loadSettings, saveDocumentSettings, type DocumentSettings } from '@/utils/settings.util';
 
 // Props
 interface Props {
@@ -147,21 +168,20 @@ const emit = defineEmits<Emits>();
 // 設定パネルの表示状態
 const showConfig = ref(false);
 
-// 永続化されたドキュメントコンテキスト設定
-const { config } = usePersistedConfig({
-  key: 'documentContextConfig',
-  defaultConfig: {
-    includeDocumentInSystemPrompt: true,
-    systemPromptTemplate: 'contextual_document_assistant_ja',
-    enableRepositoryContext: true,
-    enableDocumentMetadata: true,
-    completeToolFlow: true
-  },
-  onChange: (newConfig) => {
-    console.log('ドキュメントコンテキスト設定が変更されました:', newConfig);
-    emit('config-changed', newConfig);
-  }
+// 統一設定を使用
+const config = ref<DocumentSettings>({
+  includeDocumentInSystemPrompt: true,
+  systemPromptTemplate: 'contextual_document_assistant_ja',
+  enableRepositoryContext: true,
+  enableDocumentMetadata: true
 });
+
+// 設定変更時の処理
+function handleConfigChange() {
+  saveDocumentSettings(config.value);
+  console.log('ドキュメントコンテキスト設定が変更されました:', config.value);
+  emit('config-changed', config.value);
+}
 
 // システムプロンプトテンプレートのオプション
 const systemPromptTemplates = ref([
@@ -253,9 +273,33 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-// 初期化時にテンプレート一覧を読み込み
+// 初期化処理
 onMounted(() => {
   loadTemplates();
+  loadCurrentSettings();
+  
+  // 設定変更イベントをリッスン
+  window.addEventListener('document-settings-changed', handleExternalSettingsChange);
+});
+
+// 現在の設定を読み込み
+function loadCurrentSettings() {
+  const allSettings = loadSettings();
+  Object.assign(config.value, allSettings.document);
+  console.log('ドキュメントコンテキスト設定を読み込みました:', config.value);
+}
+
+// 外部からの設定変更を処理
+function handleExternalSettingsChange(event: CustomEvent) {
+  const newSettings = event.detail as DocumentSettings;
+  Object.assign(config.value, newSettings);
+  console.log('外部からの設定変更を受信:', newSettings);
+  emit('config-changed', config.value);
+}
+
+// クリーンアップ
+onUnmounted(() => {
+  window.removeEventListener('document-settings-changed', handleExternalSettingsChange);
 });
 </script>
 
@@ -272,11 +316,37 @@ onMounted(() => {
 .context-settings-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.context-info {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.context-config-toggle {
-  margin-left: auto;
+.context-title {
+  font-weight: 600;
+  color: #2e7d32;
+  font-size: 0.95rem;
+}
+
+.context-status {
+  display: flex;
+  align-items: center;
+}
+
+.context-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.3;
+}
+
+.status-warning {
+  color: #d32f2f;
+  font-weight: 500;
 }
 
 .document-context-config {
@@ -287,6 +357,14 @@ onMounted(() => {
 
 .config-section {
   margin-bottom: 1rem;
+}
+
+.config-description {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0.5rem 0 0 0;
+  line-height: 1.4;
+  padding-left: 1.5rem;
 }
 
 .config-label {

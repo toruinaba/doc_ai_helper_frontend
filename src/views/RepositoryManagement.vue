@@ -1,5 +1,6 @@
 <template>
   <div class="repository-management">
+    <AppNavigation />
     <!-- ヘッダー -->
     <div class="page-header">
       <div class="header-content">
@@ -179,6 +180,8 @@ import {
   ConfirmDialog 
 } from 'primevue'
 import { useRepositoryStore } from '@/stores/repository.store'
+import { useDocumentStore } from '@/stores/document.store'
+import AppNavigation from '@/components/layout/AppNavigation.vue'
 import RepositoryList from '@/components/repository/RepositoryList.vue'
 import RepositoryForm from '@/components/repository/RepositoryForm.vue'
 import type { components } from '@/services/api/types.auto'
@@ -188,6 +191,7 @@ type RepositoryCreate = components['schemas']['RepositoryCreate']
 
 // ストアとユーティリティ
 const repositoryStore = useRepositoryStore()
+const documentStore = useDocumentStore()
 const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
@@ -321,15 +325,36 @@ function handleOpenRepository(repository: RepositoryResponse) {
   // リポジトリを選択してドキュメントビューアに移動
   repositoryStore.selectRepository(repository)
   
-  toast.add({
-    severity: 'info',
-    summary: 'リポジトリ選択',
-    detail: `${repository.name} が選択されました`,
-    life: 2000
+  // ドキュメントストアにリポジトリ情報を設定
+  documentStore.currentService = repository.service_type
+  documentStore.currentOwner = repository.owner
+  documentStore.currentRepo = repository.name
+  documentStore.currentRef = repository.default_branch
+  
+  // デフォルトドキュメントパスを設定
+  const defaultPath = repository.root_path ? 
+    `${repository.root_path}/README.md` : 
+    'README.md'
+  
+  // ドキュメントを読み込み
+  documentStore.fetchDocument(defaultPath).then(() => {
+    toast.add({
+      severity: 'success',
+      summary: 'リポジトリ選択',
+      detail: `${repository.name} のドキュメントを読み込みました`,
+      life: 2000
+    })
+  }).catch(() => {
+    toast.add({
+      severity: 'warn',
+      summary: 'リポジトリ選択',
+      detail: `${repository.name} が選択されました（ドキュメント読み込み失敗）`,
+      life: 3000
+    })
   })
   
-  // ドキュメントビューアに移動（既存のルートに合わせて調整）
-  router.push('/')
+  // ドキュメント表示ページに移動
+  router.push(`/documents/${repository.id}`)
 }
 
 async function handleRefreshRepositories() {
@@ -402,9 +427,17 @@ function formatDateTime(dateString: string): string {
 
 <style scoped lang="scss">
 .repository-management {
-  padding: 1.5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--app-surface-50);
+}
+
+.repository-management > *:not(.app-header) {
+  padding: var(--app-spacing-lg);
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .page-header {

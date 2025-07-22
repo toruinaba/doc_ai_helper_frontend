@@ -3,12 +3,13 @@
  * 
  * ドキュメントアシスタントUIの状態とロジックを管理するコンポーザブル
  */
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { useDocumentStore } from '@/stores/document.store';
 import { getMCPToolsConfig } from '@/utils/mcp-config.util';
 import { updateStreamingConfig, StreamingType } from '@/services/api/infrastructure';
 import { getAppDefaultsConfig } from '@/utils/config.util';
+import { loadSettings, type StreamingSettings, type MCPSettings } from '@/utils/settings.util';
 
 // Type definitions
 type ToolExecutionMode = 'auto' | 'manual' | 'required' | 'none';
@@ -66,19 +67,44 @@ export function useDocumentAssistant(messagesRef?: any) {
   const assistantStore = useDocumentAssistantStore();
   const documentStore = useDocumentStore();
   
-  // MCPツール設定を環境変数から取得
+  // 統一設定を読み込み
+  const allSettings = loadSettings();
+  
+  // MCPツール設定を環境変数から取得（フォールバック用）
   const mcpConfig = getMCPToolsConfig();
   
-  // アプリケーションデフォルト設定を取得
+  // アプリケーションデフォルト設定を取得（フォールバック用）
   const appDefaults = getAppDefaultsConfig();
   
-  // ローカル状態
-  const useStreaming = ref(appDefaults.streamingMode);
-  const useToolsForMessage = ref(mcpConfig.enabled);
-  const mcpToolsEnabled = ref(mcpConfig.enabled);
-  const executionMode = ref<ToolExecutionMode>(mcpConfig.executionMode);
+  // 統一設定を優先したローカル状態
+  const useStreaming = ref(allSettings.streaming.enabled);
+  const useToolsForMessage = ref(allSettings.mcp.enabled);
+  const mcpToolsEnabled = ref(allSettings.mcp.enabled);
+  const executionMode = ref<ToolExecutionMode>(allSettings.mcp.executionMode);
   const availableTools = ref<MCPToolConfig[]>(mcpConfig.availableTools);
-  const streamingType = ref<string>(appDefaults.streamingType);
+  const streamingType = ref<string>(allSettings.streaming.type);
+  
+  // 設定変更のリスナー
+  const handleSettingsChange = () => {
+    const newSettings = loadSettings();
+    useStreaming.value = newSettings.streaming.enabled;
+    useToolsForMessage.value = newSettings.mcp.enabled;
+    mcpToolsEnabled.value = newSettings.mcp.enabled;
+    executionMode.value = newSettings.mcp.executionMode;
+    streamingType.value = newSettings.streaming.type;
+    console.log('Settings updated in document assistant:', newSettings);
+  };
+  
+  // 設定変更イベントのリスナーを設定
+  onMounted(() => {
+    window.addEventListener('storage', handleSettingsChange);
+    window.addEventListener('document-settings-changed', handleSettingsChange as EventListener);
+  });
+  
+  onUnmounted(() => {
+    window.removeEventListener('storage', handleSettingsChange);
+    window.removeEventListener('document-settings-changed', handleSettingsChange as EventListener);
+  });
   
   // 計算されたプロパティ
   const messages = computed(() => {
@@ -91,7 +117,7 @@ export function useDocumentAssistant(messagesRef?: any) {
   const activeToolExecutions = computed(() => assistantStore.activeToolExecutions);
   
   /**
-   * メッセージ送信
+   * メッセージ送信（現在の設定を動的に読み込み）
    */
   const sendMessage = async (options: {
     message: string;
@@ -104,12 +130,23 @@ export function useDocumentAssistant(messagesRef?: any) {
       return;
     }
     
-    console.log('🌊 Sending message:', { message: message.substring(0, 50), streaming, useTools });
+    // 最新の設定を読み込み
+    const currentSettings = loadSettings();
+    const actualStreaming = currentSettings.streaming.enabled && streaming;
+    const actualTools = currentSettings.mcp.enabled && useTools;
+    
+    console.log('🌊 Sending message:', { 
+      message: message.substring(0, 50), 
+      streaming: actualStreaming, 
+      useTools: actualTools,
+      settingsStreaming: currentSettings.streaming.enabled,
+      settingsMcp: currentSettings.mcp.enabled
+    });
     
     try {
-      if (streaming) {
-        // ストリーミングモード
-        if (mcpToolsEnabled.value && useTools) {
+      if (actualStreaming) {
+        // ストリーミングモード（設定で有効な場合のみ）
+        if (actualTools) {
           console.log('🛠️ Sending streaming message with MCP tools enabled');
           await assistantStore.sendStreamingMessageWithToolsAndConfig(message);
         } else {
@@ -117,12 +154,16 @@ export function useDocumentAssistant(messagesRef?: any) {
           await assistantStore.sendStreamingMessageWithConfig(message);
         }
       } else {
-        // 通常モード
+        // 通常モード（非ストリーミング）
         console.log('📨 Sending message with standard mode');
-        await assistantStore.sendMessageWithConfig(message, {
-          provider: 'openai',
-          includeHistory: true
-        });
+        if (actualTools) {
+          await assistantStore.sendMessageWithTools(message);
+        } else {
+          await assistantStore.sendMessageWithConfig(message, {
+            provider: 'openai',
+            includeHistory: true
+          });
+        }
       }
       
       // 送信後にスクロール

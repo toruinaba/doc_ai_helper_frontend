@@ -3,6 +3,7 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
+import Aura from '@primeuix/themes/aura'
 
 // PrimeVueサービス
 import ConfirmationService from 'primevue/confirmationservice'
@@ -10,6 +11,7 @@ import ToastService from 'primevue/toastservice'
 
 // PrimeVueコンポーネント
 import Card from 'primevue/card'
+import Panel from 'primevue/panel'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 import Tree from 'primevue/tree'
@@ -22,6 +24,8 @@ import Tooltip from 'primevue/tooltip'
 import Checkbox from 'primevue/checkbox'
 import RadioButton from 'primevue/radiobutton'
 import Dropdown from 'primevue/dropdown'
+import Select from 'primevue/select'
+import Breadcrumb from 'primevue/breadcrumb'
 import Tag from 'primevue/tag'
 import ProgressBar from 'primevue/progressbar'
 import Dialog from 'primevue/dialog'
@@ -46,7 +50,15 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
-app.use(PrimeVue)
+app.use(PrimeVue, {
+  theme: {
+    preset: Aura,
+    options: {
+      darkModeSelector: '.p-dark', // 明示的にダークモードクラスが必要
+      cssLayer: false
+    }
+  }
+})
 app.use(ConfirmationService)
 app.use(ToastService)
 
@@ -55,6 +67,7 @@ app.directive('tooltip', Tooltip)
 
 // コンポーネント登録
 app.component('Card', Card)
+app.component('Panel', Panel)
 app.component('Message', Message)
 app.component('ProgressSpinner', ProgressSpinner)
 app.component('Tree', Tree)
@@ -66,6 +79,8 @@ app.component('Textarea', Textarea)
 app.component('Checkbox', Checkbox)
 app.component('RadioButton', RadioButton)
 app.component('Dropdown', Dropdown)
+app.component('Select', Select)
+app.component('Breadcrumb', Breadcrumb)
 app.component('Tag', Tag)
 app.component('ProgressBar', ProgressBar)
 app.component('Dialog', Dialog)

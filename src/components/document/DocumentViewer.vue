@@ -20,31 +20,36 @@
     </Card>
 
     <div v-else class="document-content">
-      <!-- リポジトリ情報表示 -->
-      <div v-if="repositoryContext" class="repository-info">
-        <div class="repo-badge">
-          <i class="pi pi-folder" />
-          <span class="repo-name">{{ repositoryContext.owner }}/{{ repositoryContext.repo }}</span>
-          <Tag :value="repositoryContext.service" size="small" />
-          <span class="repo-branch">
-            <i class="pi pi-code-branch" />
-            {{ repositoryContext.ref }}
-          </span>
-        </div>
+      <!-- Breadcrumb行 -->
+      <div v-if="repositoryContext" class="breadcrumb-row">
+        <Breadcrumb :model="breadcrumbItems" class="document-breadcrumb">
+          <template #item="{ item }">
+            <span v-if="!item.command" class="p-menuitem-text">
+              <i v-if="item.icon" :class="item.icon"></i>
+              <span v-if="item.label">{{ item.label }}</span>
+            </span>
+            <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
+              <i v-if="item.icon" :class="item.icon"></i>
+              <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
+            </span>
+          </template>
+        </Breadcrumb>
       </div>
-
-      <div class="document-header">
-        <h1 class="document-title">{{ documentTitle }}</h1>
-        <div class="document-meta">
-          <span v-if="document.metadata.last_modified" class="last-modified">
-            <i class="pi pi-calendar"></i> 
-            {{ formatDate(document.metadata.last_modified) }}
-          </span>
-          <span v-if="document.path" class="document-path">
-            <i class="pi pi-file" />
-            {{ document.path }}
-          </span>
-        </div>
+      
+      <!-- メタ情報行 -->
+      <div v-if="repositoryContext" class="meta-row">
+        <span v-if="repositoryContext.ref" class="branch-info">
+          <i class="pi pi-code-branch"></i>
+          {{ repositoryContext.ref }} ブランチ
+        </span>
+        <span v-if="document.metadata.last_modified" class="last-modified">
+          <i class="pi pi-calendar"></i>
+          最終更新: {{ formatDate(document.metadata.last_modified) }}
+        </span>
+        <span v-if="document.metadata.size" class="file-size">
+          <i class="pi pi-file"></i>
+          {{ formatFileSize(document.metadata.size) }}
+        </span>
       </div>
       
       <FrontmatterDisplay v-if="frontmatter" :frontmatter="frontmatter" />
@@ -64,6 +69,8 @@ import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
 import ProgressSpinner from 'primevue/progressspinner';
 import Tag from 'primevue/tag';
+import Breadcrumb from 'primevue/breadcrumb';
+import Button from 'primevue/button';
 import { types } from '@/services/api';
 
 const documentStore = useDocumentStore();
@@ -138,11 +145,92 @@ const frontmatter = computed(() => {
   return frontmatter;
 });
 
+// 現在のパスとルートパス
+const currentPath = computed(() => {
+  return repositoryContext.value?.current_path || document.value?.path || '';
+});
+
+const rootPath = computed(() => {
+  // リポジトリのroot_pathが設定されている場合はそれを使用
+  // 設定されていない場合は一般的なドキュメントファイル名を試す
+  const selectedRepo = repositoryStore.selectedRepository;
+  if (selectedRepo?.root_path) {
+    return selectedRepo.root_path;
+  }
+  
+  // デフォルトドキュメントの候補（優先順位順）
+  return 'README.md'; // 最も一般的なルートドキュメント
+});
+
+// ルートドキュメントかどうかの判定
+const isRootDocument = computed(() => {
+  return currentPath.value === rootPath.value || 
+         currentPath.value === '' || 
+         currentPath.value === '/' ||
+         currentPath.value.endsWith('/index.md') ||
+         currentPath.value.endsWith('/README.md');
+});
+
+// Breadcrumbアイテム
+const breadcrumbItems = computed(() => {
+  const items: Array<{
+    label?: string;
+    icon?: string;
+    command?: () => void;
+  }> = [];
+  
+  if (!currentPath.value) {
+    return items;
+  }
+
+  // リポジトリルートを追加（アイコンのみ）
+  items.push({
+    icon: 'pi pi-home',
+    command: !isRootDocument.value ? () => navigateToRoot() : undefined
+  });
+
+  // パスを分割してBreadcrumbを構築
+  const pathParts = currentPath.value.split('/').filter(part => part !== '');
+  
+  if (pathParts.length > 1) {
+    // ディレクトリ部分（最後のファイル以外）
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      items.push({
+        label: pathParts[i],
+        // 途中のディレクトリにはナビゲーション機能は付けない（要求仕様通り）
+      });
+    }
+  }
+  
+  // 現在のファイル
+  if (pathParts.length > 0) {
+    const fileName = pathParts[pathParts.length - 1];
+    items.push({
+      label: fileName.replace(/\.[^/.]+$/, ''), // 拡張子を除去
+    });
+  }
+
+  return items;
+});
+
 /**
  * 日付をフォーマットする
  */
 function formatDate(dateString: string): string {
   return DateFormatter.documentDate(dateString, { fallback: dateString });
+}
+
+/**
+ * ファイルサイズをフォーマットする
+ */
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
 /**
@@ -295,6 +383,27 @@ function handleLinkClick(event: MouseEvent) {
   }
 }
 
+/**
+ * ルートドキュメントに移動
+ */
+async function navigateToRoot() {
+  const selectedRepo = repositoryStore.selectedRepository;
+  if (!selectedRepo) {
+    console.warn('No repository selected');
+    return;
+  }
+
+  try {
+    console.log(`Navigating to root document: ${rootPath.value}`);
+    
+    // ドキュメントストアのcurrentPathを更新（watcherが自動的にドキュメントを取得）
+    documentStore.currentPath = rootPath.value;
+    
+  } catch (error) {
+    console.error('Failed to navigate to root document:', error);
+  }
+}
+
 // パラメータが変更されたときにドキュメントを再取得
 watch(
   () => [
@@ -331,9 +440,9 @@ watch(
 <style scoped>
 .document-viewer-container {
   height: 100%;
-  padding: 1rem;
+  padding: var(--app-spacing-base);
   overflow-y: auto;
-  background-color: #fff;
+  background-color: var(--app-surface-0);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -346,37 +455,38 @@ watch(
 }
 
 .repository-info {
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--surface-card);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--surface-border);
+  margin-bottom: var(--app-spacing-base);
+  padding: var(--app-spacing-md) var(--app-spacing-base);
+  background: var(--app-surface-0);
+  border-radius: var(--app-border-radius);
+  border: 1px solid var(--app-surface-border);
+  box-shadow: var(--app-shadow-sm);
   
   .repo-badge {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-size: 0.9rem;
+    gap: var(--app-spacing-md);
+    font-size: var(--app-font-size-sm);
     
     i {
-      color: var(--primary-color);
+      color: var(--app-primary-color);
     }
     
     .repo-name {
       font-weight: 500;
-      color: var(--text-color);
+      color: var(--app-text-color);
     }
     
     .repo-branch {
       display: flex;
       align-items: center;
-      gap: 0.25rem;
-      color: var(--text-color-secondary);
-      font-size: 0.8rem;
+      gap: var(--app-spacing-xs);
+      color: var(--app-text-color-secondary);
+      font-size: var(--app-font-size-xs);
       margin-left: auto;
       
       i {
-        font-size: 0.7rem;
+        font-size: var(--app-font-size-xs);
       }
     }
   }
@@ -388,18 +498,19 @@ watch(
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 2rem;
+  padding: var(--app-spacing-xl);
 }
 
 .loading-text {
-  margin-top: 1rem;
-  color: #666;
+  margin-top: var(--app-spacing-base);
+  color: var(--app-text-color-secondary);
 }
 
 .empty-state-card {
-  margin: 2rem auto;
+  margin: var(--app-spacing-xl) auto;
   max-width: 800px;
   width: 100%;
+  box-shadow: var(--app-shadow-card);
 }
 
 .empty-state-content {
@@ -407,40 +518,109 @@ watch(
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: #999;
+  padding: var(--app-spacing-xl);
+  color: var(--app-text-color-muted);
   text-align: center;
 }
 
 .empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: var(--app-font-size-3xl);
+  margin-bottom: var(--app-spacing-base);
+  color: var(--app-text-color-muted);
 }
 
-.document-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #eee;
+.breadcrumb-row {
+  margin-bottom: var(--app-spacing-xs);
+  padding-bottom: var(--app-spacing-xs);
 }
 
-.document-title {
-  margin-top: 0;
-  margin-bottom: 0.5rem;
+.meta-row {
+  display: flex;
+  gap: var(--app-spacing-lg);
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: var(--app-font-size-sm);
+  color: var(--app-text-color-secondary);
+  margin-bottom: var(--app-spacing-base);
+  padding-bottom: var(--app-spacing-base);
+  border-bottom: 1px solid var(--app-surface-border);
+}
+
+.meta-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-spacing-xs);
+}
+
+.meta-row i {
+  color: var(--app-primary-color);
+}
+
+.branch-info {
+  font-weight: 500;
 }
 
 .document-meta {
-  color: #666;
-  font-size: 0.9rem;
+  color: var(--app-text-color-secondary);
+  font-size: var(--app-font-size-sm);
   display: flex;
-  gap: 1rem;
+  gap: var(--app-spacing-base);
   flex-wrap: wrap;
+}
+
+.document-breadcrumb {
+  width: 100%;
+}
+
+.breadcrumb-row :deep(.p-breadcrumb) {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.breadcrumb-row :deep(.p-breadcrumb .p-breadcrumb-list) {
+  margin: 0;
+}
+
+.breadcrumb-row :deep(.p-menuitem-text) {
+  font-size: var(--app-font-size-base);
+  color: var(--app-text-color);
+  font-weight: 500;
+}
+
+.breadcrumb-row :deep(.p-menuitem-link) {
+  color: var(--app-primary-color);
+  text-decoration: none;
+  border-radius: var(--app-border-radius-sm);
+  padding: var(--app-spacing-xs) var(--app-spacing-sm);
+  transition: var(--app-transition-fast);
+}
+
+.breadcrumb-row :deep(.p-menuitem-link:hover) {
+  background-color: var(--app-primary-50);
+}
+
+.breadcrumb-row :deep(.p-menuitem-text i) {
+  font-size: 1.1rem;
+  color: var(--app-primary-color);
+  margin-right: var(--app-spacing-xs);
+}
+
+.breadcrumb-row :deep(.p-menuitem-link i) {
+  font-size: 1.1rem;
+  color: var(--app-primary-color);
+  transition: var(--app-transition-fast);
+}
+
+.breadcrumb-row :deep(.p-menuitem-link:hover i) {
+  color: var(--app-primary-600);
 }
 
 .last-modified,
 .document-path {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--app-spacing-xs);
 }
 
 /* マークダウンコンテンツのスタイル */
@@ -456,17 +636,18 @@ watch(
 .rendered-content :deep(h6) {
   margin-top: 1.5em;
   margin-bottom: 0.5em;
+  color: var(--app-text-color);
 }
 
 .rendered-content :deep(h1) {
-  font-size: 1.8rem;
-  border-bottom: 1px solid #eee;
+  font-size: var(--app-font-size-2xl);
+  border-bottom: 1px solid var(--app-surface-border);
   padding-bottom: 0.3em;
 }
 
 .rendered-content :deep(h2) {
-  font-size: 1.5rem;
-  border-bottom: 1px solid #eee;
+  font-size: var(--app-font-size-xl);
+  border-bottom: 1px solid var(--app-surface-border);
   padding-bottom: 0.3em;
 }
 
@@ -486,9 +667,9 @@ watch(
 
 .rendered-content :deep(blockquote) {
   margin: 1em 0;
-  padding: 0 1em;
-  color: #6a737d;
-  border-left: 0.25em solid #dfe2e5;
+  padding: 0 var(--app-spacing-base);
+  color: var(--app-text-color-secondary);
+  border-left: 0.25em solid var(--app-surface-border);
 }
 
 .rendered-content :deep(code) {
@@ -518,13 +699,14 @@ watch(
 
 .rendered-content :deep(table th),
 .rendered-content :deep(table td) {
-  padding: 0.5em 1em;
-  border: 1px solid #dfe2e5;
+  padding: var(--app-spacing-sm) var(--app-spacing-base);
+  border: 1px solid var(--app-surface-border);
 }
 
 .rendered-content :deep(table th) {
-  background-color: #f6f8fa;
+  background-color: var(--app-surface-100);
   font-weight: 600;
+  color: var(--app-text-color);
 }
 
 .rendered-content :deep(img) {
@@ -533,18 +715,21 @@ watch(
 }
 
 .rendered-content :deep(a) {
-  color: #0366d6;
+  color: var(--app-primary-color);
   text-decoration: none;
+  transition: var(--app-transition-fast);
 }
 
 .rendered-content :deep(a:hover) {
   text-decoration: underline;
+  color: var(--app-primary-600);
 }
 
 .rendered-content :deep(a.external-link::after) {
   content: '↗';
   display: inline-block;
-  margin-left: 0.25em;
-  font-size: 0.8em;
+  margin-left: var(--app-spacing-xs);
+  font-size: var(--app-font-size-sm);
+  color: var(--app-text-color-muted);
 }
 </style>

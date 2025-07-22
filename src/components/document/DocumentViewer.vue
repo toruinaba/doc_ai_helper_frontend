@@ -28,7 +28,7 @@
               <i v-if="item.icon" :class="item.icon"></i>
               <span v-if="item.label">{{ item.label }}</span>
             </span>
-            <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
+            <span v-else @click="() => item.command?.()" class="p-menuitem-link" style="cursor: pointer;">
               <i v-if="item.icon" :class="item.icon"></i>
               <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
             </span>
@@ -60,10 +60,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
+import mermaid from 'mermaid';
 import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
@@ -186,7 +187,7 @@ const breadcrumbItems = computed(() => {
   // リポジトリルートを追加（アイコンのみ）
   items.push({
     icon: 'pi pi-home',
-    command: !isRootDocument.value ? () => navigateToRoot() : undefined
+    command: !isRootDocument.value ? async () => await navigateToRoot() : undefined
   });
 
   // パスを分割してBreadcrumbを構築
@@ -403,6 +404,22 @@ async function navigateToRoot() {
     console.error('Failed to navigate to root document:', error);
   }
 }
+
+// レンダリングされたコンテンツが変更されたときにMermaidダイアグラムを処理
+watch(renderedContent, () => {
+  nextTick(() => {
+    // 新しいMermaidダイアグラムがある場合は再レンダリング
+    const mermaidElements = document.querySelectorAll('.mermaid-diagram:not(.mermaid-rendered)');
+    if (mermaidElements.length > 0) {
+      console.log(`Found ${mermaidElements.length} new mermaid diagrams to render`);
+      try {
+        mermaid.run();
+      } catch (error) {
+        console.error('Error running mermaid:', error);
+      }
+    }
+  });
+});
 
 // パラメータが変更されたときにドキュメントを再取得
 watch(
@@ -731,5 +748,52 @@ watch(
   margin-left: var(--app-spacing-xs);
   font-size: var(--app-font-size-sm);
   color: var(--app-text-color-muted);
+}
+
+/* KaTeX数式のスタイル */
+.rendered-content :deep(.katex) {
+  font-size: 1.1em;
+}
+
+.rendered-content :deep(.katex-display) {
+  margin: 1em 0;
+  text-align: center;
+}
+
+/* Mermaidダイアグラムのスタイル */
+.rendered-content :deep(.mermaid-diagram) {
+  text-align: center;
+  margin: 1.5em 0;
+  padding: var(--app-spacing-base);
+  background-color: var(--app-surface-0);
+  border-radius: var(--app-border-radius);
+  border: 1px solid var(--app-surface-border);
+}
+
+.rendered-content :deep(.mermaid-diagram svg) {
+  max-width: 100%;
+  height: auto;
+}
+
+.rendered-content :deep(.mermaid-error) {
+  color: var(--app-text-color-error, #dc3545);
+  background-color: var(--app-surface-error, #f8d7da);
+  border: 1px solid var(--app-border-error, #f5c6cb);
+  border-radius: var(--app-border-radius);
+  padding: var(--app-spacing-base);
+  margin: 1em 0;
+  font-family: monospace;
+  font-size: var(--app-font-size-sm);
+}
+
+.rendered-content :deep(.math-error) {
+  color: var(--app-text-color-error, #dc3545);
+  background-color: var(--app-surface-error, #f8d7da);
+  border: 1px solid var(--app-border-error, #f5c6cb);
+  border-radius: var(--app-border-radius);
+  padding: var(--app-spacing-base);
+  margin: 1em 0;
+  font-family: monospace;
+  font-size: var(--app-font-size-sm);
 }
 </style>

@@ -50,6 +50,10 @@
           <i class="pi pi-file"></i>
           {{ formatFileSize(document.metadata.size) }}
         </span>
+        <span v-if="document.type" class="document-type">
+          <i class="pi pi-tag"></i>
+          {{ getDocumentTypeLabel(document.type) }}
+        </span>
       </div>
       
       <FrontmatterDisplay v-if="frontmatter" :frontmatter="frontmatter" />
@@ -64,6 +68,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
+import { sanitizeHtml, escapeHtml } from '@/utils/html.util';
 import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
@@ -115,7 +120,7 @@ const documentTitle = computed(() => {
   return document.value.name.replace(/\.[^/.]+$/, '');
 });
 
-// マークダウンコンテンツとフロントマターを抽出
+// ドキュメントタイプ別のレンダリング処理
 const renderedContent = computed(() => {
   if (!document.value || !document.value.content.content) {
     return '';
@@ -124,11 +129,22 @@ const renderedContent = computed(() => {
   // トランスフォーム済みコンテンツがある場合はそれを使う
   const content = document.value.transformed_content || document.value.content.content;
   
-  // フロントマターを抽出
-  const { content: bodyContent } = extractFrontmatter(content);
-  
-  // マークダウンをレンダリング
-  return renderMarkdown(bodyContent);
+  // ドキュメントタイプに応じてレンダリング方法を切り替え
+  switch (document.value.type) {
+    case 'markdown':
+    case 'quarto':
+      // マークダウン/Quartoの場合は既存の処理
+      const { content: bodyContent } = extractFrontmatter(content);
+      return renderMarkdown(bodyContent);
+      
+    case 'html':
+      // HTMLの場合はサニタイゼーション後に表示
+      return sanitizeHtml(content);
+      
+    default:
+      // その他の場合はプレーンテキストとして表示
+      return `<pre><code>${escapeHtml(content)}</code></pre>`;
+  }
 });
 
 const frontmatter = computed(() => {
@@ -136,10 +152,15 @@ const frontmatter = computed(() => {
     return null;
   }
 
+  // HTMLドキュメントの場合はフロントマターを抽出しない
+  if (document.value.type === 'html') {
+    return null;
+  }
+
   // トランスフォーム済みコンテンツがある場合はそれを使う
   const content = document.value.transformed_content || document.value.content.content;
   
-  // フロントマターを抽出
+  // フロントマターを抽出（markdown/quartoのみ）
   const { frontmatter } = extractFrontmatter(content);
   
   return frontmatter;
@@ -231,6 +252,22 @@ function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+/**
+ * ドキュメントタイプのラベルを取得
+ */
+function getDocumentTypeLabel(type: string): string {
+  switch (type) {
+    case 'markdown':
+      return 'Markdown';
+    case 'quarto':
+      return 'Quarto';
+    case 'html':
+      return 'HTML';
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1);
+  }
 }
 
 /**
@@ -560,6 +597,11 @@ watch(
   font-weight: 500;
 }
 
+.document-type {
+  font-weight: 500;
+  color: var(--app-primary-color);
+}
+
 .document-meta {
   color: var(--app-text-color-secondary);
   font-size: var(--app-font-size-sm);
@@ -623,9 +665,25 @@ watch(
   gap: var(--app-spacing-xs);
 }
 
-/* マークダウンコンテンツのスタイル */
+/* レンダリング済みコンテンツのスタイル（マークダウン・HTML共通） */
 .rendered-content {
   line-height: 1.6;
+}
+
+/* HTML表示用の基本スタイル */
+.rendered-content :deep(body) {
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+.rendered-content :deep(html) {
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
 }
 
 .rendered-content :deep(h1),
@@ -731,5 +789,29 @@ watch(
   margin-left: var(--app-spacing-xs);
   font-size: var(--app-font-size-sm);
   color: var(--app-text-color-muted);
+}
+
+/* HTML特有の要素のスタイル調整 */
+.rendered-content :deep(div),
+.rendered-content :deep(section),
+.rendered-content :deep(article),
+.rendered-content :deep(aside),
+.rendered-content :deep(header),
+.rendered-content :deep(footer),
+.rendered-content :deep(main),
+.rendered-content :deep(nav) {
+  margin: 0;
+  padding: 0;
+}
+
+.rendered-content :deep(figure) {
+  margin: 1em 0;
+}
+
+.rendered-content :deep(figcaption) {
+  font-size: var(--app-font-size-sm);
+  color: var(--app-text-color-secondary);
+  text-align: center;
+  margin-top: var(--app-spacing-xs);
 }
 </style>

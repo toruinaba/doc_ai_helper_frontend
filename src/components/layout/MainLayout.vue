@@ -13,7 +13,7 @@
           </router-link>
           <router-link to="/repositories" class="nav-link">
             <i class="pi pi-folder"></i>
-            <span>リポジトリ管理</span>
+            <span>ドキュメント管理</span>
           </router-link>
         </nav>
       </div>

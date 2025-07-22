@@ -20,43 +20,36 @@
     </Card>
 
     <div v-else class="document-content">
-      <!-- 統合ドキュメントヘッダー -->
-      <div v-if="repositoryContext" class="document-header-unified">
-        <!-- Breadcrumb行 -->
-        <div class="breadcrumb-row">
-          <Breadcrumb :model="breadcrumbItems" class="document-breadcrumb">
-            <template #item="{ item }">
-              <span v-if="!item.command" class="p-menuitem-text">
-                <i v-if="item.icon" :class="item.icon"></i>
-                <span v-if="item.label">{{ item.label }}</span>
-              </span>
-              <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
-                <i v-if="item.icon" :class="item.icon"></i>
-                <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
-              </span>
-            </template>
-          </Breadcrumb>
-        </div>
-        
-        <!-- メタ情報行 -->
-        <div class="meta-row">
-          <span v-if="repositoryContext.ref" class="branch-info">
-            <i class="pi pi-code-branch"></i>
-            {{ repositoryContext.ref }} ブランチ
-          </span>
-          <span v-if="document.metadata.last_modified" class="last-modified">
-            <i class="pi pi-calendar"></i>
-            最終更新: {{ formatDate(document.metadata.last_modified) }}
-          </span>
-          <span v-if="document.metadata.size" class="file-size">
-            <i class="pi pi-file"></i>
-            {{ formatFileSize(document.metadata.size) }}
-          </span>
-        </div>
+      <!-- Breadcrumb行 -->
+      <div v-if="repositoryContext" class="breadcrumb-row">
+        <Breadcrumb :model="breadcrumbItems" class="document-breadcrumb">
+          <template #item="{ item }">
+            <span v-if="!item.command" class="p-menuitem-text">
+              <i v-if="item.icon" :class="item.icon"></i>
+              <span v-if="item.label">{{ item.label }}</span>
+            </span>
+            <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
+              <i v-if="item.icon" :class="item.icon"></i>
+              <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
+            </span>
+          </template>
+        </Breadcrumb>
       </div>
-
-      <div class="document-header">
-        <h1 class="document-title">{{ documentTitle }}</h1>
+      
+      <!-- メタ情報行 -->
+      <div v-if="repositoryContext" class="meta-row">
+        <span v-if="repositoryContext.ref" class="branch-info">
+          <i class="pi pi-code-branch"></i>
+          {{ repositoryContext.ref }} ブランチ
+        </span>
+        <span v-if="document.metadata.last_modified" class="last-modified">
+          <i class="pi pi-calendar"></i>
+          最終更新: {{ formatDate(document.metadata.last_modified) }}
+        </span>
+        <span v-if="document.metadata.size" class="file-size">
+          <i class="pi pi-file"></i>
+          {{ formatFileSize(document.metadata.size) }}
+        </span>
       </div>
       
       <FrontmatterDisplay v-if="frontmatter" :frontmatter="frontmatter" />
@@ -536,16 +529,9 @@ watch(
   color: var(--app-text-color-muted);
 }
 
-.document-header-unified {
-  padding: var(--app-spacing-base);
-  background-color: var(--app-surface-50);
-  border: 1px solid var(--app-surface-border);
-  border-radius: var(--app-border-radius);
-  margin-bottom: var(--app-spacing-base);
-}
-
 .breadcrumb-row {
-  margin-bottom: var(--app-spacing-sm);
+  margin-bottom: var(--app-spacing-xs);
+  padding-bottom: var(--app-spacing-xs);
 }
 
 .meta-row {
@@ -555,6 +541,9 @@ watch(
   align-items: center;
   font-size: var(--app-font-size-sm);
   color: var(--app-text-color-secondary);
+  margin-bottom: var(--app-spacing-base);
+  padding-bottom: var(--app-spacing-base);
+  border-bottom: 1px solid var(--app-surface-border);
 }
 
 .meta-row > span {
@@ -569,17 +558,6 @@ watch(
 
 .branch-info {
   font-weight: 500;
-}
-
-.document-header {
-  padding: var(--app-spacing-base) 0 var(--app-spacing-sm) 0;
-}
-
-.document-title {
-  margin: 0 0 var(--app-spacing-sm) 0;
-  color: var(--app-text-color);
-  font-size: var(--app-font-size-2xl);
-  font-weight: 600;
 }
 
 .document-meta {

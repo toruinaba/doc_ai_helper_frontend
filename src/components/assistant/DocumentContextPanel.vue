@@ -1,8 +1,19 @@
 <template>
   <div class="document-context-panel">
     <div class="context-settings-header">
+      <div class="context-info">
+        <span class="context-title">ドキュメントコンテキスト</span>
+        <span class="context-status">
+          <i v-if="config.includeDocumentInSystemPrompt" 
+             class="pi pi-check-circle text-green-500" 
+             v-tooltip.bottom="'ドキュメントコンテキスト有効'" />
+          <i v-else 
+             class="pi pi-times-circle text-red-500" 
+             v-tooltip.bottom="'ドキュメントコンテキスト無効'" />
+        </span>
+      </div>
       <Button 
-        icon="pi pi-file-text" 
+        icon="pi pi-cog" 
         size="small" 
         text 
         severity="secondary"
@@ -10,15 +21,12 @@
         v-tooltip.bottom="'ドキュメントコンテキスト設定'"
         class="context-config-toggle"
       />
-      <span class="context-status">
-        <i v-if="config.includeDocumentInSystemPrompt" 
-           class="pi pi-check-circle text-green-500" 
-           v-tooltip.bottom="'ドキュメントコンテキスト有効'" />
-        <i v-else 
-           class="pi pi-times-circle text-red-500" 
-           v-tooltip.bottom="'ドキュメントコンテキスト無効'" />
-      </span>
     </div>
+    
+    <p class="context-description">
+      AIがドキュメントの内容を理解してより正確な回答を提供します
+      <span v-if="!config.includeDocumentInSystemPrompt" class="status-warning">（現在無効）</span>
+    </p>
     
     <div v-if="showConfig" class="document-context-config">
       <div class="config-section">
@@ -30,6 +38,9 @@
           />
           <label for="includeDocument">システムプロンプトにドキュメントを含める</label>
         </div>
+        <p class="config-description">
+          現在表示しているドキュメントの内容をAIに提供します。AIがドキュメントの内容を理解して、より正確な回答ができるようになります。
+        </p>
       </div>
       
       <div class="config-section">
@@ -39,8 +50,11 @@
             :binary="true" 
             inputId="enableRepoContext" 
           />
-          <label for="enableRepoContext">リポジトリコンテキストを有効にする</label>
+          <label for="enableRepoContext">ドキュメントコンテキストを有効にする</label>
         </div>
+        <p class="config-description">
+          ドキュメントソースの情報（オーナー、ブランチ、パスなど）をAIに提供します。
+        </p>
       </div>
       
       <div class="config-section">
@@ -52,6 +66,9 @@
           />
           <label for="enableDocMetadata">ドキュメントメタデータを含める</label>
         </div>
+        <p class="config-description">
+          ファイルサイズ、更新日時、ファイル形式などの詳細情報をAIに提供します。
+        </p>
       </div>
       
       <div class="config-section">
@@ -272,11 +289,37 @@ onMounted(() => {
 .context-settings-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.context-info {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.context-config-toggle {
-  margin-left: auto;
+.context-title {
+  font-weight: 600;
+  color: #2e7d32;
+  font-size: 0.95rem;
+}
+
+.context-status {
+  display: flex;
+  align-items: center;
+}
+
+.context-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.3;
+}
+
+.status-warning {
+  color: #d32f2f;
+  font-weight: 500;
 }
 
 .document-context-config {
@@ -287,6 +330,14 @@ onMounted(() => {
 
 .config-section {
   margin-bottom: 1rem;
+}
+
+.config-description {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0.5rem 0 0 0;
+  line-height: 1.4;
+  padding-left: 1.5rem;
 }
 
 .config-label {

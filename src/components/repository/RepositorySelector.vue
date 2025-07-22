@@ -1,74 +1,26 @@
 <template>
   <div class="repository-selector">
-    <!-- セレクター本体 -->
-    <div class="selector-container">
-      <label class="selector-label">
-        <i class="pi pi-folder" />
-        <span>リポジトリ</span>
-      </label>
-      
-      <Select
-        v-model="selectedRepositoryId"
-        :options="repositoryOptions"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="リポジトリを選択..."
-        :loading="repositoryStore.isLoading"
-        class="repository-dropdown"
-        @change="onRepositoryChange"
-      >
-        <template #value="{ value, placeholder }">
-          <div v-if="value" class="selected-repo-display">
-            <i class="pi pi-folder" />
-            <span class="repo-name">{{ getSelectedRepositoryLabel(value) }}</span>
-            <Tag 
-              :value="getSelectedRepositoryService(value)" 
-              :severity="getServiceSeverity(getSelectedRepositoryService(value))"
-              class="service-tag"
-            />
-          </div>
-          <span v-else>{{ placeholder }}</span>
-        </template>
-        
-        <template #option="{ option }">
-          <div class="repo-option">
-            <div class="repo-info">
-              <span class="repo-name">{{ option.repository.name }}</span>
-              <span class="repo-owner">{{ option.repository.owner }}</span>
-            </div>
-            <div class="repo-meta">
-              <Tag 
-                :value="option.repository.service_type" 
-                :severity="getServiceSeverity(option.repository.service_type)"
-                size="small"
-              />
-              <i 
-                :class="getHealthIcon(option.repository.id)"
-                :style="{ color: getHealthColor(option.repository.id) }"
-                v-tooltip="getHealthTooltip(option.repository.id)"
-              />
-            </div>
-          </div>
-        </template>
-        
-        <template #empty>
-          <div class="empty-message">
-            <i class="pi pi-folder-open" />
-            <span>リポジトリが登録されていません</span>
-            <Button 
-              label="リポジトリを追加" 
-              icon="pi pi-plus"
-              size="small"
-              text
-              @click="navigateToRepositoryManagement"
-            />
-          </div>
-        </template>
-      </Select>
+    <!-- 現在のドキュメント情報表示 -->
+    <div v-if="selectedRepository" class="repository-display">
+      <div class="repository-info">
+        <div class="repo-header">
+          <i class="pi pi-folder" />
+          <span class="repo-name">{{ selectedRepository.name }}</span>
+          <Tag 
+            :value="selectedRepository.service_type" 
+            :severity="getServiceSeverity(selectedRepository.service_type)"
+            class="service-tag"
+          />
+        </div>
+        <div class="repo-path">
+          <i class="pi pi-user" />
+          <span>{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
+        </div>
+      </div>
     </div>
 
-    <!-- ブランチ・パス選択 -->
-    <div v-if="selectedRepository" class="additional-controls">
+    <!-- ブランチ選択のみ -->
+    <div v-if="selectedRepository" class="branch-control">
       <div class="control-group">
         <label class="control-label">
           <i class="pi pi-code-branch" />
@@ -84,40 +36,6 @@
           @change="onBranchChange"
         />
       </div>
-
-      <div class="control-group">
-        <label class="control-label">
-          <i class="pi pi-folder" />
-          <span>パス</span>
-        </label>
-        <InputText
-          v-model="currentPath"
-          placeholder="docs/README.md"
-          class="path-input"
-          @keyup.enter="onPathChange"
-        />
-      </div>
-    </div>
-
-    <!-- アクションボタン -->
-    <div v-if="selectedRepository" class="action-buttons">
-      <Button
-        icon="pi pi-refresh"
-        severity="secondary"
-        size="small"
-        outlined
-        @click="refreshRepository"
-        :loading="isRefreshing"
-        v-tooltip="'リポジトリ情報を更新'"
-      />
-      <Button
-        icon="pi pi-cog"
-        severity="secondary"
-        size="small"
-        outlined
-        @click="openRepositorySettings"
-        v-tooltip="'リポジトリ設定'"
-      />
     </div>
 
     <!-- 状態インジケータ -->
@@ -142,9 +60,7 @@ import type { components } from '@/services/api/types.auto'
 type RepositoryResponse = components['schemas']['RepositoryResponse']
 
 interface Emits {
-  repositoryChange: [repository: RepositoryResponse | null]
   branchChange: [branch: string]
-  pathChange: [path: string]
 }
 
 const emit = defineEmits<Emits>()
@@ -155,23 +71,10 @@ const documentStore = useDocumentStore()
 const router = useRouter()
 
 // リアクティブな状態
-const selectedRepositoryId = ref<number | null>(null)
 const selectedBranch = ref<string>('')
-const currentPath = ref<string>('')
-const isRefreshing = ref(false)
 
 // コンピューテッド プロパティ
-const repositoryOptions = computed(() => 
-  repositoryStore.repositories.map(repo => ({
-    label: `${repo.owner}/${repo.name}`,
-    value: repo.id,
-    repository: repo
-  }))
-)
-
-const selectedRepository = computed(() => 
-  repositoryStore.repositories.find(repo => repo.id === selectedRepositoryId.value) || null
-)
+const selectedRepository = computed(() => repositoryStore.selectedRepository)
 
 const branchOptions = computed(() => {
   if (!selectedRepository.value) return []
@@ -212,44 +115,20 @@ const connectionStatus = computed(() => {
 
 // ライフサイクル
 onMounted(async () => {
-  // リポジトリ一覧を読み込み
-  if (repositoryStore.repositories.length === 0) {
-    await repositoryStore.fetchRepositories()
-  }
-  
-  // 既に選択されているリポジトリがあればそれを設定
+  // 既に選択されているリポジトリがあればブランチを設定
   if (repositoryStore.selectedRepository) {
-    selectedRepositoryId.value = repositoryStore.selectedRepository.id
     selectedBranch.value = repositoryStore.selectedRepository.default_branch
   }
-  
-  // ヘルスチェック
-  await repositoryStore.checkMultipleRepositoryHealth()
 })
 
 // ウォッチャー
 watch(selectedRepository, (newRepo) => {
   if (newRepo) {
-    repositoryStore.selectRepository(newRepo)
     selectedBranch.value = newRepo.default_branch
-    currentPath.value = ''
-    emit('repositoryChange', newRepo)
-  } else {
-    emit('repositoryChange', null)
   }
 }, { immediate: true })
 
 // メソッド
-function getSelectedRepositoryLabel(repositoryId: number): string {
-  const repo = repositoryStore.repositories.find(r => r.id === repositoryId)
-  return repo ? `${repo.owner}/${repo.name}` : ''
-}
-
-function getSelectedRepositoryService(repositoryId: number): string {
-  const repo = repositoryStore.repositories.find(r => r.id === repositoryId)
-  return repo?.service_type || ''
-}
-
 function getServiceSeverity(service: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast' {
   const severityMap: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast'> = {
     'github': 'success',
@@ -260,73 +139,14 @@ function getServiceSeverity(service: string): 'success' | 'info' | 'warning' | '
   return severityMap[service.toLowerCase()] || 'secondary'
 }
 
-function getHealthIcon(repositoryId: number): string {
-  const health = repositoryStore.healthStatus[repositoryId]
-  if (health === undefined) return 'pi pi-question-circle'
-  return health ? 'pi pi-check-circle' : 'pi pi-times-circle'
-}
-
-function getHealthColor(repositoryId: number): string {
-  const health = repositoryStore.healthStatus[repositoryId]
-  if (health === undefined) return '#6b7280'
-  return health ? '#10b981' : '#ef4444'
-}
-
-function getHealthTooltip(repositoryId: number): string {
-  const health = repositoryStore.healthStatus[repositoryId]
-  if (health === undefined) return '状態不明'
-  return health ? '接続正常' : '接続エラー'
-}
-
-function onRepositoryChange() {
-  // selectedRepositoryのウォッチャーで処理される
-}
-
 function onBranchChange() {
   emit('branchChange', selectedBranch.value)
-  updateDocumentContext()
-}
-
-function onPathChange() {
-  emit('pathChange', currentPath.value)
-  updateDocumentContext()
-}
-
-async function refreshRepository() {
-  if (!selectedRepository.value) return
   
-  isRefreshing.value = true
-  try {
-    await repositoryStore.checkRepositoryHealth(selectedRepository.value)
-  } finally {
-    isRefreshing.value = false
-  }
-}
-
-function openRepositorySettings() {
-  // 将来の実装: リポジトリ設定ダイアログを開く
-  console.log('リポジトリ設定を開く（未実装）')
-}
-
-function navigateToRepositoryManagement() {
-  router.push('/repositories')
-}
-
-function updateDocumentContext() {
-  if (!selectedRepository.value) return
-  
-  // ドキュメントストアのコンテキストを更新
-  const context = repositoryStore.createContextFromRepository(
-    selectedRepository.value,
-    {
-      ref: selectedBranch.value,
-      current_path: currentPath.value
-    }
-  )
-  
-  // ドキュメント読み込みをトリガー
-  if (currentPath.value) {
-    documentStore.fetchDocument(currentPath.value)
+  // ブランチ変更時にリポジトリストアのコンテキストを更新
+  if (selectedRepository.value) {
+    repositoryStore.updateRepositoryContext({
+      ref: selectedBranch.value
+    })
   }
 }
 </script>
@@ -342,125 +162,72 @@ function updateDocumentContext() {
   border: 1px solid var(--surface-border);
 }
 
-.selector-container {
-  .selector-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-    color: var(--text-color);
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-    
-    i {
-      color: var(--primary-color);
-    }
-  }
-  
-  .repository-dropdown {
-    width: 100%;
-  }
-}
-
-.selected-repo-display {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  
-  i {
-    color: var(--primary-color);
-  }
-  
-  .repo-name {
-    flex: 1;
-    font-weight: 500;
-  }
-  
-  .service-tag {
-    font-size: 0.7rem;
-  }
-}
-
-.repo-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  
-  .repo-info {
+.repository-display {
+  .repository-info {
     display: flex;
     flex-direction: column;
-    
-    .repo-name {
-      font-weight: 500;
-      color: var(--text-color);
-    }
-    
-    .repo-owner {
-      font-size: 0.8rem;
-      color: var(--text-color-secondary);
-    }
-  }
-  
-  .repo-meta {
-    display: flex;
-    align-items: center;
     gap: 0.5rem;
     
-    i {
-      font-size: 0.8rem;
+    .repo-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      
+      i {
+        color: var(--primary-color);
+        font-size: 1.1rem;
+      }
+      
+      .repo-name {
+        font-weight: 600;
+        color: var(--text-color);
+        flex: 1;
+      }
+      
+      .service-tag {
+        font-size: 0.7rem;
+      }
+    }
+    
+    .repo-path {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-color-secondary);
+      font-size: 0.9rem;
+      
+      i {
+        font-size: 0.8rem;
+        color: var(--primary-color);
+      }
     }
   }
 }
 
-.empty-message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  color: var(--text-color-secondary);
-  
-  i {
-    font-size: 1.5rem;
-    color: var(--surface-400);
-  }
-}
-
-.additional-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  
+.branch-control {
   .control-group {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
     
     .control-label {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 0.8rem;
-      color: var(--text-color-secondary);
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-color);
       
       i {
-        font-size: 0.7rem;
+        font-size: 0.8rem;
         color: var(--primary-color);
       }
     }
     
-    .branch-dropdown,
-    .path-input {
+    .branch-dropdown {
       width: 100%;
     }
   }
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
 }
 
 .status-indicator {

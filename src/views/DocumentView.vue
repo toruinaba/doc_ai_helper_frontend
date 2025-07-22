@@ -7,9 +7,7 @@
         <SplitterPanel :size="20" :minSize="10">
           <div class="left-panel">
             <RepositorySelector 
-              @repositoryChange="onRepositoryChange"
               @branchChange="onBranchChange"
-              @pathChange="onPathChange"
             />
             <div class="panel-divider" />
             <RepositoryNavigator />
@@ -49,36 +47,11 @@ const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
 
 // イベントハンドラー
-function onRepositoryChange(repository: RepositoryResponse | null) {
-  console.log('Repository changed:', repository);
-  if (repository) {
-    // 新しいリポジトリが選択された場合、現在のドキュメントパスをクリア
-    documentStore.currentPath = '';
-    
-    // リポジトリのデフォルトドキュメントを読み込む可能性がある場合
-    // デフォルトパス（例：README.md）を設定
-    const defaultPath = repository.root_path ? 
-      `${repository.root_path}/README.md` : 
-      'README.md';
-    
-    // ドキュメントの存在確認後に読み込み（オプション）
-    // documentStore.fetchDocument(defaultPath);
-  }
-}
-
 function onBranchChange(branch: string) {
   console.log('Branch changed:', branch);
   // ブランチが変更された場合、現在のパスで再読み込み
   if (documentStore.currentPath) {
     documentStore.fetchDocument(documentStore.currentPath);
-  }
-}
-
-function onPathChange(path: string) {
-  console.log('Path changed:', path);
-  // パスが変更された場合、ドキュメントを読み込み
-  if (path.trim()) {
-    documentStore.fetchDocument(path);
   }
 }
 

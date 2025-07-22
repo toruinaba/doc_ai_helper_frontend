@@ -1,6 +1,6 @@
 <template>
-  <Card class="repository-card" :class="cardClass">
-    <!-- カードヘッダー -->
+  <Panel class="repository-card" :class="cardClass">
+    <!-- パネルヘッダー -->
     <template #header>
       <div class="repository-header">
         <div class="repository-title">
@@ -17,11 +17,39 @@
         <div class="repository-service">
           <Tag :value="repository.service_type" :severity="getServiceSeverity(repository.service_type)" />
         </div>
+        <div class="header-actions">
+          <Button 
+            icon="pi pi-cog"
+            size="small"
+            severity="secondary"
+            text
+            @click="$emit('edit', repository)"
+            v-tooltip="'設定'"
+          />
+          <Button 
+            icon="pi pi-ellipsis-v"
+            size="small"
+            severity="secondary"
+            text
+            @click="toggleMenu"
+            aria-haspopup="true"
+            aria-controls="repository-menu"
+            v-tooltip="'その他'"
+          />
+          
+          <!-- ドロップダウンメニュー -->
+          <Menu 
+            ref="menu" 
+            id="repository-menu"
+            :model="menuItems" 
+            :popup="true" 
+          />
+        </div>
       </div>
     </template>
 
-    <!-- カードコンテンツ -->
-    <template #content>
+    <!-- パネルコンテンツ -->
+    <template #default>
       <div class="repository-content">
         <!-- リポジトリ情報 -->
         <div class="repository-info">
@@ -51,52 +79,25 @@
             <span>{{ repository.is_public ? '公開' : '非公開' }}</span>
           </div>
         </div>
-      </div>
-    </template>
-
-    <!-- カードフッター：アクションボタン -->
-    <template #footer>
-      <div class="repository-actions">
-        <Button 
-          label="開く" 
-          icon="pi pi-external-link"
-          size="small"
-          @click="$emit('open', repository)"
-          :disabled="!isHealthy"
-        />
-        <Button 
-          label="設定" 
-          icon="pi pi-cog"
-          size="small"
-          severity="secondary"
-          outlined
-          @click="$emit('edit', repository)"
-        />
-        <Button 
-          icon="pi pi-ellipsis-v"
-          size="small"
-          severity="secondary"
-          text
-          @click="toggleMenu"
-          aria-haspopup="true"
-          aria-controls="repository-menu"
-        />
         
-        <!-- ドロップダウンメニュー -->
-        <Menu 
-          ref="menu" 
-          id="repository-menu"
-          :model="menuItems" 
-          :popup="true" 
-        />
+        <!-- フッターアクション -->
+        <div class="repository-actions">
+          <Button 
+            label="開く" 
+            size="small"
+            @click="$emit('open', repository)"
+            :disabled="!isHealthy"
+            class="open-button"
+          />
+        </div>
       </div>
     </template>
-  </Card>
+  </Panel>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Card, Button, Tag, Menu, type MenuItem } from 'primevue'
+import { Panel, Button, Tag, Menu, type MenuItem } from 'primevue'
 import type { components } from '@/services/api/types.auto'
 
 type RepositoryResponse = components['schemas']['RepositoryResponse']
@@ -253,9 +254,9 @@ const menuItems = computed<MenuItem[]>(() => [
 
 .repository-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
   
   .repository-title {
     display: flex;
@@ -279,7 +280,7 @@ const menuItems = computed<MenuItem[]>(() => [
     }
     
     .status-indicator {
-      margin-left: auto;
+      margin-left: 0.5rem;
       
       i {
         font-size: 0.9rem;
@@ -289,6 +290,22 @@ const menuItems = computed<MenuItem[]>(() => [
   
   .repository-service {
     flex-shrink: 0;
+  }
+  
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+    margin-left: auto;
+    
+    :deep(.p-button) {
+      padding: 0.25rem;
+      
+      .p-button-icon {
+        font-size: 0.875rem;
+      }
+    }
   }
 }
 
@@ -344,34 +361,34 @@ const menuItems = computed<MenuItem[]>(() => [
 
 .repository-actions {
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-border);
   
-  :deep(.p-button) {
-    flex: 1;
-    
-    &:last-child {
-      flex: 0;
-      min-width: auto;
-    }
+  .open-button {
+    min-width: 120px;
   }
 }
 
 // レスポンシブ対応
 @media (max-width: 768px) {
   .repository-header {
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 0.5rem;
     
     .repository-title {
-      width: 100%;
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .header-actions {
+      margin-left: 0;
     }
   }
   
   .repository-actions {
-    flex-direction: column;
-    
-    :deep(.p-button) {
+    .open-button {
       width: 100%;
     }
   }

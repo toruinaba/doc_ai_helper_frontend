@@ -88,14 +88,14 @@
       />
       
       <!-- 新規追加カード -->
-      <Card v-if="showAddCard" class="add-repository-card" @click="$emit('add')">
-        <template #content>
+      <Panel v-if="showAddCard" class="add-repository-card" @click="$emit('add')">
+        <template #default>
           <div class="add-repository-content">
             <i class="pi pi-plus" />
             <span>新規リポジトリ</span>
           </div>
         </template>
-      </Card>
+      </Panel>
     </div>
 
     <!-- 空状態 -->
@@ -168,7 +168,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { 
-  Card, 
+  Panel, 
   Button, 
   InputText, 
   IconField, 

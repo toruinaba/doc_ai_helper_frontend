@@ -159,9 +159,9 @@ function getRepositoryStatusColor(): string {
 function getRepositoryStatusTooltip(): string {
   const status = getRepositoryStatus();
   switch (status) {
-    case 'healthy': return 'リポジトリ接続正常';
-    case 'unhealthy': return 'リポジトリ接続エラー';
-    default: return 'リポジトリ状態不明';
+    case 'healthy': return 'ドキュメント接続正常';
+    case 'unhealthy': return 'ドキュメント接続エラー';
+    default: return 'ドキュメント状態不明';
   }
 }
 

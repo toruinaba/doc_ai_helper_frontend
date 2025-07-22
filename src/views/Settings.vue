@@ -168,8 +168,8 @@
             
             <div class="setting-item">
               <div class="setting-label">
-                <label for="repository-context">リポジトリコンテキスト</label>
-                <p class="setting-description">リポジトリの情報をAIに提供します</p>
+                <label for="repository-context">ドキュメントコンテキスト</label>
+                <p class="setting-description">ドキュメントの情報をAIに提供します</p>
               </div>
               <div class="setting-control">
                 <ToggleButton 

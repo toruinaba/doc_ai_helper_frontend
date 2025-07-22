@@ -6,20 +6,13 @@
       <div class="welcome-section">
         <div class="welcome-content">
           <h1>ドキュメントAIヘルパーへようこそ</h1>
-          <p>リポジトリを選択してドキュメントの閲覧とAIチャットを開始してください</p>
+          <p>ドキュメントを選択して閲覧とAIチャットを開始してください</p>
         </div>
       </div>
 
       <div class="repository-section">
         <div class="section-header">
-          <h2>リポジトリを選択</h2>
-          <Button 
-            label="リポジトリ管理" 
-            icon="pi pi-cog" 
-            severity="secondary"
-            outlined
-            @click="goToRepositoryManagement"
-          />
+          <h2>ドキュメントを選択</h2>
         </div>
 
         <!-- エラー表示 -->
@@ -32,7 +25,7 @@
           {{ repositoryStore.error }}
         </Message>
 
-        <!-- リポジトリ一覧 -->
+        <!-- ドキュメント一覧 -->
         <div class="repository-grid">
           <div 
             v-for="repository in repositoryStore.repositories" 
@@ -78,10 +71,10 @@
         <!-- 空状態 -->
         <div v-if="repositoryStore.repositories.length === 0 && !repositoryStore.isLoading" class="empty-state">
           <i class="pi pi-folder-open empty-icon"></i>
-          <h3>リポジトリがありません</h3>
-          <p>まずはリポジトリを追加してください</p>
+          <h3>ドキュメントがありません</h3>
+          <p>まずはドキュメントを追加してください</p>
           <Button 
-            label="リポジトリを追加" 
+            label="ドキュメントを追加" 
             icon="pi pi-plus"
             @click="goToRepositoryManagement"
           />
@@ -90,7 +83,7 @@
         <!-- ローディング状態 -->
         <div v-if="repositoryStore.isLoading" class="loading-state">
           <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
-          <p>リポジトリを読み込み中...</p>
+          <p>ドキュメントを読み込み中...</p>
         </div>
       </div>
     </main>
@@ -125,11 +118,11 @@ onMounted(async () => {
   try {
     await repositoryStore.fetchRepositories();
   } catch (error) {
-    console.error('リポジトリ一覧の読み込みに失敗:', error);
+    console.error('ドキュメント一覧の読み込みに失敗:', error);
     toast.add({
       severity: 'error',
       summary: 'エラー',
-      detail: 'リポジトリ一覧の読み込みに失敗しました',
+      detail: 'ドキュメント一覧の読み込みに失敗しました',
       life: 5000
     });
   }
@@ -160,17 +153,17 @@ async function selectRepository(repository: RepositoryResponse) {
     
     toast.add({
       severity: 'success',
-      summary: 'リポジトリ選択',
+      summary: 'ドキュメント選択',
       detail: `${repository.name} を選択しました`,
       life: 2000
     });
     
   } catch (error) {
-    console.error('リポジトリ選択エラー:', error);
+    console.error('ドキュメント選択エラー:', error);
     toast.add({
       severity: 'error',
       summary: 'エラー',
-      detail: 'リポジトリの選択に失敗しました',
+      detail: 'ドキュメントの選択に失敗しました',
       life: 3000
     });
   }

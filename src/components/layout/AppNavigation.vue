@@ -1,8 +1,10 @@
 <template>
   <header class="app-header">
     <div class="app-logo">
-      <img src="@/assets/logo.svg" alt="Logo" class="logo-image" />
-      <h1 class="app-title">ドキュメントAIヘルパー</h1>
+      <router-link to="/" class="app-title-link">
+        <img src="@/assets/logo.svg" alt="Logo" class="logo-image" />
+        <h1 class="app-title">ドキュメントAIヘルパー</h1>
+      </router-link>
     </div>
     
     <div class="app-center">
@@ -21,13 +23,9 @@
     
     <div class="app-menu">
       <nav class="navigation">
-        <router-link to="/" class="nav-link">
-          <i class="pi pi-home"></i>
-          <span>ホーム</span>
-        </router-link>
         <router-link to="/admin/repositories" class="nav-link">
           <i class="pi pi-folder"></i>
-          <span>リポジトリ管理</span>
+          <span>ドキュメント管理</span>
         </router-link>
         <router-link to="/settings" class="nav-link">
           <i class="pi pi-cog"></i>
@@ -89,13 +87,30 @@ function navigateToDocument() {
   flex: 1;
 }
 
+.app-title-link {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: var(--app-transition-fast);
+  border-radius: var(--app-border-radius-sm);
+  padding: var(--app-spacing-xs);
+  margin: calc(-1 * var(--app-spacing-xs));
+}
+
+.app-title-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
 .logo-image {
   height: 2rem;
   width: auto;
   transition: var(--app-transition-fast);
 }
 
-.logo-image:hover {
+.app-title-link:hover .logo-image {
   transform: scale(1.05);
 }
 
@@ -104,6 +119,7 @@ function navigateToDocument() {
   font-weight: 500;
   margin: 0;
   color: var(--app-surface-0);
+  transition: var(--app-transition-fast);
 }
 
 .app-center {

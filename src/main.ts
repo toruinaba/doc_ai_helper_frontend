@@ -11,6 +11,7 @@ import ToastService from 'primevue/toastservice'
 
 // PrimeVueコンポーネント
 import Card from 'primevue/card'
+import Panel from 'primevue/panel'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 import Tree from 'primevue/tree'
@@ -66,6 +67,7 @@ app.directive('tooltip', Tooltip)
 
 // コンポーネント登録
 app.component('Card', Card)
+app.component('Panel', Panel)
 app.component('Message', Message)
 app.component('ProgressSpinner', ProgressSpinner)
 app.component('Tree', Tree)

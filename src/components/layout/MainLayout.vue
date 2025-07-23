@@ -75,10 +75,8 @@ function onRepositoryChange(repository: RepositoryResponse | null) {
     documentStore.currentPath = '';
     
     // リポジトリのデフォルトドキュメントを読み込む可能性がある場合
-    // デフォルトパス（例：README.md）を設定
-    const defaultPath = repository.root_path ? 
-      `${repository.root_path}/README.md` : 
-      'README.md';
+    // root_pathがファイルパスとして設定されている場合はそのまま使用
+    const defaultPath = repository.root_path || 'README.md';
     
     // ドキュメントの存在確認後に読み込み（オプション）
     // documentStore.fetchDocument(defaultPath);

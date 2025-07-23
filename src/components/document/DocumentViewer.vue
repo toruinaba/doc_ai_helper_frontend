@@ -68,7 +68,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
-import { sanitizeHtml, escapeHtml } from '@/utils/html.util';
+import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml } from '@/utils/html.util';
 import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
@@ -132,10 +132,20 @@ const renderedContent = computed(() => {
   // ドキュメントタイプに応じてレンダリング方法を切り替え
   switch (document.value.type) {
     case 'markdown':
-    case 'quarto':
-      // マークダウン/Quartoの場合は既存の処理
+      // マークダウンの場合は既存の処理
       const { content: bodyContent } = extractFrontmatter(content);
       return renderMarkdown(bodyContent);
+      
+    case 'quarto':
+      // Quartoの場合：HTMLかマークダウンかを判定
+      if (content.trim().startsWith('<!DOCTYPE html') || content.trim().startsWith('<html')) {
+        // レンダリング済みHTML → Quarto特有の処理でサニタイゼーション
+        return sanitizeQuartoHtml(content);
+      } else {
+        // QMD形式 → マークダウンとして処理
+        const { content: qmdContent } = extractFrontmatter(content);
+        return renderMarkdown(qmdContent);
+      }
       
     case 'html':
       // HTMLの場合はサニタイゼーション後に表示
@@ -311,36 +321,42 @@ function handleLinkClick(event: MouseEvent) {
       return;
     }
     
-    // 3. 絶対パスだがサイト内リンク: フロントエンドで処理
+    // 3. バックエンドAPI変換済みリンクの処理
+    if (href.includes('/api/v1/documents/contents/')) {
+      event.preventDefault();
+      
+      // "/api/v1/documents/contents/service/owner/repo/path" 形式のURLからパスだけを抽出
+      const pathMatch = href.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
+      if (pathMatch && pathMatch[1]) {
+        const documentPath = decodeURIComponent(pathMatch[1]);
+        console.log('Navigating to backend transformed link:', {
+          href,
+          extractedPath: documentPath,
+          from: documentStore.currentPath,
+          timestamp: new Date().toISOString()
+        });
+        
+        documentStore.currentPath = documentPath;
+        return;
+      }
+    }
+    
+    // 4. 絶対パスだがサイト内リンク: フロントエンドで処理
     if (link.classList.contains('absolute-link')) {
       event.preventDefault();
       
       // 絶対パスからドキュメントのパス部分だけを抽出
       let documentPath = href || '';
       
-      // "/api/v1/documents/contents/service/owner/repo/path" 形式のURLからパスだけを抽出
-      const pathMatch = documentPath.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-      if (pathMatch && pathMatch[1]) {
-        documentPath = pathMatch[1];
-        console.log(`Extracted path from API URL pattern: ${documentPath}`);
-      }
-      // http(s)://host/api/v1/documents/contents/... 形式のURLからも抽出
-      else {
-        const fullUrlMatch = documentPath.match(/https?:\/\/[^/]+\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-        if (fullUrlMatch && fullUrlMatch[1]) {
-          documentPath = fullUrlMatch[1];
-          console.log(`Extracted path from full API URL pattern: ${documentPath}`);
-        }
-        // 完全なURL形式で、APIパスが含まれていない場合（例：http://localhost:8000/getting-started.md）
-        else if (documentPath.match(/^https?:\/\//)) {
-          try {
-            const url = new URL(documentPath);
-            // パスだけを取得（先頭の/は除去）
-            documentPath = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-            console.log(`Extracted path from absolute URL: ${documentPath}`);
-          } catch (e) {
-            console.error(`Failed to parse URL: ${documentPath}`, e);
-          }
+      // 完全なURL形式で、APIパスが含まれていない場合（例：http://localhost:8000/getting-started.md）
+      if (documentPath.match(/^https?:\/\//)) {
+        try {
+          const url = new URL(documentPath);
+          // パスだけを取得（先頭の/は除去）
+          documentPath = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+          console.log(`Extracted path from absolute URL: ${documentPath}`);
+        } catch (e) {
+          console.error(`Failed to parse URL: ${documentPath}`, e);
         }
       }
       
@@ -357,7 +373,7 @@ function handleLinkClick(event: MouseEvent) {
       return;
     }
     
-    // 4. 内部リンク: ドキュメントを取得
+    // 5. 内部リンク: ドキュメントを取得
     if (link.classList.contains('internal-link')) {
       event.preventDefault();
       
@@ -368,19 +384,19 @@ function handleLinkClick(event: MouseEvent) {
       // API URLパターンのチェック (絶対URL形式)
       const fullUrlMatch = documentPath.match(/https?:\/\/[^/]+\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
       if (fullUrlMatch && fullUrlMatch[1]) {
-        documentPath = fullUrlMatch[1];
+        documentPath = decodeURIComponent(fullUrlMatch[1]);
         console.log(`Extracted path from full URL in internal link: ${documentPath}`);
       }
       
       // API URLパターンのチェック (相対パス形式)
       const pathMatch = documentPath.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
       if (pathMatch && pathMatch[1]) {
-        documentPath = pathMatch[1];
+        documentPath = decodeURIComponent(pathMatch[1]);
         console.log(`Extracted path from API path in internal link: ${documentPath}`);
       }
       
       // 相対パス解決: 現在のドキュメントのパスを基準に相対パスを解決
-      if (documentPath.startsWith('./') || documentPath.startsWith('../') || !documentPath.startsWith('/')) {
+      if (documentPath.startsWith('./') || documentPath.startsWith('../') || (!documentPath.startsWith('/') && !documentPath.includes('/api/v1/'))) {
         const currentDir = documentStore.currentPath.split('/').slice(0, -1).join('/');
         let resolvedPath = documentPath;
         
@@ -394,7 +410,7 @@ function handleLinkClick(event: MouseEvent) {
           // ../path 形式 -> 親ディレクトリからの相対パス
           // 簡易的な実装のため、複数の ../が連続する場合は完全には対応しない
           resolvedPath = currentDir.split('/').slice(0, -1).join('/') + '/' + documentPath.substring(3);
-        } else if (!documentPath.startsWith('/')) {
+        } else if (!documentPath.startsWith('/') && !documentPath.includes('/api/v1/')) {
           // path 形式 -> 現在のディレクトリからの相対パス
           if (currentDir) {
             resolvedPath = `${currentDir}/${documentPath}`;
@@ -812,5 +828,73 @@ watch(
   color: var(--app-text-color-secondary);
   text-align: center;
   margin-top: var(--app-spacing-xs);
+}
+
+/* Quarto特有の要素のスタイル調整 */
+.rendered-content :deep(.quarto-container) {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.rendered-content :deep(.quarto-title-block) {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--app-surface-border);
+}
+
+.rendered-content :deep(.quarto-title) h1 {
+  font-size: var(--app-font-size-3xl);
+  margin-bottom: 0.5rem;
+  color: var(--app-text-color);
+}
+
+.rendered-content :deep(.quarto-title-meta) {
+  color: var(--app-text-color-secondary);
+  font-size: var(--app-font-size-sm);
+}
+
+.rendered-content :deep(.quarto-alternate-formats) {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: var(--app-surface-100);
+  border-radius: var(--app-border-radius);
+}
+
+.rendered-content :deep(.quarto-alternate-formats) h2 {
+  font-size: var(--app-font-size-lg);
+  margin-bottom: 0.5rem;
+  color: var(--app-text-color);
+}
+
+.rendered-content :deep(.quarto-alternate-formats) ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.rendered-content :deep(.quarto-alternate-formats) a {
+  color: var(--app-primary-color);
+  text-decoration: none;
+}
+
+.rendered-content :deep(.quarto-alternate-formats) a:hover {
+  text-decoration: underline;
+}
+
+/* Quarto margin sidebar（サイドバー要素）の調整 */
+.rendered-content :deep(.quarto-margin-sidebar) {
+  display: none; /* フロントエンドでは非表示 */
+}
+
+/* Quarto アンカーリンクの調整 */
+.rendered-content :deep(.anchored) {
+  position: relative;
+}
+
+.rendered-content :deep(.anchored:hover::after) {
+  content: '🔗';
+  position: absolute;
+  left: -1.5em;
+  color: var(--app-text-color-muted);
+  font-size: 0.8em;
 }
 </style>

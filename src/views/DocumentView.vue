@@ -80,9 +80,8 @@ onMounted(async () => {
         documentStore.currentRef = repository.default_branch;
         
         // デフォルトドキュメントを読み込み
-        const defaultPath = repository.root_path ? 
-          `${repository.root_path}/README.md` : 
-          'README.md';
+        // root_pathがファイルパスとして設定されている場合はそのまま使用
+        const defaultPath = repository.root_path || 'README.md';
           
         await documentStore.fetchDocument(defaultPath);
       } else {

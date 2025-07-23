@@ -172,8 +172,7 @@ const currentPath = computed(() => {
 });
 
 const rootPath = computed(() => {
-  // リポジトリのroot_pathが設定されている場合はそれを使用
-  // 設定されていない場合は一般的なドキュメントファイル名を試す
+  // リポジトリのroot_pathが設定されている場合はそれを使用（ファイルパス想定）
   const selectedRepo = repositoryStore.selectedRepository;
   if (selectedRepo?.root_path) {
     return selectedRepo.root_path;

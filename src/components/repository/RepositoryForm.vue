@@ -103,13 +103,13 @@
         </div>
 
         <div class="form-field">
-          <label for="root_path">ルートパス</label>
+          <label for="root_path">ルートドキュメントパス</label>
           <InputText
             id="root_path"
             v-model="formData.root_path"
-            placeholder="docs/"
+            placeholder="README.md, index.html, docs/index.md"
           />
-          <small class="field-help">ドキュメントのルートディレクトリ（オプション）</small>
+          <small class="field-help">メインドキュメントファイルのパス（省略時: README.md）</small>
         </div>
       </div>
 

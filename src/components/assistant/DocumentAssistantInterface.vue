@@ -114,7 +114,7 @@ const handleSendMessage = async (options: {
   useTools: boolean;
 }) => {
   await sendMessage(options);
-  await scrollToBottom();
+  // スクロールはwatcherに任せる - 手動でscrollToBottomを呼ばない
 };
 
 /**
@@ -125,10 +125,13 @@ const handleDocumentContextChange = (config: any) => {
   // 設定は DocumentContextPanel 内で永続化されているため、ここでは何もしない
 };
 
-// メッセージが変更されたらスクロール
-watch(messages, async () => {
-  await scrollToBottom();
-}, { deep: true });
+// メッセージが追加されたらスクロール（既存のスクロール位置を保持）
+watch(() => messages.value.length, async (newLength, oldLength) => {
+  // メッセージが追加された場合のみスクロール
+  if (newLength > oldLength) {
+    await scrollToBottom();
+  }
+});
 
 // ドキュメントが変更されたら会話をクリア
 watch(() => documentStore.currentPath, () => {

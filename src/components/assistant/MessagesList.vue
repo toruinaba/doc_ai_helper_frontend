@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, watch } from 'vue';
 import { marked } from 'marked';
 import Tag from 'primevue/tag';
 import ProgressBar from 'primevue/progressbar';
@@ -186,6 +186,83 @@ const scrollToBottom = async () => {
     chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
   }
 };
+
+// スクロール制御用の状態
+let isUserScrolling = false;
+let shouldAutoScroll = true;
+let previousScrollHeight = 0;
+
+// スクロール位置を監視してユーザーのスクロール操作を検出
+watch(chatMessagesRef, (newRef) => {
+  if (newRef) {
+    // 初期化時に一度スクロール
+    setTimeout(() => {
+      if (newRef.scrollHeight > newRef.clientHeight) {
+        newRef.scrollTop = newRef.scrollHeight;
+      }
+    }, 0);
+    
+    newRef.addEventListener('scroll', () => {
+      const { scrollTop, scrollHeight, clientHeight } = newRef;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 20;
+      
+      // ユーザーが明示的に上方向にスクロールした場合のみ自動スクロールを無効化
+      if (scrollTop < previousScrollHeight - 50) {
+        isUserScrolling = !isAtBottom;
+        shouldAutoScroll = isAtBottom;
+      } else if (isAtBottom) {
+        isUserScrolling = false;
+        shouldAutoScroll = true;
+      }
+      
+      previousScrollHeight = scrollTop;
+    });
+  }
+});
+
+// メッセージ配列の変更を監視（リアクティブ更新対応）
+watch(() => [props.messages.length, props.isLoading], async ([newLength, newIsLoading], [oldLength, oldIsLoading]) => {
+  await nextTick();
+  
+  if (!chatMessagesRef.value) return;
+  
+  const { scrollTop, scrollHeight, clientHeight } = chatMessagesRef.value;
+  const isAtBottom = scrollTop + clientHeight >= scrollHeight - 20;
+  
+  // 以下の場合に自動スクロール実行：
+  // 1. メッセージ数が増加した（新メッセージ追加）
+  // 2. ローディング状態が変化して自動スクロールが有効
+  // 3. ユーザーが最下部付近にいて自動スクロールが有効
+  const messagesAdded = newLength > oldLength;
+  const loadingChanged = newIsLoading !== oldIsLoading;
+  
+  if ((messagesAdded || loadingChanged || isAtBottom) && shouldAutoScroll && !isUserScrolling) {
+    requestAnimationFrame(() => {
+      if (chatMessagesRef.value) {
+        chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
+      }
+    });
+  }
+}, { immediate: true });
+
+// メッセージ内容の変更も監視（ストリーミング応答用）
+watch(() => props.messages.map(m => m.content).join(''), async () => {
+  await nextTick();
+  
+  if (!chatMessagesRef.value || !shouldAutoScroll || isUserScrolling) return;
+  
+  const { scrollTop, scrollHeight, clientHeight } = chatMessagesRef.value;
+  const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+  
+  // 最下部付近にいる場合のみストリーミング更新時もスクロール
+  if (isNearBottom) {
+    requestAnimationFrame(() => {
+      if (chatMessagesRef.value) {
+        chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
+      }
+    });
+  }
+});
 
 // 外部からアクセス可能にする
 defineExpose({

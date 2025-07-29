@@ -397,6 +397,12 @@ function handleLinkClick(event: MouseEvent) {
       
       // 相対パス解決: 現在のドキュメントのパスを基準に相対パスを解決
       if (documentPath.startsWith('./') || documentPath.startsWith('../') || (!documentPath.startsWith('/') && !documentPath.includes('/api/v1/'))) {
+        // currentPathが存在しない場合は相対パス解決をスキップ
+        if (!documentStore.currentPath) {
+          console.warn('Cannot resolve relative path: currentPath is not set');
+          return;
+        }
+        
         const currentDir = documentStore.currentPath.split('/').slice(0, -1).join('/');
         let resolvedPath = documentPath;
         
@@ -471,7 +477,17 @@ watch(
       const [oldService, oldOwner, oldRepo, oldPath] = oldValues || [];
       
       // 同じパスへのリクエストは無視（二重リクエスト防止）
-      if (path !== oldPath || service !== oldService || owner !== oldOwner || repo !== oldRepo) {
+      // 初期化時のoldValuesがundefinedの場合も考慮
+      if (!oldValues || path !== oldPath || service !== oldService || owner !== oldOwner || repo !== oldRepo) {
+        // 既に同じドキュメントが読み込み済みかチェック
+        if (documentStore.currentDocument?.name === path.split('/').pop()) {
+          console.log(`Document already loaded: ${path}`, {
+            currentDocument: documentStore.currentDocument?.name,
+            timestamp: new Date().toISOString()
+          });
+          return;
+        }
+        
         console.log(`Path or repository changed, fetching document: ${path} (previous: ${oldPath})`, {
           service, oldService,
           owner, oldOwner,

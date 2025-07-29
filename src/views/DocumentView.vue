@@ -91,10 +91,8 @@ const showChatDialog = ref(false);
 // イベントハンドラー
 function onBranchChange(branch: string) {
   console.log('Branch changed:', branch);
-  // ブランチが変更された場合、現在のパスで再読み込み
-  if (documentStore.currentPath) {
-    documentStore.fetchDocument(documentStore.currentPath);
-  }
+  // ブランチが変更された場合、currentRefを更新してwatcherに任せる
+  documentStore.currentRef = branch;
 }
 
 /**
@@ -129,11 +127,10 @@ onMounted(async () => {
         documentStore.currentRepo = repository.name;
         documentStore.currentRef = repository.default_branch;
         
-        // デフォルトドキュメントを読み込み
+        // デフォルトドキュメントを設定（watcherが自動的に取得）
         // root_pathがファイルパスとして設定されている場合はそのまま使用
         const defaultPath = repository.root_path || 'README.md';
-          
-        await documentStore.fetchDocument(defaultPath);
+        documentStore.currentPath = defaultPath;
       } else {
         // リポジトリが見つからない場合はホームに戻る
         console.warn(`Repository with ID ${repositoryId} not found`);
@@ -144,9 +141,11 @@ onMounted(async () => {
       router.push('/');
     }
   } else {
-    // デフォルトのパスを使用（環境変数から取得）
+    // デフォルトのパスを設定（環境変数から取得、watcherが自動的に取得）
     const defaultConfig = getDefaultRepositoryConfig();
-    documentStore.fetchDocument(documentStore.currentPath || defaultConfig.path);
+    if (!documentStore.currentPath) {
+      documentStore.currentPath = defaultConfig.path;
+    }
   }
 });
 </script>

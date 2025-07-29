@@ -493,7 +493,7 @@ watch(
 .document-viewer-container {
   height: 100%;
   padding: var(--app-spacing-base);
-  overflow-y: auto;
+  overflow: visible; /* SplitterPanelでスクロール管理 */
   background-color: var(--app-surface-0);
   display: flex;
   flex-direction: column;

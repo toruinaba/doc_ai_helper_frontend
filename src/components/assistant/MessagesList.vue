@@ -275,10 +275,10 @@ defineExpose({
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  padding-bottom: 120px; /* インプットボックス分の余白 */
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0; /* DocumentAssistantInterface内での独立スクロール用 */
 }
 
 .chat-empty-state {

@@ -5,11 +5,11 @@
     <main class="document-content">
       <!-- デスクトップ用レイアウト (ドキュメント + チャット併設) -->
       <div class="desktop-layout">
-        <Splitter class="main-splitter">
-          <SplitterPanel :size="60" :minSize="40">
+        <Splitter :style="{ height: 'calc(100vh - var(--app-header-height))' }" class="main-splitter">
+          <SplitterPanel :size="60" :minSize="40" class="document-panel">
             <DocumentViewer />
           </SplitterPanel>
-          <SplitterPanel :size="40" :minSize="30">
+          <SplitterPanel :size="40" :minSize="30" class="chat-panel">
             <DocumentAssistantInterface />
           </SplitterPanel>
         </Splitter>
@@ -154,14 +154,8 @@ onMounted(async () => {
 .document-content {
   flex: 1;
   background-color: var(--app-surface-0);
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - var(--app-header-height));
-}
-
-.main-splitter {
-  height: 100%;
-  border: none;
+  height: calc(100vh - var(--app-header-height));
+  overflow: hidden;
 }
 
 .desktop-layout {
@@ -172,12 +166,23 @@ onMounted(async () => {
   height: 100%;
 }
 
-:deep(.p-splitter) {
+/* Splitter基本設定 */
+.main-splitter {
   border: none;
 }
 
-:deep(.p-splitter-panel) {
-  overflow: auto;
+/* ドキュメントパネル：スクロール可能 */
+:deep(.document-panel) {
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* チャットパネル：固定高さ、内部でflexbox管理 */
+:deep(.chat-panel) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
 }
 
 /* レスポンシブレイアウト */

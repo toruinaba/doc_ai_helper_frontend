@@ -6,15 +6,78 @@
 import { marked } from 'marked';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css'; // GitHub風のスタイル
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+import mermaid from 'mermaid';
+
+// Mermaidの初期化
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  securityLevel: 'loose'
+});
 
 // マークダウンレンダリングの設定
 marked.use({
   // カスタムレンダラーの設定
   renderer: {
+    // テキストのレンダリングをカスタマイズ（KaTeX処理用）
+    text(token) {
+      let { text } = token;
+      
+      // インライン数式 $...$
+      text = text.replace(/\$([^$\n]+?)\$/g, (match, formula) => {
+        try {
+          return katex.renderToString(formula, { throwOnError: false });
+        } catch (error) {
+          console.error('KaTeX inline error:', error);
+          return match;
+        }
+      });
+      
+      return text;
+    },
     // コードブロックのレンダリングをカスタマイズ
     code(token) {
       // トークンから言語とコードを取得
       const { text: code, lang } = token;
+      
+      // KaTeX数式ブロックの場合
+      if (lang === 'math' || lang === 'latex') {
+        try {
+          const renderedMath = katex.renderToString(code, { 
+            throwOnError: false,
+            displayMode: true 
+          });
+          return `<div class="katex-display">${renderedMath}</div>`;
+        } catch (error) {
+          console.error('KaTeX block error:', error);
+          return `<div class="math-error">Math rendering failed: ${(error as Error).message}</div>`;
+        }
+      }
+      
+      // Mermaidダイアグラムの場合
+      if (lang === 'mermaid') {
+        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+        // レンダリングを次のTickで実行
+        setTimeout(async () => {
+          try {
+            const { svg } = await mermaid.render(id + '-svg', code);
+            const element = document.getElementById(id);
+            if (element) {
+              element.innerHTML = svg;
+              element.classList.add('mermaid-rendered');
+            }
+          } catch (error) {
+            console.error('Mermaid rendering error:', error as Error);
+            const element = document.getElementById(id);
+            if (element) {
+              element.innerHTML = `<div class="mermaid-error">Diagram rendering failed: ${(error as Error).message}</div>`;
+            }
+          }
+        }, 0);
+        return `<div id="${id}" class="mermaid-diagram">${code}</div>`;
+      }
       
       // 言語が指定されている場合はシンタックスハイライトを適用
       const validLanguage = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
@@ -125,7 +188,8 @@ marked.use({
   breaks: false,
   // pedanticモード（元のMarkdownの仕様に厳密に従う）を無効化
   pedantic: false
-});
+  }
+);
 
 /**
  * Markdownをレンダリングしてシンタックスハイライトを適用する
@@ -137,7 +201,21 @@ export function renderMarkdown(markdown: string): string {
     return '';
   }
   
-  return marked.parse(markdown) as string;
+  // $$...$$形式のブロック数式を処理
+  let processedMarkdown = markdown.replace(/\$\$([^$]+?)\$\$/g, (match, formula) => {
+    try {
+      const renderedMath = katex.renderToString(formula.trim(), { 
+        throwOnError: false,
+        displayMode: true 
+      });
+      return `<div class="katex-display">${renderedMath}</div>`;
+    } catch (error) {
+      console.error('KaTeX block error:', error);
+      return `<div class="math-error">Math rendering failed: ${(error as Error).message}</div>`;
+    }
+  });
+  
+  return marked.parse(processedMarkdown) as string;
 }
 
 /**

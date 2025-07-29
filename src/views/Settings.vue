@@ -243,6 +243,7 @@ onMounted(() => {
   flex-direction: column;
   background-color: var(--app-surface-50);
   overflow-y: auto;
+  padding-top: var(--app-header-height);
 }
 
 .settings-content {

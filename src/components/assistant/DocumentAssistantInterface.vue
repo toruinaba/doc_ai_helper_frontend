@@ -183,6 +183,7 @@ onMounted(async () => {
   height: 100%;
   background-color: #f9f9f9;
   overflow: hidden;
+  position: relative;
 }
 
 .chat-header {

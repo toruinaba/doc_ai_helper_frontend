@@ -8,6 +8,7 @@ import Aura from '@primeuix/themes/aura'
 // PrimeVueサービス
 import ConfirmationService from 'primevue/confirmationservice'
 import ToastService from 'primevue/toastservice'
+import DialogService from 'primevue/dialogservice'
 
 // PrimeVueコンポーネント
 import Card from 'primevue/card'
@@ -38,6 +39,7 @@ import SelectButton from 'primevue/selectbutton'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
 import Password from 'primevue/password'
+import DynamicDialog from 'primevue/dynamicdialog'
 
 // PrimeVueスタイル（v4の場合、テーマは自動適用されるためコメントアウト）
 // import 'primevue/resources/themes/aura-light-blue/theme.css'
@@ -61,6 +63,7 @@ app.use(PrimeVue, {
 })
 app.use(ConfirmationService)
 app.use(ToastService)
+app.use(DialogService)
 
 // ディレクティブ登録
 app.directive('tooltip', Tooltip)
@@ -93,5 +96,6 @@ app.component('SelectButton', SelectButton)
 app.component('Paginator', Paginator)
 app.component('Skeleton', Skeleton)
 app.component('Password', Password)
+app.component('DynamicDialog', DynamicDialog)
 
 app.mount('#app')

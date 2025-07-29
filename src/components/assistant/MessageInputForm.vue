@@ -115,6 +115,9 @@ function handleCompositionEnd() {
   background-color: var(--app-surface-0);
   border-top: 1px solid var(--app-surface-border);
   box-shadow: var(--app-shadow-sm);
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-index-sticky);
 }
 
 

@@ -275,6 +275,7 @@ defineExpose({
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
+  padding-bottom: 120px; /* インプットボックス分の余白 */
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -529,5 +530,42 @@ defineExpose({
   justify-content: center;
   padding: 1rem;
   color: #666;
+}
+
+/* タブレット・モバイル対応 */
+@media (max-width: 992px) {
+  .chat-message {
+    max-width: 95%;
+    gap: var(--app-spacing-xs);
+  }
+  
+  .chat-messages {
+    padding: var(--app-spacing-sm);
+    gap: var(--app-spacing-sm);
+  }
+  
+  .message-text {
+    font-size: var(--app-font-size-sm);
+    line-height: 1.5;
+  }
+  
+  .message-content {
+    padding: var(--app-spacing-sm);
+  }
+  
+  .message-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .tool-call-item {
+    padding: var(--app-spacing-xs);
+  }
+  
+  .tool-arguments pre,
+  .tool-result-content {
+    font-size: 0.75rem;
+    max-height: 100px;
+  }
 }
 </style>

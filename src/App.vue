@@ -64,6 +64,24 @@
   --app-transition-fast: 150ms ease-in-out;
   --app-transition-base: 200ms ease-in-out;
   --app-transition-slow: 300ms ease-in-out;
+
+  /* レスポンシブブレイクポイント */
+  --app-breakpoint-sm: 576px;   /* スマートフォン */
+  --app-breakpoint-md: 768px;   /* タブレット */
+  --app-breakpoint-lg: 992px;   /* デスクトップ */
+  --app-breakpoint-xl: 1200px;  /* 大型デスクトップ */
+
+  /* レスポンシブ対応のタッチ領域 */
+  --app-touch-target-min: 44px;
+
+  /* Z-index階層管理 */
+  --z-index-base: 1;
+  --z-index-dropdown: 10;
+  --z-index-sticky: 20;
+  --z-index-fixed: 100;
+  --z-index-modal-backdrop: 1000;
+  --z-index-modal: 1001;
+  --z-index-tooltip: 1100;
 }
 
 /* グローバルスタイル */
@@ -85,13 +103,13 @@ html, body {
 .p-dialog-mask {
   background-color: rgba(0, 0, 0, 0.4) !important;
   backdrop-filter: blur(2px);
-  z-index: 1000 !important;
+  z-index: var(--z-index-modal-backdrop) !important;
 }
 
 .p-dialog {
   border-radius: var(--app-border-radius-lg);
   box-shadow: var(--app-shadow-lg);
-  z-index: 1001 !important;
+  z-index: var(--z-index-modal) !important;
 }
 
 .p-dialog .p-dialog-header {

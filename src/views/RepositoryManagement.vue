@@ -430,6 +430,7 @@ function formatDateTime(dateString: string): string {
   display: flex;
   flex-direction: column;
   background-color: var(--app-surface-50);
+  padding-top: var(--app-header-height);
 }
 
 .repository-management > *:not(.app-header) {
@@ -546,7 +547,7 @@ function formatDateTime(dateString: string): string {
 }
 
 // レスポンシブ対応
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .repository-management {
     padding: 1rem;
   }

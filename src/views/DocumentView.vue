@@ -36,14 +36,24 @@
       <Dialog 
         v-model:visible="showChatDialog" 
         modal 
-        header="AIチャット" 
-        :style="{ width: '80vw', maxWidth: '800px', height: '70vh' }"
+        :closable="true" 
+        :showHeader="false"
+        :style="{ width: '80vw', maxWidth: '800px' }"
+        class="chat-dialog"
       >
-        <div style="height: 60vh; overflow: hidden;">
-          <DocumentAssistantInterface />
-        </div>
-        <template #footer>
-          <Button label="閉じる" @click="showChatDialog = false" />
+        <template #default>
+          <div class="dialog-content-wrapper">
+            <!-- 手動で閉じるボタンを追加 -->
+            <Button 
+              icon="pi pi-times" 
+              class="dialog-close-button"
+              @click="showChatDialog = false"
+              text
+              rounded
+              size="small"
+            />
+            <DocumentAssistantInterface />
+          </div>
         </template>
       </Dialog>
     </main>
@@ -245,11 +255,99 @@ onMounted(async () => {
   }
 }
 
-/* チャットモーダルのスタイル */
-.chat-modal-content {
-  height: 60vh;
-  overflow: hidden;
+/* Dialogのシンプルな設定 - ヘッダー・フッター削除 */
+.chat-dialog :deep(.p-dialog) {
+  height: 80vh;
+  max-height: 80vh;
+}
+
+/* ヘッダーを完全に削除（タイトルなし、×ボタンのみ） */
+.chat-dialog :deep(.p-dialog-header) {
+  display: none;
+}
+
+/* 閉じるボタンを右上に配置 */
+.chat-dialog :deep(.p-dialog-close) {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-dialog :deep(.p-dialog-content) {
+  height: 100%;
   padding: 0;
+  overflow: hidden;
+}
+
+/* フッターを完全に削除 */
+.chat-dialog :deep(.p-dialog-footer) {
+  display: none;
+}
+
+/* Dialog content wrapper */
+.dialog-content-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* 手動で追加した閉じるボタン */
+.dialog-close-button {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  width: 0.625rem;
+  height: 0.625rem;
+  min-width: 0.625rem;
+  font-size: 0.3rem;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* DocumentAssistantInterface in Dialog */
+.dialog-content-wrapper :deep(.chat-container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog-content-wrapper :deep(.chat-header) {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem; /* さらに縮小 */
+}
+
+/* DocumentAssistantInterface内のヘッダータイトルも小さく */
+.dialog-content-wrapper :deep(.chat-header h2) {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.dialog-content-wrapper :deep(.messages-container) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dialog-content-wrapper :deep(.input-container) {
+  flex-shrink: 0;
+}
+
+/* Dialog内の入力フォームのpaddingも縮小 */
+.dialog-content-wrapper :deep(.chat-input) {
+  padding: 0.5rem 1rem; /* paddingを縮小 */
 }
 
 </style>

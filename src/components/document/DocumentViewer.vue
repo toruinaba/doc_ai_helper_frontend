@@ -493,6 +493,12 @@ watch(
     documentStore.currentPath
   ],
   ([service, owner, repo, path], oldValues) => {
+    console.log('DocumentViewer watcher triggered:', {
+      newValues: { service, owner, repo, path },
+      oldValues,
+      shouldFetch: !!(service && owner && repo && path)
+    });
+    
     // サービス、オーナー、リポジトリ、パスがすべて設定されていて、かつ
     // パスが変更された場合のみフェッチする
     if (service && owner && repo && path) {

@@ -510,15 +510,6 @@ watch(
       // 同じパスへのリクエストは無視（二重リクエスト防止）
       // 初期化時のoldValuesがundefinedの場合も考慮
       if (!oldValues || path !== oldPath || service !== oldService || owner !== oldOwner || repo !== oldRepo) {
-        // 既に同じドキュメントが読み込み済みかチェック（フルパスで比較）
-        if (documentStore.currentPath === path) {
-          console.log(`Document already loaded: ${path}`, {
-            currentPath: documentStore.currentPath,
-            timestamp: new Date().toISOString()
-          });
-          return;
-        }
-        
         console.log(`Path or repository changed, fetching document: ${path} (previous: ${oldPath})`, {
           service, oldService,
           owner, oldOwner,

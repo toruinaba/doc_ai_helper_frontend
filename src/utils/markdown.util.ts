@@ -121,12 +121,21 @@ marked.use({
       let linkClass = '';
       let processedHref = hrefStr;
       
+      console.log('Link classification debug:', {
+        href: hrefStr,
+        isApiUrl,
+        containsApiEndpoint,
+        isAbsoluteUrl,
+        isExternal,
+        isAnchor
+      });
+      
       if (isExternal) {
         linkClass = 'external-link';
       } else if (isAnchor) {
         linkClass = 'anchor-link';
       } else if (isApiUrl || containsApiEndpoint) {
-        linkClass = 'absolute-link';
+        linkClass = 'api-link';
         
         // バックエンドから送られてきたAPIリンクはそのまま使用
         processedHref = hrefStr;

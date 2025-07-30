@@ -322,8 +322,8 @@ function handleLinkClick(event: MouseEvent) {
       return;
     }
     
-    // 3. バックエンドAPI変換済みリンクの処理
-    if (href.includes('/api/v1/documents/contents/')) {
+    // 3. APIリンクの処理
+    if (link.classList.contains('api-link') || href.includes('/api/v1/documents/contents/')) {
       event.preventDefault();
       
       // "/api/v1/documents/contents/service/owner/repo/path" 形式のURLからパスだけを抽出

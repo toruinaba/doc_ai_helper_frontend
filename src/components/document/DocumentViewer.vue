@@ -488,10 +488,24 @@ watch(
     documentStore.currentPath
   ],
   ([service, owner, repo, path], oldValues) => {
+    console.log('DocumentViewer watcher: Checking conditions', {
+      service, owner, repo, path,
+      oldValues,
+      hasAllRequired: !!(service && owner && repo && path)
+    });
+    
     // サービス、オーナー、リポジトリ、パスがすべて設定されていて、かつ
     // パスが変更された場合のみフェッチする
     if (service && owner && repo && path) {
       const [oldService, oldOwner, oldRepo, oldPath] = oldValues || [];
+      
+      console.log('DocumentViewer watcher: All values present, checking for changes', {
+        pathChanged: path !== oldPath,
+        serviceChanged: service !== oldService,
+        ownerChanged: owner !== oldOwner,
+        repoChanged: repo !== oldRepo,
+        isInitialLoad: !oldValues
+      });
       
       // 同じパスへのリクエストは無視（二重リクエスト防止）
       // 初期化時のoldValuesがundefinedの場合も考慮
@@ -511,12 +525,21 @@ watch(
           repo, oldRepo,
           timestamp: new Date().toISOString()
         });
+        console.log('DocumentViewer watcher: About to call fetchDocument');
         documentStore.fetchDocument(path);
+        console.log('DocumentViewer watcher: fetchDocument called');
       } else {
         console.log(`Ignoring duplicate request for the same path: ${path}`, {
           timestamp: new Date().toISOString()
         });
       }
+    } else {
+      console.log('DocumentViewer watcher: Missing required values', {
+        service: !!service,
+        owner: !!owner,
+        repo: !!repo,
+        path: !!path
+      });
     }
   }
 );

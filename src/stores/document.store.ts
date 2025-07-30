@@ -59,6 +59,7 @@ export const useDocumentStore = defineStore('document', () => {
     try {
       // 実際のAPIを使用
       console.log(`Using API for document fetch: ${currentService.value}/${currentOwner.value}/${currentRepo.value}/${path}`);
+      console.log('Document fetch starting...');
       
       // バックエンドのURLを環境変数から取得
       const apiConfig = getApiConfig();
@@ -69,6 +70,7 @@ export const useDocumentStore = defineStore('document', () => {
       const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?.*$/, '');
       console.log(`Using backend URL for links: ${baseUrlForLinks} (original: ${backendUrl})`);
       
+      console.log('Calling apiClient.getDocument...');
       currentDocument.value = await apiClient.getDocument(
         currentService.value,
         currentOwner.value,
@@ -78,6 +80,7 @@ export const useDocumentStore = defineStore('document', () => {
         true,
         baseUrlForLinks
       );
+      console.log('apiClient.getDocument completed successfully');
       console.log('Document fetched successfully:', {
         path,
         name: currentDocument.value.name,

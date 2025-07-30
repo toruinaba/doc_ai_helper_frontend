@@ -66,6 +66,7 @@
       <ProgressSpinner style="width: 30px; height: 30px" />
       <span>応答を生成中...</span>
     </div>
+    
   </div>
 </template>
 
@@ -278,7 +279,7 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: 0; /* DocumentAssistantInterface内での独立スクロール用 */
+  min-height: 0;
 }
 
 .chat-empty-state {
@@ -531,6 +532,7 @@ defineExpose({
   padding: 1rem;
   color: #666;
 }
+
 
 /* タブレット・モバイル対応 */
 @media (max-width: 992px) {

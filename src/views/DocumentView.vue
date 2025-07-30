@@ -39,6 +39,7 @@
         :closable="true" 
         :showHeader="false"
         :style="{ width: '80vw', maxWidth: '800px' }"
+        :contentStyle="{ height: '70vh', minHeight: '70vh', maxHeight: '70vh' }"
         class="chat-dialog"
       >
         <template #default>
@@ -173,6 +174,11 @@ onMounted(async () => {
 
 .mobile-layout {
   height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
 }
 
 /* Splitter基本設定 */
@@ -183,7 +189,11 @@ onMounted(async () => {
 /* ドキュメントパネル：スクロール可能 */
 :deep(.document-panel) {
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
 }
 
 /* チャットパネル：固定高さ、内部でflexbox管理 */
@@ -256,8 +266,7 @@ onMounted(async () => {
 
 /* Dialogのシンプルな設定 - ヘッダー・フッター削除 */
 .chat-dialog :deep(.p-dialog) {
-  height: 80vh;
-  max-height: 80vh;
+  height: auto;
 }
 
 /* ヘッダーを完全に削除（タイトルなし、×ボタンのみ） */
@@ -282,9 +291,10 @@ onMounted(async () => {
 }
 
 .chat-dialog :deep(.p-dialog-content) {
-  height: 100%;
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* フッターを完全に削除 */
@@ -325,7 +335,7 @@ onMounted(async () => {
 
 .dialog-content-wrapper :deep(.chat-header) {
   flex-shrink: 0;
-  padding: 0.5rem 1rem; /* さらに縮小 */
+  padding: 0.5rem 1rem;
 }
 
 /* DocumentAssistantInterface内のヘッダータイトルも小さく */
@@ -338,11 +348,17 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
 }
 
 .dialog-content-wrapper :deep(.input-container) {
   flex-shrink: 0;
 }
+
+
 
 /* Dialog内の入力フォームのpaddingも縮小 */
 .dialog-content-wrapper :deep(.chat-input) {

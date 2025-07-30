@@ -127,33 +127,9 @@ marked.use({
       } else if (isApiUrl || containsApiEndpoint) {
         linkClass = 'absolute-link';
         
-        // APIリンクの場合、ドキュメントパスのみを抽出する
-        
-        // URL内に完全なAPIパスが含まれている場合（http://localhost:8000/api/v1/documents/contents/mock/example/docs-project/path）
-        const fullUrlMatch = hrefStr.match(/https?:\/\/[^/]+\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-        if (fullUrlMatch && fullUrlMatch[1]) {
-          processedHref = fullUrlMatch[1];
-          console.log(`Extracted path from full API URL: ${processedHref} (original: ${hrefStr})`);
-        } else {
-          // /api/v1/documents/contents/service/owner/repo/path 形式のURLからパスだけを抽出
-          const pathMatch = hrefStr.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-          if (pathMatch && pathMatch[1]) {
-            // APIパスからドキュメントパスだけを抽出
-            processedHref = pathMatch[1];
-            console.log(`Extracted path from API URL: ${processedHref} (original: ${hrefStr})`);
-          } else if (hrefStr.match(/^https?:\/\//)) {
-            // それ以外の完全なURL形式で、APIパスが含まれていない場合
-            // おそらくhttp://localhost:8000/getting-started.mdのような形式
-            try {
-              const url = new URL(hrefStr);
-              // パスだけを取得（先頭の/は除去）
-              processedHref = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-              console.log(`Extracted path from absolute URL: ${processedHref} (original: ${hrefStr})`);
-            } catch (e) {
-              console.error(`Failed to parse URL: ${hrefStr}`, e);
-            }
-          }
-        }
+        // バックエンドで既に変換済みのAPIリンクはそのまま使用
+        processedHref = hrefStr;
+        console.log(`Using backend-transformed API link as-is: ${processedHref}`);
       } else if (isAbsoluteUrl) {
         // 絶対URLだがAPI URLではないもの
         linkClass = 'absolute-link';

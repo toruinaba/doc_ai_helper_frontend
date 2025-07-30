@@ -929,6 +929,8 @@ watch(
   left: -1.5em;
   color: var(--app-text-color-muted);
   font-size: 0.8em;
+}
+
 /* KaTeX数式のスタイル */
 .rendered-content :deep(.katex) {
   font-size: 1.1em;

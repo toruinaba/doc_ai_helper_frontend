@@ -325,9 +325,12 @@ function handleLinkClick(event: MouseEvent) {
     // 3. APIリンクの処理
     if (link.classList.contains('api-link') || href.includes('/api/v1/documents/contents/')) {
       event.preventDefault();
+      console.log('API link processing started:', { href, hasApiClass: link.classList.contains('api-link') });
       
       // "/api/v1/documents/contents/service/owner/repo/path" 形式のURLからパスだけを抽出
       const pathMatch = href.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
+      console.log('Regex match result:', { href, pathMatch, matched: !!pathMatch });
+      
       if (pathMatch && pathMatch[1]) {
         const documentPath = decodeURIComponent(pathMatch[1]);
         console.log('Navigating to backend transformed link:', {
@@ -339,6 +342,8 @@ function handleLinkClick(event: MouseEvent) {
         
         documentStore.currentPath = documentPath;
         return;
+      } else {
+        console.error('Failed to extract path from API link:', { href, pathMatch });
       }
     }
     

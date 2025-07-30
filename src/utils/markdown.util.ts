@@ -128,18 +128,9 @@ marked.use({
       } else if (isApiUrl || containsApiEndpoint) {
         linkClass = 'absolute-link';
         
-        // バックエンドから相対パス形式のAPIリンクが来る場合は完全URLに変換
-        if (hrefStr.startsWith('/api/v1/')) {
-          // .envからバックエンドのベースURLを取得してAPIリンクを完全URLに変換
-          const apiConfig = getApiConfig();
-          const backendBaseUrl = apiConfig.apiBaseUrl.replace(/\/api\/v1\/?$/, '');
-          processedHref = `${backendBaseUrl}${hrefStr}`;
-          console.log(`Converted relative API link to absolute: ${hrefStr} -> ${processedHref} (using backend URL: ${backendBaseUrl})`);
-        } else {
-          // 既に完全URLの場合はそのまま使用
-          processedHref = hrefStr;
-          console.log(`Using absolute API link as-is: ${processedHref}`);
-        }
+        // バックエンドから送られてきたAPIリンクはそのまま使用
+        processedHref = hrefStr;
+        console.log(`Using backend API link as-is: ${processedHref}`);
       } else if (isAbsoluteUrl) {
         // 絶対URLだがAPI URLではないもの
         linkClass = 'absolute-link';

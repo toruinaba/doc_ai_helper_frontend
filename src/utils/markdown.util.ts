@@ -8,6 +8,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css'; // GitHub風のスタイル
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import { getApiConfig } from './config.util';
 import mermaid from 'mermaid';
 
 // Mermaidの初期化
@@ -127,9 +128,18 @@ marked.use({
       } else if (isApiUrl || containsApiEndpoint) {
         linkClass = 'absolute-link';
         
-        // バックエンドで既に変換済みのAPIリンクはそのまま使用
-        processedHref = hrefStr;
-        console.log(`Using backend-transformed API link as-is: ${processedHref}`);
+        // バックエンドから相対パス形式のAPIリンクが来る場合は完全URLに変換
+        if (hrefStr.startsWith('/api/v1/')) {
+          // .envからバックエンドのベースURLを取得してAPIリンクを完全URLに変換
+          const apiConfig = getApiConfig();
+          const backendBaseUrl = apiConfig.apiBaseUrl.replace(/\/api\/v1\/?$/, '');
+          processedHref = `${backendBaseUrl}${hrefStr}`;
+          console.log(`Converted relative API link to absolute: ${hrefStr} -> ${processedHref} (using backend URL: ${backendBaseUrl})`);
+        } else {
+          // 既に完全URLの場合はそのまま使用
+          processedHref = hrefStr;
+          console.log(`Using absolute API link as-is: ${processedHref}`);
+        }
       } else if (isAbsoluteUrl) {
         // 絶対URLだがAPI URLではないもの
         linkClass = 'absolute-link';

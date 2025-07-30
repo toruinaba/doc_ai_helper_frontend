@@ -332,9 +332,8 @@ function handleOpenRepository(repository: RepositoryResponse) {
   documentStore.currentRef = repository.default_branch
   
   // デフォルトドキュメントパスを設定
-  const defaultPath = repository.root_path ? 
-    `${repository.root_path}/README.md` : 
-    'README.md'
+  // root_pathがファイルパスとして設定されている場合はそのまま使用
+  const defaultPath = repository.root_path || 'README.md'
   
   // ドキュメントを読み込み
   documentStore.fetchDocument(defaultPath).then(() => {
@@ -431,6 +430,7 @@ function formatDateTime(dateString: string): string {
   display: flex;
   flex-direction: column;
   background-color: var(--app-surface-50);
+  padding-top: var(--app-header-height);
 }
 
 .repository-management > *:not(.app-header) {
@@ -547,7 +547,7 @@ function formatDateTime(dateString: string): string {
 }
 
 // レスポンシブ対応
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .repository-management {
     padding: 1rem;
   }

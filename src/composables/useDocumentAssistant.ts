@@ -166,8 +166,7 @@ export function useDocumentAssistant(messagesRef?: any) {
         }
       }
       
-      // 送信後にスクロール
-      await scrollToBottom();
+      // スクロールはUIコンポーネントレベルで制御するため、ここでは呼ばない
     } catch (err) {
       console.error('メッセージ送信エラー:', err);
     }

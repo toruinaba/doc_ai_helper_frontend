@@ -21,7 +21,8 @@
       </div>
     </div>
     
-    <div class="app-menu">
+    <!-- デスクトップ用メニュー -->
+    <div class="app-menu desktop-menu">
       <nav class="navigation">
         <router-link to="/admin/repositories" class="nav-link">
           <i class="pi pi-folder"></i>
@@ -33,19 +34,82 @@
         </router-link>
       </nav>
     </div>
+
+    <!-- モバイル用ハンバーガーメニュー -->
+    <div class="mobile-menu">
+      <Button 
+        icon="pi pi-bars" 
+        class="hamburger-button"
+        @click="toggleMobileMenu"
+        :class="{ 'active': showMobileMenu }"
+        severity="secondary"
+        text
+      />
+      
+      <!-- モバイルメニューオーバーレイ -->
+      <div v-if="showMobileMenu" class="mobile-menu-overlay" @click="closeMobileMenu">
+        <div class="mobile-menu-content" @click.stop>
+          <div class="mobile-menu-header">
+            <h3>メニュー</h3>
+            <Button 
+              icon="pi pi-times" 
+              class="close-button"
+              @click="closeMobileMenu"
+              severity="secondary"
+              text
+            />
+          </div>
+          
+          <nav class="mobile-navigation">
+            <router-link 
+              to="/admin/repositories" 
+              class="mobile-nav-link"
+              @click="closeMobileMenu"
+            >
+              <i class="pi pi-folder"></i>
+              <span>ドキュメント管理</span>
+            </router-link>
+            <router-link 
+              to="/settings" 
+              class="mobile-nav-link"
+              @click="closeMobileMenu"
+            >
+              <i class="pi pi-cog"></i>
+              <span>設定</span>
+            </router-link>
+          </nav>
+        </div>
+      </div>
+    </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Tag from 'primevue/tag';
+import Button from 'primevue/button';
 import { useRepositoryStore } from '@/stores/repository.store';
 
 const router = useRouter();
 const repositoryStore = useRepositoryStore();
 
 const selectedRepository = computed(() => repositoryStore.selectedRepository);
+const showMobileMenu = ref(false);
+
+/**
+ * モバイルメニューの表示/非表示を切り替え
+ */
+function toggleMobileMenu() {
+  showMobileMenu.value = !showMobileMenu.value;
+}
+
+/**
+ * モバイルメニューを閉じる
+ */
+function closeMobileMenu() {
+  showMobileMenu.value = false;
+}
 
 /**
  * 選択されたリポジトリのドキュメント画面に移動
@@ -77,7 +141,11 @@ function navigateToDocument() {
   color: var(--app-surface-0);
   box-shadow: var(--app-shadow-base);
   height: var(--app-header-height);
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-index-fixed);
 }
 
 .app-logo {
@@ -193,5 +261,148 @@ function navigateToDocument() {
   background-color: rgba(255, 255, 255, 0.25);
   font-weight: 600;
   box-shadow: var(--app-shadow-sm);
+}
+
+/* レスポンシブメニュー */
+.desktop-menu {
+  display: flex;
+}
+
+.mobile-menu {
+  display: none;
+}
+
+/* タブレット以下でモバイルメニューに切り替え */
+@media (max-width: 992px) {
+  .desktop-menu {
+    display: none;
+  }
+  
+  .mobile-menu {
+    display: flex;
+    align-items: center;
+  }
+  
+  .app-center {
+    display: none; /* モバイルでは中央の情報を非表示 */
+  }
+  
+  .app-title {
+    font-size: var(--app-font-size-base); /* タイトルを小さく */
+  }
+}
+
+/* ハンバーガーボタン */
+.hamburger-button {
+  min-height: var(--app-touch-target-min);
+  min-width: var(--app-touch-target-min);
+  color: var(--app-surface-0) !important;
+  border: 2px solid transparent;
+  transition: var(--app-transition-fast);
+}
+
+.hamburger-button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.hamburger-button.active {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* モバイルメニューオーバーレイ */
+.mobile-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: var(--z-index-modal-backdrop);
+  display: flex;
+  justify-content: flex-end;
+  backdrop-filter: blur(2px);
+}
+
+.mobile-menu-content {
+  width: 280px;
+  height: 100%;
+  background-color: var(--app-surface-0);
+  box-shadow: var(--app-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.mobile-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--app-spacing-lg);
+  border-bottom: 1px solid var(--app-surface-border);
+  background-color: var(--app-surface-50);
+}
+
+.mobile-menu-header h3 {
+  margin: 0;
+  color: var(--app-text-color);
+  font-size: var(--app-font-size-lg);
+  font-weight: 600;
+}
+
+.close-button {
+  min-height: var(--app-touch-target-min);
+  min-width: var(--app-touch-target-min);
+  color: var(--app-text-color-secondary) !important;
+}
+
+/* モバイルナビゲーション */
+.mobile-navigation {
+  flex: 1;
+  padding: var(--app-spacing-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-spacing-xs);
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm);
+  padding: var(--app-spacing-base);
+  color: var(--app-text-color);
+  text-decoration: none;
+  border-radius: var(--app-border-radius);
+  transition: var(--app-transition-fast);
+  font-size: var(--app-font-size-base);
+  font-weight: 400;
+  min-height: var(--app-touch-target-min);
+}
+
+.mobile-nav-link:hover {
+  background-color: var(--app-surface-100);
+  color: var(--app-primary-color);
+}
+
+.mobile-nav-link.router-link-active {
+  background-color: var(--app-primary-50);
+  color: var(--app-primary-color);
+  font-weight: 600;
+}
+
+.mobile-nav-link i {
+  font-size: var(--app-font-size-lg);
+  width: 20px;
+  text-align: center;
 }
 </style>

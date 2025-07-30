@@ -24,20 +24,24 @@
     </div>
     
     <!-- メッセージ一覧 -->
-    <MessagesList
-      :key="messages.length"
-      ref="chatMessagesRef"
-      :messages="messages"
-      :is-loading="isLoading"
-      :active-tool-executions="activeToolExecutions"
-    />
+    <div class="messages-container">
+      <MessagesList
+        :key="messages.length"
+        ref="chatMessagesRef"
+        :messages="messages"
+        :is-loading="isLoading"
+        :active-tool-executions="activeToolExecutions"
+      />
+    </div>
     
     <!-- メッセージ入力フォーム -->
-    <MessageInputForm
-      :is-loading="isLoading"
-      :error="error"
-      @send-message="handleSendMessage"
-    />
+    <div class="input-container">
+      <MessageInputForm
+        :is-loading="isLoading"
+        :error="error"
+        @send-message="handleSendMessage"
+      />
+    </div>
   </div>
 </template>
 
@@ -114,7 +118,7 @@ const handleSendMessage = async (options: {
   useTools: boolean;
 }) => {
   await sendMessage(options);
-  await scrollToBottom();
+  // スクロールはwatcherに任せる - 手動でscrollToBottomを呼ばない
 };
 
 /**
@@ -125,10 +129,13 @@ const handleDocumentContextChange = (config: any) => {
   // 設定は DocumentContextPanel 内で永続化されているため、ここでは何もしない
 };
 
-// メッセージが変更されたらスクロール
-watch(messages, async () => {
-  await scrollToBottom();
-}, { deep: true });
+// メッセージが追加されたらスクロール（既存のスクロール位置を保持）
+watch(() => messages.value.length, async (newLength, oldLength) => {
+  // メッセージが追加された場合のみスクロール
+  if (newLength > oldLength) {
+    await scrollToBottom();
+  }
+});
 
 // ドキュメントが変更されたら会話をクリア
 watch(() => documentStore.currentPath, () => {
@@ -178,17 +185,39 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
   background-color: #f9f9f9;
-  overflow: hidden;
 }
 
+/* ヘッダー部分を固定 */
 .chat-header {
+  flex-shrink: 0;
   padding: 1rem;
   background-color: white;
   border-bottom: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* メッセージ領域：スクロール可能 */
+.messages-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+}
+
+/* MessagesList内部：高さ制限なし */
+.messages-container :deep(.chat-messages) {
+  height: auto;
+  overflow: visible;
+  flex: none;
+}
+
+/* 入力フォーム領域：最下部固定 */
+.input-container {
+  flex-shrink: 0;
 }
 
 .header-title {

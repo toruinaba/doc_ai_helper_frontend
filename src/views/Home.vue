@@ -144,9 +144,8 @@ async function selectRepository(repository: RepositoryResponse) {
     documentStore.currentRef = repository.default_branch;
     
     // デフォルトドキュメントパスを設定
-    const defaultPath = repository.root_path ? 
-      `${repository.root_path}/README.md` : 
-      'README.md';
+    // root_pathがファイルパスとして設定されている場合はそのまま使用
+    const defaultPath = repository.root_path || 'README.md';
     
     // ドキュメント表示ページに遷移
     router.push(`/documents/${repository.id}`);
@@ -176,6 +175,7 @@ async function selectRepository(repository: RepositoryResponse) {
   display: flex;
   flex-direction: column;
   background-color: var(--app-surface-50);
+  padding-top: var(--app-header-height);
 }
 
 .home-content {
@@ -227,6 +227,26 @@ async function selectRepository(repository: RepositoryResponse) {
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: var(--app-spacing-lg);
   margin-bottom: var(--app-spacing-2xl);
+}
+
+/* タブレット・モバイル対応 */
+@media (max-width: 992px) {
+  .repository-grid {
+    grid-template-columns: 1fr;
+    gap: var(--app-spacing-base);
+  }
+  
+  .home-content {
+    padding: var(--app-spacing-lg) var(--app-spacing-base);
+  }
+  
+  .welcome-content h1 {
+    font-size: var(--app-font-size-2xl);
+  }
+  
+  .welcome-content p {
+    font-size: var(--app-font-size-base);
+  }
 }
 
 .repository-card {
@@ -290,6 +310,29 @@ async function selectRepository(repository: RepositoryResponse) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* カードのタッチフレンドリー調整 */
+@media (max-width: 992px) {
+  .repository-card {
+    padding: var(--app-spacing-base);
+    min-height: var(--app-touch-target-min);
+  }
+  
+  .card-footer {
+    flex-direction: column;
+    gap: var(--app-spacing-sm);
+    align-items: stretch;
+  }
+  
+  .card-footer .p-button {
+    width: 100%;
+    min-height: var(--app-touch-target-min);
+  }
+  
+  .repo-meta {
+    justify-content: center;
+  }
 }
 
 .repo-meta {

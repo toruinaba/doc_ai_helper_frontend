@@ -504,12 +504,20 @@ watch(
         serviceChanged: service !== oldService,
         ownerChanged: owner !== oldOwner,
         repoChanged: repo !== oldRepo,
-        isInitialLoad: !oldValues
+        isInitialLoad: !oldValues,
+        isLoading: documentStore.isLoading
       });
       
       // 同じパスへのリクエストは無視（二重リクエスト防止）
-      // 初期化時のoldValuesがundefinedの場合も考慮
-      if (!oldValues || path !== oldPath || service !== oldService || owner !== oldOwner || repo !== oldRepo) {
+      // 初期化時または値が変更された場合のみフェッチ
+      const hasChanges = !oldValues || 
+                        path !== oldPath || 
+                        service !== oldService || 
+                        owner !== oldOwner || 
+                        repo !== oldRepo;
+      
+      // 現在読み込み中でない、かつ変更がある場合のみフェッチ
+      if (hasChanges && !documentStore.isLoading) {
         console.log(`Path or repository changed, fetching document: ${path} (previous: ${oldPath})`, {
           service, oldService,
           owner, oldOwner,
@@ -520,7 +528,10 @@ watch(
         documentStore.fetchDocument(path);
         console.log('DocumentViewer watcher: fetchDocument called');
       } else {
-        console.log(`Ignoring duplicate request for the same path: ${path}`, {
+        console.log(`Ignoring request: ${hasChanges ? 'already loading' : 'no changes'}`, {
+          path,
+          hasChanges,
+          isLoading: documentStore.isLoading,
           timestamp: new Date().toISOString()
         });
       }

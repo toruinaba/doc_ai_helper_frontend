@@ -7,7 +7,11 @@
       <div class="desktop-layout">
         <Splitter :style="{ height: 'calc(100vh - var(--app-header-height))' }" class="main-splitter">
           <SplitterPanel :size="60" :minSize="40" class="document-panel">
-            <DocumentViewer />
+            <DocumentViewer 
+              :repository-id="props.repositoryId"
+              :document-path="props.documentPath"
+              :ref="props.ref"
+            />
           </SplitterPanel>
           <SplitterPanel :size="40" :minSize="30" class="chat-panel">
             <DocumentAssistantInterface />
@@ -17,7 +21,11 @@
 
       <!-- タブレット・モバイル用レイアウト (ドキュメント単体表示 + モーダルチャット) -->
       <div class="mobile-layout">
-        <DocumentViewer />
+        <DocumentViewer 
+          :repository-id="props.repositoryId"
+          :document-path="props.documentPath"
+          :ref="props.ref"
+        />
         
         <!-- フローティングチャットボタン -->
         <Button 

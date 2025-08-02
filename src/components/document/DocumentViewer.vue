@@ -67,6 +67,8 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
+import { useDocumentRouter } from '@/composables/useDocumentRouter';
+import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-processing.util';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
 import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml } from '@/utils/html.util';
 import mermaid from 'mermaid';
@@ -79,8 +81,26 @@ import Breadcrumb from 'primevue/breadcrumb';
 import Button from 'primevue/button';
 import { types } from '@/services/api';
 
+// Props definition for better component interface
+interface DocumentViewerProps {
+  // Optional props for external control (when used in isolation)
+  repositoryId?: string;
+  documentPath?: string;
+  ref?: string;
+}
+
+// Optional props for external control
+const props = withDefaults(defineProps<DocumentViewerProps>(), {
+  repositoryId: '',
+  documentPath: '',
+  ref: 'main'
+});
+
 const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
+
+// New router-driven composable
+const { navigateToDocument, navigateToInternalLink, navigateToRoot } = useDocumentRouter();
 
 // 状態を参照
 const document = computed(() => documentStore.currentDocument);
@@ -217,7 +237,7 @@ const breadcrumbItems = computed(() => {
   // リポジトリルートを追加（アイコンのみ）
   items.push({
     icon: 'pi pi-home',
-    command: !isRootDocument.value ? async () => await navigateToRoot() : undefined
+    command: !isRootDocument.value ? async () => await navigateToRootDocument() : undefined
   });
 
   // パスを分割してBreadcrumbを構築
@@ -281,182 +301,157 @@ function getDocumentTypeLabel(type: string): string {
 }
 
 /**
- * リンククリック時の処理
+ * リンククリック時の処理（新しい設計）
  */
-function handleLinkClick(event: MouseEvent) {
-  // リンク要素をクリックした場合の処理
-  if (event.target instanceof HTMLAnchorElement) {
-    const link = event.target;
-    const href = link.getAttribute('href');
-    
-    console.log('Link clicked:', {
-      href,
-      classList: Array.from(link.classList),
-      isExternal: link.classList.contains('external-link'),
-      isInternal: link.classList.contains('internal-link'),
-      isAnchor: link.classList.contains('anchor-link'),
-      isAbsolute: link.classList.contains('absolute-link'),
-      timestamp: new Date().toISOString(),
-      clientX: event.clientX,
-      clientY: event.clientY,
-      elementText: link.textContent,
-      currentPath: documentStore.currentPath
-    });
-    
-    // リンク種類ごとの処理
-    if (!href) {
-      // hrefが存在しない場合は何もしない
+async function handleLinkClick(event: MouseEvent) {
+  if (!(event.target instanceof HTMLAnchorElement)) {
+    return;
+  }
+
+  const link = event.target;
+  const href = link.getAttribute('href');
+  
+  if (!href) {
+    return;
+  }
+
+  // 新しい設計: analyzeLinkElementでリンクを解析
+  const analysis: LinkAnalysisResult = analyzeLinkElement(link);
+  
+  console.log('Link clicked (new router-driven approach):', {
+    href,
+    analysis,
+    timestamp: new Date().toISOString()
+  });
+
+  // shouldPreventDefaultの場合のみイベントをキャンセル
+  if (analysis.shouldPreventDefault) {
+    event.preventDefault();
+  }
+
+  // リンクタイプ別の処理
+  switch (analysis.type) {
+    case 'external':
+    case 'anchor':
+      // デフォルトの挙動を許可（外部リンク・アンカーリンク）
       return;
-    }
-    
-    // 1. 外部リンク: デフォルトの挙動（新しいタブで開く）
-    if (link.classList.contains('external-link')) {
-      console.log('Opening external link:', href);
-      return; // デフォルトの挙動を許可
-    }
-    
-    // 2. アンカーリンク: ページ内ジャンプ
-    if (link.classList.contains('anchor-link')) {
-      console.log('Navigating to anchor:', href);
-      // デフォルトの挙動を許可（ページ内ジャンプ）
-      return;
-    }
-    
-    // 3. バックエンドAPI変換済みリンクの処理
-    if (href.includes('/api/v1/documents/contents/')) {
-      event.preventDefault();
-      
-      // "/api/v1/documents/contents/service/owner/repo/path" 形式のURLからパスだけを抽出
-      const pathMatch = href.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-      if (pathMatch && pathMatch[1]) {
-        const documentPath = decodeURIComponent(pathMatch[1]);
-        console.log('Navigating to backend transformed link:', {
-          href,
-          extractedPath: documentPath,
-          from: documentStore.currentPath,
-          timestamp: new Date().toISOString()
-        });
-        
-        documentStore.currentPath = documentPath;
-        return;
+
+    case 'api-transformed':
+    case 'absolute':
+    case 'internal':
+      // 内部ナビゲーション: router駆動で処理
+      if (analysis.documentPath) {
+        await handleInternalNavigation(analysis.documentPath, href);
       }
-    }
-    
-    // 4. 絶対パスだがサイト内リンク: フロントエンドで処理
-    if (link.classList.contains('absolute-link')) {
-      event.preventDefault();
-      
-      // 絶対パスからドキュメントのパス部分だけを抽出
-      let documentPath = href || '';
-      
-      // 完全なURL形式で、APIパスが含まれていない場合（例：http://localhost:8000/getting-started.md）
-      if (documentPath.match(/^https?:\/\//)) {
-        try {
-          const url = new URL(documentPath);
-          // パスだけを取得（先頭の/は除去）
-          documentPath = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-          console.log(`Extracted path from absolute URL: ${documentPath}`);
-        } catch (e) {
-          console.error(`Failed to parse URL: ${documentPath}`, e);
-        }
-      }
-      
-      console.log('Navigating to absolute path within site:', {
-        href,
-        extractedPath: documentPath,
-        from: documentStore.currentPath,
-        timestamp: new Date().toISOString()
-      });
-      
-      // 直接fetchDocumentを呼び出す代わりに、currentPathを更新する
-      // watchがパスの変更を検知して自動的にfetchDocumentを呼び出す
-      documentStore.currentPath = documentPath;
-      return;
-    }
-    
-    // 5. 内部リンク: ドキュメントを取得
-    if (link.classList.contains('internal-link')) {
-      event.preventDefault();
-      
-      // 内部リンクの場合、相対パスが与えられているので、そのままfetchDocumentに渡す
-      // ただしAPIパスが含まれている可能性があるのでチェック
-      let documentPath = href || '';
-      
-      // API URLパターンのチェック (絶対URL形式)
-      const fullUrlMatch = documentPath.match(/https?:\/\/[^/]+\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-      if (fullUrlMatch && fullUrlMatch[1]) {
-        documentPath = decodeURIComponent(fullUrlMatch[1]);
-        console.log(`Extracted path from full URL in internal link: ${documentPath}`);
-      }
-      
-      // API URLパターンのチェック (相対パス形式)
-      const pathMatch = documentPath.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-      if (pathMatch && pathMatch[1]) {
-        documentPath = decodeURIComponent(pathMatch[1]);
-        console.log(`Extracted path from API path in internal link: ${documentPath}`);
-      }
-      
-      // 相対パス解決: 現在のドキュメントのパスを基準に相対パスを解決
-      if (documentPath.startsWith('./') || documentPath.startsWith('../') || (!documentPath.startsWith('/') && !documentPath.includes('/api/v1/'))) {
-        // currentPathが存在しない場合は相対パス解決をスキップ
-        if (!documentStore.currentPath) {
-          console.warn('Cannot resolve relative path: currentPath is not set');
-          return;
-        }
-        
-        const currentDir = documentStore.currentPath.split('/').slice(0, -1).join('/');
-        let resolvedPath = documentPath;
-        
-        if (documentPath.startsWith('./')) {
-          // ./path 形式 -> 現在のディレクトリからの相対パス
-          resolvedPath = documentPath.substring(2);
-          if (currentDir) {
-            resolvedPath = `${currentDir}/${resolvedPath}`;
-          }
-        } else if (documentPath.startsWith('../')) {
-          // ../path 形式 -> 親ディレクトリからの相対パス
-          // 簡易的な実装のため、複数の ../が連続する場合は完全には対応しない
-          resolvedPath = currentDir.split('/').slice(0, -1).join('/') + '/' + documentPath.substring(3);
-        } else if (!documentPath.startsWith('/') && !documentPath.includes('/api/v1/')) {
-          // path 形式 -> 現在のディレクトリからの相対パス
-          if (currentDir) {
-            resolvedPath = `${currentDir}/${documentPath}`;
-          }
-        }
-        
-        console.log(`Resolved relative path: ${resolvedPath} from ${documentPath} (current: ${documentStore.currentPath})`);
-        documentPath = resolvedPath;
-      }
-      
-      console.log('Navigating to internal link:', {
-        href,
-        cleanedPath: documentPath,
-        from: documentStore.currentPath,
-        timestamp: new Date().toISOString()
-      });
-      
-      // 直接fetchDocumentを呼び出す代わりに、currentPathを更新する
-      // watchがパスの変更を検知して自動的にfetchDocumentを呼び出す
-      documentStore.currentPath = documentPath;
-    }
+      break;
+
+    default:
+      console.warn('Unknown link type:', analysis.type);
   }
 }
 
 /**
- * ルートドキュメントに移動
+ * 内部ナビゲーションの処理
  */
-async function navigateToRoot() {
-  const selectedRepo = repositoryStore.selectedRepository;
-  if (!selectedRepo) {
-    console.warn('No repository selected');
-    return;
-  }
-
+async function handleInternalNavigation(documentPath: string, originalHref: string) {
   try {
-    console.log(`Navigating to root document: ${rootPath.value}`);
+    // 現在のリポジトリ情報を取得
+    const repositoryId = props.repositoryId || getCurrentRepositoryId();
+    const currentPath = getCurrentDocumentPath();
+    const currentRef = props.ref || getCurrentRef();
     
-    // ドキュメントストアのcurrentPathを更新（watcherが自動的にドキュメントを取得）
-    documentStore.currentPath = rootPath.value;
+    if (!repositoryId) {
+      console.error('Cannot navigate: repositoryId is not available');
+      return;
+    }
+
+    console.log('Handling internal navigation:', {
+      documentPath,
+      originalHref,
+      repositoryId,
+      currentPath,
+      currentRef,
+      timestamp: new Date().toISOString()
+    });
+
+    // 新しい設計: useDocumentRouterのnavigateToInternalLinkを使用
+    await navigateToInternalLink(
+      originalHref,
+      repositoryId,
+      currentPath,
+      currentRef
+    );
+
+  } catch (error) {
+    console.error('Failed to handle internal navigation:', error);
+  }
+}
+
+/**
+ * 現在のリポジトリIDを取得
+ */
+function getCurrentRepositoryId(): string {
+  // props優先、なければstoreから取得
+  if (props.repositoryId) {
+    return props.repositoryId;
+  }
+  
+  // repositoryStoreから取得
+  const selectedRepo = repositoryStore.selectedRepository;
+  if (selectedRepo) {
+    return selectedRepo.id.toString();
+  }
+  
+  return '';
+}
+
+/**
+ * 現在のドキュメントパスを取得
+ */
+function getCurrentDocumentPath(): string {
+  // props優先、なければstoreから取得
+  if (props.documentPath) {
+    return props.documentPath;
+  }
+  
+  return documentStore.currentPath || '';
+}
+
+/**
+ * 現在のrefを取得
+ */
+function getCurrentRef(): string {
+  // props優先、なければstoreから取得
+  if (props.ref) {
+    return props.ref;
+  }
+  
+  return documentStore.currentRef || 'main';
+}
+
+/**
+ * ルートドキュメントに移動（新しい設計）
+ */
+async function navigateToRootDocument() {
+  try {
+    const repositoryId = getCurrentRepositoryId();
+    const rootDocumentPath = rootPath.value;
+    const currentRef = getCurrentRef();
+    
+    if (!repositoryId) {
+      console.warn('Cannot navigate to root: repositoryId is not available');
+      return;
+    }
+
+    console.log('Navigating to root document (new router-driven approach):', {
+      repositoryId,
+      rootDocumentPath,
+      currentRef,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 新しい設計: useDocumentRouterのnavigateToRootを使用
+    await navigateToRoot(repositoryId, rootDocumentPath, currentRef);
     
   } catch (error) {
     console.error('Failed to navigate to root document:', error);
@@ -479,47 +474,9 @@ watch(renderedContent, () => {
   });
 });
 
-// パラメータが変更されたときにドキュメントを再取得
-watch(
-  () => [
-    documentStore.currentService,
-    documentStore.currentOwner,
-    documentStore.currentRepo,
-    documentStore.currentPath
-  ],
-  ([service, owner, repo, path], oldValues) => {
-    // サービス、オーナー、リポジトリ、パスがすべて設定されていて、かつ
-    // パスが変更された場合のみフェッチする
-    if (service && owner && repo && path) {
-      const [oldService, oldOwner, oldRepo, oldPath] = oldValues || [];
-      
-      // 同じパスへのリクエストは無視（二重リクエスト防止）
-      // 初期化時のoldValuesがundefinedの場合も考慮
-      if (!oldValues || path !== oldPath || service !== oldService || owner !== oldOwner || repo !== oldRepo) {
-        // 既に同じドキュメントが読み込み済みかチェック
-        if (documentStore.currentDocument?.name === path.split('/').pop()) {
-          console.log(`Document already loaded: ${path}`, {
-            currentDocument: documentStore.currentDocument?.name,
-            timestamp: new Date().toISOString()
-          });
-          return;
-        }
-        
-        console.log(`Path or repository changed, fetching document: ${path} (previous: ${oldPath})`, {
-          service, oldService,
-          owner, oldOwner,
-          repo, oldRepo,
-          timestamp: new Date().toISOString()
-        });
-        documentStore.fetchDocument(path);
-      } else {
-        console.log(`Ignoring duplicate request for the same path: ${path}`, {
-          timestamp: new Date().toISOString()
-        });
-      }
-    }
-  }
-);
+// 新しい設計: DocumentViewerは純粋なビューコンポーネント
+// ドキュメント取得はDocumentViewで管理され、propsとして渡される
+// これにより複雑なwatcherと状態管理の問題を解決
 </script>
 
 <style scoped>

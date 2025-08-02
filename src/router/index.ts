@@ -37,21 +37,6 @@ const router = createRouter({
     {
       path: '/repositories',
       redirect: '/admin/repositories'
-    },
-    // 後方互換性のためのリダイレクト（パスパラメータなしの場合）
-    {
-      path: '/documents/:repositoryId',
-      redirect: (to) => {
-        return {
-          name: 'DocumentView',
-          params: to.params,
-          query: { 
-            path: 'README.md',
-            ref: 'main',
-            ...to.query 
-          }
-        };
-      }
     }
   ],
 })

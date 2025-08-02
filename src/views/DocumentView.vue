@@ -62,11 +62,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
-import { getDefaultRepositoryConfig } from '@/utils/config.util';
+import { useDocumentRouter, useDocumentRoute } from '@/composables/useDocumentRouter';
 import AppNavigation from '@/components/layout/AppNavigation.vue';
 import DocumentViewer from '@/components/document/DocumentViewer.vue';
 import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue';
@@ -76,25 +76,30 @@ import SplitterPanel from 'primevue/splitterpanel';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import type { components } from '@/services/api/types.auto';
+import type { DocumentViewProps } from '@/types/router';
 
 type RepositoryResponse = components['schemas']['RepositoryResponse'];
+
+// Router Props (from router configuration)
+const props = defineProps<DocumentViewProps>();
 
 const route = useRoute();
 const router = useRouter();
 const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
 
+// New router-driven composables
+const { currentDocumentState, navigateToDocument } = useDocumentRouter();
+const { isValidRoute } = useDocumentRoute();
+
 // チャットモーダルの表示状態
 const showChatDialog = ref(false);
 
-// Template refs
-
-// イベントハンドラー
-function onBranchChange(branch: string) {
-  console.log('Branch changed:', branch);
-  // ブランチが変更された場合、currentRefを更新してwatcherに任せる
-  documentStore.currentRef = branch;
-}
+// 現在のリポジトリ情報
+const currentRepository = computed(() => {
+  const repositoryId = parseInt(props.repositoryId);
+  return repositoryStore.repositories.find(r => r.id === repositoryId);
+});
 
 /**
  * チャットダイアログを開く
@@ -103,49 +108,126 @@ function openChatDialog() {
   showChatDialog.value = true;
 }
 
-
-// コンポーネントマウント時の処理
-onMounted(async () => {
-  const repositoryId = route.params.repositoryId as string;
+/**
+ * ブランチ変更時の処理
+ */
+function onBranchChange(branch: string) {
+  console.log('Branch changed:', branch);
   
-  if (repositoryId) {
-    // リポジトリIDが指定されている場合、そのリポジトリを読み込む
-    try {
-      // まず、リポジトリ一覧を取得（キャッシュされていない場合）
-      if (repositoryStore.repositories.length === 0) {
-        await repositoryStore.fetchRepositories();
-      }
+  // 新しい設計: router.pushで明示的にナビゲーション
+  navigateToDocument({
+    repositoryId: props.repositoryId,
+    path: props.documentPath,
+    ref: branch
+  });
+}
+
+/**
+ * リポジトリの初期化処理
+ */
+async function initializeRepository(repositoryId: string) {
+  try {
+    // まず、リポジトリ一覧を取得（キャッシュされていない場合）
+    if (repositoryStore.repositories.length === 0) {
+      await repositoryStore.fetchRepositories();
+    }
+    
+    // 指定されたリポジトリを検索
+    const repository = repositoryStore.repositories.find(r => r.id === parseInt(repositoryId));
+    if (repository) {
+      // リポジトリを選択
+      repositoryStore.selectRepository(repository);
       
-      // 指定されたリポジトリを検索
-      const repository = repositoryStore.repositories.find(r => r.id === parseInt(repositoryId));
-      if (repository) {
-        // リポジトリを選択
-        repositoryStore.selectRepository(repository);
-        
-        // ドキュメントストアにリポジトリ情報を設定
-        documentStore.currentService = repository.service_type;
-        documentStore.currentOwner = repository.owner;
-        documentStore.currentRepo = repository.name;
-        documentStore.currentRef = repository.default_branch;
-        
-        // デフォルトドキュメントを設定（watcherが自動的に取得）
-        // root_pathがファイルパスとして設定されている場合はそのまま使用
-        const defaultPath = repository.root_path || 'README.md';
-        documentStore.currentPath = defaultPath;
-      } else {
-        // リポジトリが見つからない場合はホームに戻る
-        console.warn(`Repository with ID ${repositoryId} not found`);
-        router.push('/');
-      }
+      // ドキュメントストアにリポジトリ情報を設定（watcherなし）
+      documentStore.currentService = repository.service_type;
+      documentStore.currentOwner = repository.owner;
+      documentStore.currentRepo = repository.name;
+      documentStore.currentRef = props.ref;
+      
+      console.log('Repository initialized:', {
+        repositoryId,
+        service: repository.service_type,
+        owner: repository.owner,
+        repo: repository.name,
+        ref: props.ref,
+        timestamp: new Date().toISOString()
+      });
+      
+      return repository;
+    } else {
+      throw new Error(`Repository with ID ${repositoryId} not found`);
+    }
+  } catch (error) {
+    console.error('Failed to initialize repository:', error);
+    throw error;
+  }
+}
+
+/**
+ * ドキュメントの読み込み処理
+ */
+async function loadDocument(path: string, ref: string) {
+  try {
+    console.log('Loading document via new router-driven approach:', {
+      path,
+      ref,
+      repositoryId: props.repositoryId,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 明示的にAPIを呼び出し（watcherなし）
+    await documentStore.fetchDocument(path, ref);
+    
+    console.log('Document loaded successfully via router-driven approach');
+  } catch (error) {
+    console.error('Failed to load document:', error);
+    throw error;
+  }
+}
+
+// 新しい設計: route watcherで明示的処理
+watch(
+  () => [props.repositoryId, props.documentPath, props.ref],
+  async ([repositoryId, documentPath, ref], oldValues) => {
+    console.log('DocumentView route watcher triggered:', {
+      repositoryId,
+      documentPath,
+      ref,
+      oldValues,
+      isValidRoute: isValidRoute.value,
+      timestamp: new Date().toISOString()
+    });
+    
+    // ルートパラメータが無効な場合は何もしない
+    if (!isValidRoute.value) {
+      console.warn('Invalid route parameters, skipping document load');
+      return;
+    }
+    
+    try {
+      // リポジトリの初期化
+      await initializeRepository(repositoryId);
+      
+      // ドキュメントの読み込み
+      await loadDocument(documentPath, ref);
+      
     } catch (error) {
-      console.error('Failed to load repository:', error);
+      console.error('Failed to process route change:', error);
+      // エラー時はホームに戻る
       router.push('/');
     }
-  } else {
-    // デフォルトのパスを設定（環境変数から取得、watcherが自動的に取得）
-    const defaultConfig = getDefaultRepositoryConfig();
-    if (!documentStore.currentPath) {
-      documentStore.currentPath = defaultConfig.path;
+  },
+  { immediate: true } // コンポーネント初期化時にも実行
+);
+
+// 初期化時のリポジトリ一覧取得
+onMounted(async () => {
+  // リポジトリ一覧をバックグラウンドで取得
+  if (repositoryStore.repositories.length === 0) {
+    try {
+      await repositoryStore.fetchRepositories();
+    } catch (error) {
+      console.error('Failed to fetch repositories:', error);
     }
   }
 });

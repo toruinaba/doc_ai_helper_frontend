@@ -134,21 +134,21 @@ function goToRepositoryManagement() {
 
 async function selectRepository(repository: RepositoryResponse) {
   try {
-    // リポジトリを選択
+    // リポジトリを選択（メタデータのみ）
     repositoryStore.selectRepository(repository);
     
-    // ドキュメントストアを更新
-    documentStore.currentService = repository.service_type;
-    documentStore.currentOwner = repository.owner;
-    documentStore.currentRepo = repository.name;
-    documentStore.currentRef = repository.default_branch;
-    
     // デフォルトドキュメントパスを設定
-    // root_pathがファイルパスとして設定されている場合はそのまま使用
     const defaultPath = repository.root_path || 'README.md';
     
-    // ドキュメント表示ページに遷移
-    router.push(`/documents/${repository.id}`);
+    // 新しい設計: router-driven navigation with query parameters
+    router.push({
+      name: 'DocumentView',
+      params: { repositoryId: repository.id.toString() },
+      query: { 
+        path: defaultPath,
+        ref: repository.default_branch 
+      }
+    });
     
     toast.add({
       severity: 'success',

@@ -261,7 +261,8 @@ export function renderLinkWithResponsibilityBoundary(
         return `<a href="${linkAnalysis.href}"${titleAttr} class="anchor-link" data-link-type="anchor">${text}</a>`;
       } else if (linkAnalysis.type === 'internal' && linkAnalysis.documentPath) {
         // 内部リンク: data-document-path 属性でパス情報を保持
-        return `<a href="#" data-document-path="${linkAnalysis.documentPath}"${titleAttr} class="internal-link" data-link-type="internal" data-original-href="${href}">${text}</a>`;
+        // 元のhrefを保持してリンクの見た目を維持
+        return `<a href="${href}" data-document-path="${linkAnalysis.documentPath}"${titleAttr} class="internal-link" data-link-type="internal" data-original-href="${href}">${text}</a>`;
       }
     } catch (error) {
       console.error(`Failed to analyze link: ${href}`, error);
@@ -295,7 +296,8 @@ function renderLegacyLink(href: string, text: string, title?: string): string {
     return `<a href="${href}"${titleAttr} class="anchor-link">${text}</a>`;
   } else {
     // フォールバック: data-document-path でパス情報を保持
-    return `<a href="#" data-document-path="${href}"${titleAttr} class="internal-link">${text}</a>`;
+    // 元のhrefを保持してリンクの見た目を維持
+    return `<a href="${href}" data-document-path="${href}"${titleAttr} class="internal-link">${text}</a>`;
   }
 }
 

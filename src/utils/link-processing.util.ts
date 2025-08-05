@@ -153,6 +153,13 @@ export function processInternalLinkPath(href: string): string {
  * @returns 解決された絶対パス（リポジトリルートからの相対パス）
  */
 export function resolveRelativePath(relativePath: string, currentPath: string, documentRoot: string = ''): string {
+  // デバッグログ
+  console.log('resolveRelativePath input:', {
+    relativePath,
+    currentPath,
+    documentRoot
+  });
+  
   // APIパスが含まれている場合はそのまま返す
   if (relativePath.includes('/api/v1/')) {
     return relativePath;
@@ -164,21 +171,49 @@ export function resolveRelativePath(relativePath: string, currentPath: string, d
     
     // ドキュメントルートが設定されている場合、絶対パスはドキュメントルート相対として解釈
     if (documentRoot) {
-      return documentRoot + '/' + cleanPath;
+      const result = documentRoot + '/' + cleanPath;
+      console.log('Absolute path resolution result:', result);
+      return result;
     }
     
+    console.log('Absolute path resolution result (no documentRoot):', cleanPath);
     return cleanPath;
   }
   
   // 現在のパスをドキュメントルート相対に正規化
   let normalizedCurrentPath = currentPath;
-  if (documentRoot && currentPath.startsWith(documentRoot + '/')) {
-    normalizedCurrentPath = currentPath.substring(documentRoot.length + 1);
+  if (documentRoot) {
+    if (currentPath.startsWith(documentRoot + '/')) {
+      // "docs/file.md" の場合
+      normalizedCurrentPath = currentPath.substring(documentRoot.length + 1);
+    } else if (currentPath === documentRoot) {
+      // 現在のパスがちょうどdocumentRootの場合
+      normalizedCurrentPath = '';
+    } else if (currentPath.startsWith(documentRoot) && currentPath.charAt(documentRoot.length) === '/') {
+      // 念のため、"/"で区切られているかを確認
+      normalizedCurrentPath = currentPath.substring(documentRoot.length + 1);
+    }
   }
+  
+  console.log('Path normalization:', {
+    currentPath,
+    documentRoot,
+    normalizedCurrentPath,
+    debug: {
+      'currentPath.startsWith(documentRoot + "/")': documentRoot ? currentPath.startsWith(documentRoot + '/') : false,
+      'currentPath.startsWith(documentRoot)': documentRoot ? currentPath.startsWith(documentRoot) : false,
+      'currentPath.length > documentRoot.length': documentRoot ? currentPath.length > documentRoot.length : false
+    }
+  });
   
   // 現在のディレクトリパスを取得（ファイル名を除く）
   const currentParts = normalizedCurrentPath.split('/').slice(0, -1);
   let targetParts = relativePath.split('/');
+  
+  console.log('Path parts:', {
+    currentParts,
+    targetParts: [...targetParts]
+  });
   
   // './'で始まる場合は削除
   if (targetParts[0] === '.') {
@@ -197,9 +232,30 @@ export function resolveRelativePath(relativePath: string, currentPath: string, d
   const resolvedParts = [...currentParts, ...targetParts];
   const resolvedPath = resolvedParts.join('/');
   
+  console.log('Path resolution result:', {
+    resolvedParts,
+    resolvedPath,
+    documentRoot,
+    final: documentRoot ? documentRoot + '/' + resolvedPath : resolvedPath
+  });
+  
   // ドキュメントルートがある場合は、結果にドキュメントルートプレフィックスを追加
+  // ただし、既にドキュメントルートが含まれている場合は追加しない
   if (documentRoot) {
-    return documentRoot + '/' + resolvedPath;
+    // resolvedPathが既にdocumentRootで始まっている場合はそのまま返す
+    if (resolvedPath.startsWith(documentRoot + '/') || resolvedPath.startsWith(documentRoot)) {
+      console.log('Path already includes documentRoot, returning as-is:', resolvedPath);
+      return resolvedPath;
+    }
+    
+    // documentRootを追加
+    const result = resolvedPath ? `${documentRoot}/${resolvedPath}` : documentRoot;
+    console.log('Adding documentRoot prefix:', {
+      documentRoot,
+      resolvedPath,
+      result
+    });
+    return result;
   }
   
   return resolvedPath;
@@ -226,6 +282,13 @@ export function isRelativePath(path: string): boolean {
  * @returns 処理されたリンク解析結果
  */
 export function analyzeRawMarkdownLink(href: string, currentPath: string, documentRoot: string = ''): LinkAnalysisResult {
+  // デバッグログ
+  console.log('analyzeRawMarkdownLink:', {
+    href,
+    currentPath,
+    documentRoot
+  });
+  
   // 1. 外部リンク
   if (href.startsWith('http://') || href.startsWith('https://')) {
     return {
@@ -247,6 +310,7 @@ export function analyzeRawMarkdownLink(href: string, currentPath: string, docume
   // 3. 絶対パス内部リンク
   if (href.startsWith('/')) {
     const resolvedPath = resolveRelativePath(href, currentPath, documentRoot);
+    console.log('Absolute path resolution:', { href, resolvedPath });
     return {
       type: 'internal',
       href,
@@ -258,6 +322,7 @@ export function analyzeRawMarkdownLink(href: string, currentPath: string, docume
   // 4. 相対パス内部リンク
   if (isRelativePath(href)) {
     const resolvedPath = resolveRelativePath(href, currentPath, documentRoot);
+    console.log('Relative path resolution:', { href, currentPath, documentRoot, resolvedPath });
     return {
       type: 'internal',
       href,

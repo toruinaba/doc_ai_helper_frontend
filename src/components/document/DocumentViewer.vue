@@ -28,7 +28,7 @@
               <i v-if="item.icon" :class="item.icon"></i>
               <span v-if="item.label">{{ item.label }}</span>
             </span>
-            <span v-else @click="() => item.command?.()" class="p-menuitem-link" style="cursor: pointer;">
+            <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
               <i v-if="item.icon" :class="item.icon"></i>
               <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
             </span>
@@ -68,6 +68,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { useRouter } from 'vue-router';
+import { useDocumentRouter } from '@/composables/useDocumentRouter';
 import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-processing.util';
 import { renderMarkdown, renderMarkdownWithResponsibilityBoundary, extractFrontmatter } from '@/utils/markdown.util';
 import { shouldProcessDocumentLinksInFrontend } from '@/utils/config.util';
@@ -97,6 +98,7 @@ const props = withDefaults(defineProps<DocumentViewerProps>(), {
 const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
 const router = useRouter();
+const { navigateToDocument } = useDocumentRouter();
 
 // 状態を参照
 const document = computed(() => documentStore.currentDocument);
@@ -149,10 +151,17 @@ const renderedContent = computed(() => {
   // 現在のドキュメントパスを取得 (相対パス解決用)
   const currentPath = document.value.path || '';
   
-  // TODO: ドキュメントルート対応は根本的な設計見直しが必要
-  // パスだけからドキュメントルートを推測することは不可能
-  // バックエンドでの明示的な情報提供が必要
-  const documentRoot = ''; // 暫定的に無効化
+  // ドキュメントルートを取得（Phase 2実装）
+  const selectedRepo = repositoryStore.selectedRepository;
+  // 移行ガイドPhase 2に従った実装
+  const documentRoot = selectedRepo?.document_root_directory || 
+                      (selectedRepo?.root_path ? selectedRepo.root_path.split('/').slice(0, -1).join('/') : '') ||
+                      currentPath.split('/').slice(0, -1).join('/');
+  
+  // 新しい前提条件：
+  // 1. document_root_directory: ドキュメントベースディレクトリ（例："docs"）
+  // 2. root_document_path: メインドキュメントファイル（例："docs/README.md"）
+  // 3. root_path: レガシーフィールド（下位互換性のため保持）
   
   // 責任分界アプローチの設定を確認
   const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();
@@ -228,14 +237,32 @@ const currentPath = computed(() => {
 });
 
 const rootPath = computed(() => {
-  // リポジトリのroot_pathが設定されている場合はそれを使用（ファイルパス想定）
+  // Phase 2実装: 新しいフィールド構造でパスを構築
   const selectedRepo = repositoryStore.selectedRepository;
-  if (selectedRepo?.root_path) {
+  if (!selectedRepo) {
+    return 'README.md';
+  }
+  
+  // 新しいフィールド構造: document_root_directory + root_document_path
+  if (selectedRepo.document_root_directory && selectedRepo.root_document_path) {
+    const baseDir = selectedRepo.document_root_directory.endsWith('/') 
+      ? selectedRepo.document_root_directory 
+      : selectedRepo.document_root_directory + '/';
+    return baseDir + selectedRepo.root_document_path;
+  }
+  
+  // root_document_pathのみが設定されている場合
+  if (selectedRepo.root_document_path) {
+    return selectedRepo.root_document_path;
+  }
+  
+  // レガシーフィールド: root_path
+  if (selectedRepo.root_path) {
     return selectedRepo.root_path;
   }
   
-  // デフォルトドキュメントの候補（優先順位順）
-  return 'README.md'; // 最も一般的なルートドキュメント
+  // デフォルト
+  return 'README.md';
 });
 
 // ルートドキュメントかどうかの判定
@@ -337,12 +364,29 @@ async function handleLinkClick(event: MouseEvent) {
   const href = link.getAttribute('href');
   const documentPath = link.getAttribute('data-document-path');
   const linkType = link.getAttribute('data-link-type');
+  const originalHref = link.getAttribute('data-original-href');
+
+  console.log('Link clicked:', {
+    href,
+    documentPath,
+    linkType,
+    originalHref,
+    linkElement: link,
+    allAttributes: {
+      href: link.getAttribute('href'),
+      'data-document-path': link.getAttribute('data-document-path'),
+      'data-link-type': link.getAttribute('data-link-type'),
+      'data-original-href': link.getAttribute('data-original-href'),
+      class: link.getAttribute('class')
+    }
+  });
 
   // 内部リンクの判定と処理
   if (linkType === 'internal' && documentPath) {
+    console.log('Processing internal link:', { documentPath, originalHref });
     // 内部リンク: フロントエンドでナビゲーション処理
     event.preventDefault();
-    await handleInternalNavigation(documentPath, href || '#');
+    await handleInternalNavigation(documentPath, originalHref || href || '#');
     return;
   }
 
@@ -389,23 +433,60 @@ async function handleInternalNavigation(documentPath: string, originalHref: stri
     const currentPath = getCurrentDocumentPath();
     const currentRef = props.ref || getCurrentRef();
     
+    console.log('=== INTERNAL NAVIGATION DEBUG ===');
+    console.log('Input parameters:', {
+      documentPath,
+      originalHref,
+      repositoryId,
+      currentPath,
+      currentRef
+    });
+    
+    console.log('Repository context:', {
+      propsRepositoryId: props.repositoryId,
+      selectedRepository: repositoryStore.selectedRepository,
+      documentStoreContext: {
+        service: documentStore.currentService,
+        owner: documentStore.currentOwner,
+        repo: documentStore.currentRepo,
+        path: documentStore.currentPath,
+        ref: documentStore.currentRef
+      }
+    });
+    
+    console.log('Expected API call will be made to:', {
+      service: documentStore.currentService,
+      owner: documentStore.currentOwner,
+      repo: documentStore.currentRepo,
+      path: documentPath,
+      ref: currentRef,
+      fullApiPath: `/api/v1/documents/contents/${documentStore.currentService}/${documentStore.currentOwner}/${documentStore.currentRepo}/${documentPath}?ref=${currentRef}`
+    });
+    
     if (!repositoryId) {
       console.error('Cannot navigate: repositoryId is not available');
       return;
     }
 
-    // 直接ルーターを使用してナビゲーション
-    await router.push({
-      name: 'DocumentView',
-      params: { repositoryId },
-      query: { 
-        path: documentPath,
-        ref: currentRef 
-      }
+    // useDocumentRouterを使用してナビゲーション
+    console.log('Using navigateToDocument with:', {
+      repositoryId,
+      path: documentPath,
+      ref: currentRef
     });
+    await navigateToDocument({
+      repositoryId,
+      path: documentPath,
+      ref: currentRef
+    });
+    console.log('Navigation completed successfully');
 
   } catch (error) {
-    console.error('Failed to handle internal navigation:', error);
+    console.error('Failed to handle internal navigation:', error, {
+      documentPath,
+      originalHref,
+      stack: error.stack
+    });
   }
 }
 
@@ -473,13 +554,10 @@ async function navigateToRootDocument() {
     });
     
     // ルートドキュメントへナビゲーション
-    await router.push({
-      name: 'DocumentView',
-      params: { repositoryId },
-      query: { 
-        path: rootDocumentPath,
-        ref: currentRef 
-      }
+    await navigateToDocument({
+      repositoryId,
+      path: rootDocumentPath,
+      ref: currentRef
     });
     
   } catch (error) {

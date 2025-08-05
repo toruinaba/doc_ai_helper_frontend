@@ -52,12 +52,14 @@ export const useDocumentStore = defineStore('document', () => {
     isLoading.value = true;
     error.value = null;
     
+    console.log('=== DOCUMENT FETCH DEBUG ===');
     console.log(`Fetching document: ${path}`, {
       timestamp: new Date().toISOString(),
       service: currentService.value,
       owner: currentOwner.value,
       repo: currentRepo.value,
-      ref: ref
+      ref: ref,
+      fullApiPath: `/api/v1/documents/contents/${currentService.value}/${currentOwner.value}/${currentRepo.value}/${path}?ref=${ref}`
     });
     
     try {
@@ -105,7 +107,18 @@ export const useDocumentStore = defineStore('document', () => {
       
       return currentDocument.value;
     } catch (err) {
-      console.error('Failed to fetch document:', err);
+      console.error('=== DOCUMENT FETCH ERROR ===');
+      console.error('Failed to fetch document:', {
+        path,
+        ref,
+        service: currentService.value,
+        owner: currentOwner.value,
+        repo: currentRepo.value,
+        error: err,
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        errorDetails: err.response?.data || 'No response data',
+        statusCode: err.response?.status || 'No status code'
+      });
       error.value = err instanceof Error ? err.message : 'Failed to fetch document';
       throw err;
     } finally {

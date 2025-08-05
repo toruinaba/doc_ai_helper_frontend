@@ -64,24 +64,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
-import { useDocumentRouter } from '@/composables/useDocumentRouter';
 import { useRouter } from 'vue-router';
 import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-processing.util';
 import { renderMarkdown, renderMarkdownWithResponsibilityBoundary, extractFrontmatter } from '@/utils/markdown.util';
-import { shouldProcessDocumentLinksInFrontend, getLinkProcessingConfig } from '@/utils/config.util';
+import { shouldProcessDocumentLinksInFrontend } from '@/utils/config.util';
 import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml, processHtmlLinksWithResponsibilityBoundary } from '@/utils/html.util';
 import mermaid from 'mermaid';
 import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
 import Message from 'primevue/message';
 import ProgressSpinner from 'primevue/progressspinner';
-import Tag from 'primevue/tag';
 import Breadcrumb from 'primevue/breadcrumb';
-import Button from 'primevue/button';
-import { types } from '@/services/api';
 
 // Props definition for better component interface
 interface DocumentViewerProps {
@@ -101,9 +97,6 @@ const props = withDefaults(defineProps<DocumentViewerProps>(), {
 const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
 const router = useRouter();
-
-// New router-driven composable
-const { navigateToDocument, navigateToInternalLink, navigateToRoot } = useDocumentRouter();
 
 // 状態を参照
 const document = computed(() => documentStore.currentDocument);
@@ -158,16 +151,6 @@ const renderedContent = computed(() => {
   
   // 責任分界アプローチの設定を確認
   const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();
-  const config = getLinkProcessingConfig();
-  
-  if (config.debugMode) {
-    console.log(`Rendering document with responsibility boundary:`, {
-      shouldUse: shouldUseResponsibilityBoundary,
-      mode: config.mode,
-      currentPath,
-      documentType: document.value.type
-    });
-  }
   
   // ドキュメントタイプに応じてレンダリング方法を切り替え
   switch (document.value.type) {
@@ -189,14 +172,6 @@ const renderedContent = computed(() => {
         // レンダリング済みHTML → Quarto特有の処理でサニタイゼーション
         const sanitizedHtml = sanitizeQuartoHtml(content);
         
-        console.log('Processing Quarto HTML document:', {
-          shouldUseResponsibilityBoundary,
-          currentPath,
-          htmlLength: sanitizedHtml.length,
-          hasLinks: sanitizedHtml.includes('<a '),
-          timestamp: new Date().toISOString()
-        });
-        
         // Quarto HTMLでは常にリンク処理を適用（レガシーモードでも）
         return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath);
       } else {
@@ -213,14 +188,6 @@ const renderedContent = computed(() => {
     case 'html':
       // HTMLの場合はサニタイゼーション後に表示
       const sanitizedHtml = sanitizeHtml(content);
-      
-      console.log('Processing HTML document:', {
-        shouldUseResponsibilityBoundary,
-        currentPath,
-        htmlLength: sanitizedHtml.length,
-        hasLinks: sanitizedHtml.includes('<a '),
-        timestamp: new Date().toISOString()
-      });
       
       // HTMLでは常にリンク処理を適用（レガシーモードでも）
       return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath);
@@ -365,27 +332,11 @@ async function handleLinkClick(event: MouseEvent) {
   const href = link.getAttribute('href');
   const documentPath = link.getAttribute('data-document-path');
   const linkType = link.getAttribute('data-link-type');
-  
-  console.log('Link clicked (responsibility boundary approach):', {
-    href,
-    documentPath,
-    linkType,
-    classList: Array.from(link.classList),
-    timestamp: new Date().toISOString()
-  });
 
   // 内部リンクの判定と処理
   if (linkType === 'internal' && documentPath) {
     // 内部リンク: フロントエンドでナビゲーション処理
     event.preventDefault();
-    
-    console.log('Processing internal link with data-document-path:', {
-      documentPath,
-      originalHref: href,
-      repositoryId: getCurrentRepositoryId(),
-      timestamp: new Date().toISOString()
-    });
-    
     await handleInternalNavigation(documentPath, href || '#');
     return;
   }
@@ -393,12 +344,6 @@ async function handleLinkClick(event: MouseEvent) {
   // レガシーサポート: 既存のanalyzeLinkElementロジック
   if (href && !documentPath) {
     const analysis: LinkAnalysisResult = analyzeLinkElement(link);
-    
-    console.log('Using legacy link analysis:', {
-      href,
-      analysis,
-      timestamp: new Date().toISOString()
-    });
 
     // shouldPreventDefaultの場合のみイベントをキャンセル
     if (analysis.shouldPreventDefault) {
@@ -444,21 +389,7 @@ async function handleInternalNavigation(documentPath: string, originalHref: stri
       return;
     }
 
-    console.log('Handling internal navigation:', {
-      documentPath,
-      originalHref,
-      repositoryId,
-      currentPath,
-      currentRef,
-      finalNavigation: {
-        name: 'DocumentView',
-        params: { repositoryId },
-        query: { path: documentPath, ref: currentRef }
-      },
-      timestamp: new Date().toISOString()
-    });
-
-    // 直接ルーターを使用してナビゲーション（デバッグのため）
+    // 直接ルーターを使用してナビゲーション
     await router.push({
       name: 'DocumentView',
       params: { repositoryId },
@@ -550,7 +481,6 @@ watch(renderedContent, () => {
     // 新しいMermaidダイアグラムがある場合は再レンダリング
     const mermaidElements = document.querySelectorAll('.mermaid-diagram:not(.mermaid-rendered)');
     if (mermaidElements.length > 0) {
-      console.log(`Found ${mermaidElements.length} new mermaid diagrams to render`);
       try {
         mermaid.run();
       } catch (error) {

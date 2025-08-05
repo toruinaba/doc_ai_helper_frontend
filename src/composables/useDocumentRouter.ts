@@ -6,6 +6,7 @@
  */
 import { useRouter, useRoute } from 'vue-router';
 import { computed, type Ref } from 'vue';
+import { resolveRelativePath } from '@/utils/link-processing.util';
 
 /**
  * ドキュメントナビゲーションパラメータ
@@ -72,39 +73,6 @@ export function useDocumentRouter() {
     }
   };
 
-  /**
-   * 相対パスから絶対パスを解決する
-   * @param relativePath 相対パス
-   * @param currentPath 現在のパス
-   * @returns 解決された絶対パス
-   */
-  const resolveRelativePath = (relativePath: string, currentPath: string): string => {
-    if (relativePath.startsWith('/')) {
-      // 既に絶対パス
-      return relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-    }
-
-    // 現在のディレクトリパスを取得（ファイル名を除く）
-    const currentParts = currentPath.split('/').slice(0, -1);
-    let targetParts = relativePath.split('/');
-    
-    // './'で始まる場合は削除
-    if (targetParts[0] === '.') {
-      targetParts = targetParts.slice(1);
-    }
-    
-    // '../'の処理 - 複数レベル対応
-    while (targetParts.length > 0 && targetParts[0] === '..') {
-      if (currentParts.length > 0) {
-        currentParts.pop(); // 一つ上のディレクトリに移動
-      }
-      targetParts.shift(); // '../'を削除
-    }
-    
-    // 最終パスを構築
-    const resolvedParts = [...currentParts, ...targetParts];
-    return resolvedParts.join('/');
-  };
 
   /**
    * 内部リンクを処理してナビゲーションする

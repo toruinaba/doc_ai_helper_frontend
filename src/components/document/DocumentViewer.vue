@@ -149,9 +149,10 @@ const renderedContent = computed(() => {
   // 現在のドキュメントパスを取得 (相対パス解決用)
   const currentPath = document.value.path || '';
   
-  // ドキュメントルートを取得
-  const selectedRepo = repositoryStore.selectedRepository;
-  const documentRoot = selectedRepo?.root_path || '';
+  // TODO: ドキュメントルート対応は根本的な設計見直しが必要
+  // パスだけからドキュメントルートを推測することは不可能
+  // バックエンドでの明示的な情報提供が必要
+  const documentRoot = ''; // 暫定的に無効化
   
   // 責任分界アプローチの設定を確認
   const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();

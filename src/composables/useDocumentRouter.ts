@@ -98,6 +98,8 @@ export function useDocumentRouter() {
     // 相対パスの解決
     if (documentPath.startsWith('./') || documentPath.startsWith('../') || 
         (!documentPath.startsWith('/') && !documentPath.includes('/api/v1/'))) {
+      // ドキュメントルート情報が必要だが、このcomposableでは取得できないため
+      // 呼び出し側で適切に処理されることを前提とする
       documentPath = resolveRelativePath(documentPath, currentPath);
     }
 

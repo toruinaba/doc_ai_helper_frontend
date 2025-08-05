@@ -95,7 +95,7 @@ export function sanitizeQuartoHtml(html: string): string {
  * @param currentPath 現在のドキュメントパス
  * @returns リンク処理済みHTML
  */
-export function processHtmlLinksWithResponsibilityBoundary(html: string, currentPath: string = ''): string {
+export function processHtmlLinksWithResponsibilityBoundary(html: string, currentPath: string = '', documentRoot: string = ''): string {
   if (!html) return html;
   
   // HTMLをDOMとして解析
@@ -147,9 +147,9 @@ export function processHtmlLinksWithResponsibilityBoundary(html: string, current
       
       // 相対パスを解決
       if (isRelative) {
-        documentPath = resolveRelativePath(href, currentPath);
+        documentPath = resolveRelativePath(href, currentPath, documentRoot);
       } else if (isAbsolute) {
-        documentPath = href.startsWith('/') ? href.substring(1) : href;
+        documentPath = resolveRelativePath(href, currentPath, documentRoot);
       }
       
       // Quartoの拡張子なしリンクに .html を追加

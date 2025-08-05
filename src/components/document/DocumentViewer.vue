@@ -149,6 +149,10 @@ const renderedContent = computed(() => {
   // 現在のドキュメントパスを取得 (相対パス解決用)
   const currentPath = document.value.path || '';
   
+  // ドキュメントルートを取得
+  const selectedRepo = repositoryStore.selectedRepository;
+  const documentRoot = selectedRepo?.root_path || '';
+  
   // 責任分界アプローチの設定を確認
   const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();
   
@@ -160,7 +164,7 @@ const renderedContent = computed(() => {
       
       if (shouldUseResponsibilityBoundary) {
         // 責任分界アプローチ: フロントエンドでドキュメントリンク処理
-        return renderMarkdownWithResponsibilityBoundary(bodyContent, currentPath);
+        return renderMarkdownWithResponsibilityBoundary(bodyContent, currentPath, documentRoot);
       } else {
         // レガシーモード: 既存の処理
         return renderMarkdown(bodyContent);
@@ -173,13 +177,13 @@ const renderedContent = computed(() => {
         const sanitizedHtml = sanitizeQuartoHtml(content);
         
         // Quarto HTMLでは常にリンク処理を適用（レガシーモードでも）
-        return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath);
+        return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath, documentRoot);
       } else {
         // QMD形式 → マークダウンとして処理
         const { content: qmdContent } = extractFrontmatter(content);
         
         if (shouldUseResponsibilityBoundary) {
-          return renderMarkdownWithResponsibilityBoundary(qmdContent, currentPath);
+          return renderMarkdownWithResponsibilityBoundary(qmdContent, currentPath, documentRoot);
         } else {
           return renderMarkdown(qmdContent);
         }
@@ -190,7 +194,7 @@ const renderedContent = computed(() => {
       const sanitizedHtml = sanitizeHtml(content);
       
       // HTMLでは常にリンク処理を適用（レガシーモードでも）
-      return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath);
+      return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath, documentRoot);
       
     default:
       // その他の場合はプレーンテキストとして表示
@@ -467,8 +471,15 @@ async function navigateToRootDocument() {
       timestamp: new Date().toISOString()
     });
     
-    // 新しい設計: useDocumentRouterのnavigateToRootを使用
-    await navigateToRoot(repositoryId, rootDocumentPath, currentRef);
+    // ルートドキュメントへナビゲーション
+    await router.push({
+      name: 'DocumentView',
+      params: { repositoryId },
+      query: { 
+        path: rootDocumentPath,
+        ref: currentRef 
+      }
+    });
     
   } catch (error) {
     console.error('Failed to navigate to root document:', error);

@@ -96,10 +96,11 @@ marked.use({
       const { href, title, text } = token;
       const hrefStr = href ? String(href) : '';
       
-      // グローバルに設定された現在のドキュメントパスを取得
+      // グローバルに設定された現在のドキュメントパスとドキュメントルートを取得
       const currentPath = (globalThis as any).__currentDocumentPath || '';
+      const documentRoot = (globalThis as any).__documentRoot || '';
       
-      return renderLinkWithResponsibilityBoundary(hrefStr, text, title || undefined, currentPath);
+      return renderLinkWithResponsibilityBoundary(hrefStr, text, title || undefined, currentPath, documentRoot);
     }
   },
   // 拡張マークダウン構文（GitHub風）を有効化
@@ -199,7 +200,8 @@ export function renderLinkWithResponsibilityBoundary(
   href: string, 
   text: string, 
   title?: string, 
-  currentPath: string = ''
+  currentPath: string = '',
+  documentRoot: string = ''
 ): string {
   const config = getLinkProcessingConfig();
   const shouldProcessDocLinks = shouldProcessDocumentLinksInFrontend();
@@ -239,7 +241,7 @@ export function renderLinkWithResponsibilityBoundary(
   if (shouldProcessDocLinks) {
     // 生のMarkdownリンクを処理する
     try {
-      const linkAnalysis = analyzeRawMarkdownLink(href, currentPath);
+      const linkAnalysis = analyzeRawMarkdownLink(href, currentPath, documentRoot);
       
       if (config.debugMode) {
         console.log(`Processing raw markdown link:`, {
@@ -305,14 +307,16 @@ function renderLegacyLink(href: string, text: string, title?: string): string {
  */
 export function renderMarkdownWithResponsibilityBoundary(
   markdown: string, 
-  currentPath: string = ''
+  currentPath: string = '',
+  documentRoot: string = ''
 ): string {
   if (!markdown) {
     return '';
   }
   
-  // グローバルに現在のパスを設定し、linkレンダラーで使用
+  // グローバルに現在のパスとドキュメントルートを設定し、linkレンダラーで使用
   (globalThis as any).__currentDocumentPath = currentPath;
+  (globalThis as any).__documentRoot = documentRoot;
   
   // $$...$$形式のブロック数式を処理
   let processedMarkdown = markdown.replace(/\$\$([^$]+?)\$\$/g, (match, formula) => {
@@ -332,6 +336,7 @@ export function renderMarkdownWithResponsibilityBoundary(
   
   // グローバル変数をクリア
   delete (globalThis as any).__currentDocumentPath;
+  delete (globalThis as any).__documentRoot;
   
   return result;
 }

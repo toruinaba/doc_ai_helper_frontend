@@ -68,9 +68,11 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { useDocumentRouter } from '@/composables/useDocumentRouter';
+import { useRouter } from 'vue-router';
 import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-processing.util';
-import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
-import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml } from '@/utils/html.util';
+import { renderMarkdown, renderMarkdownWithResponsibilityBoundary, extractFrontmatter } from '@/utils/markdown.util';
+import { shouldProcessDocumentLinksInFrontend, getLinkProcessingConfig } from '@/utils/config.util';
+import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml, processHtmlLinksWithResponsibilityBoundary } from '@/utils/html.util';
 import mermaid from 'mermaid';
 import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
@@ -98,6 +100,7 @@ const props = withDefaults(defineProps<DocumentViewerProps>(), {
 
 const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
+const router = useRouter();
 
 // New router-driven composable
 const { navigateToDocument, navigateToInternalLink, navigateToRoot } = useDocumentRouter();
@@ -141,7 +144,7 @@ const documentTitle = computed(() => {
   return document.value.name.replace(/\.[^/.]+$/, '');
 });
 
-// ドキュメントタイプ別のレンダリング処理
+// ドキュメントタイプ別のレンダリング処理 - 責任分界アプローチ対応
 const renderedContent = computed(() => {
   if (!document.value || !document.value.content.content) {
     return '';
@@ -150,27 +153,77 @@ const renderedContent = computed(() => {
   // トランスフォーム済みコンテンツがある場合はそれを使う
   const content = document.value.transformed_content || document.value.content.content;
   
+  // 現在のドキュメントパスを取得 (相対パス解決用)
+  const currentPath = document.value.path || '';
+  
+  // 責任分界アプローチの設定を確認
+  const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();
+  const config = getLinkProcessingConfig();
+  
+  if (config.debugMode) {
+    console.log(`Rendering document with responsibility boundary:`, {
+      shouldUse: shouldUseResponsibilityBoundary,
+      mode: config.mode,
+      currentPath,
+      documentType: document.value.type
+    });
+  }
+  
   // ドキュメントタイプに応じてレンダリング方法を切り替え
   switch (document.value.type) {
     case 'markdown':
-      // マークダウンの場合は既存の処理
+      // マークダウンの場合
       const { content: bodyContent } = extractFrontmatter(content);
-      return renderMarkdown(bodyContent);
+      
+      if (shouldUseResponsibilityBoundary) {
+        // 責任分界アプローチ: フロントエンドでドキュメントリンク処理
+        return renderMarkdownWithResponsibilityBoundary(bodyContent, currentPath);
+      } else {
+        // レガシーモード: 既存の処理
+        return renderMarkdown(bodyContent);
+      }
       
     case 'quarto':
       // Quartoの場合：HTMLかマークダウンかを判定
       if (content.trim().startsWith('<!DOCTYPE html') || content.trim().startsWith('<html')) {
         // レンダリング済みHTML → Quarto特有の処理でサニタイゼーション
-        return sanitizeQuartoHtml(content);
+        const sanitizedHtml = sanitizeQuartoHtml(content);
+        
+        console.log('Processing Quarto HTML document:', {
+          shouldUseResponsibilityBoundary,
+          currentPath,
+          htmlLength: sanitizedHtml.length,
+          hasLinks: sanitizedHtml.includes('<a '),
+          timestamp: new Date().toISOString()
+        });
+        
+        // Quarto HTMLでは常にリンク処理を適用（レガシーモードでも）
+        return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath);
       } else {
         // QMD形式 → マークダウンとして処理
         const { content: qmdContent } = extractFrontmatter(content);
-        return renderMarkdown(qmdContent);
+        
+        if (shouldUseResponsibilityBoundary) {
+          return renderMarkdownWithResponsibilityBoundary(qmdContent, currentPath);
+        } else {
+          return renderMarkdown(qmdContent);
+        }
       }
       
     case 'html':
       // HTMLの場合はサニタイゼーション後に表示
-      return sanitizeHtml(content);
+      const sanitizedHtml = sanitizeHtml(content);
+      
+      console.log('Processing HTML document:', {
+        shouldUseResponsibilityBoundary,
+        currentPath,
+        htmlLength: sanitizedHtml.length,
+        hasLinks: sanitizedHtml.includes('<a '),
+        timestamp: new Date().toISOString()
+      });
+      
+      // HTMLでは常にリンク処理を適用（レガシーモードでも）
+      return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, currentPath);
       
     default:
       // その他の場合はプレーンテキストとして表示
@@ -301,7 +354,7 @@ function getDocumentTypeLabel(type: string): string {
 }
 
 /**
- * リンククリック時の処理（新しい設計）
+ * リンククリック時の処理（責任分界アプローチ対応）
  */
 async function handleLinkClick(event: MouseEvent) {
   if (!(event.target instanceof HTMLAnchorElement)) {
@@ -310,44 +363,70 @@ async function handleLinkClick(event: MouseEvent) {
 
   const link = event.target;
   const href = link.getAttribute('href');
+  const documentPath = link.getAttribute('data-document-path');
+  const linkType = link.getAttribute('data-link-type');
   
-  if (!href) {
-    return;
-  }
-
-  // 新しい設計: analyzeLinkElementでリンクを解析
-  const analysis: LinkAnalysisResult = analyzeLinkElement(link);
-  
-  console.log('Link clicked (new router-driven approach):', {
+  console.log('Link clicked (responsibility boundary approach):', {
     href,
-    analysis,
+    documentPath,
+    linkType,
+    classList: Array.from(link.classList),
     timestamp: new Date().toISOString()
   });
 
-  // shouldPreventDefaultの場合のみイベントをキャンセル
-  if (analysis.shouldPreventDefault) {
+  // 内部リンクの判定と処理
+  if (linkType === 'internal' && documentPath) {
+    // 内部リンク: フロントエンドでナビゲーション処理
     event.preventDefault();
+    
+    console.log('Processing internal link with data-document-path:', {
+      documentPath,
+      originalHref: href,
+      repositoryId: getCurrentRepositoryId(),
+      timestamp: new Date().toISOString()
+    });
+    
+    await handleInternalNavigation(documentPath, href || '#');
+    return;
   }
 
-  // リンクタイプ別の処理
-  switch (analysis.type) {
-    case 'external':
-    case 'anchor':
-      // デフォルトの挙動を許可（外部リンク・アンカーリンク）
-      return;
+  // レガシーサポート: 既存のanalyzeLinkElementロジック
+  if (href && !documentPath) {
+    const analysis: LinkAnalysisResult = analyzeLinkElement(link);
+    
+    console.log('Using legacy link analysis:', {
+      href,
+      analysis,
+      timestamp: new Date().toISOString()
+    });
 
-    case 'api-transformed':
-    case 'absolute':
-    case 'internal':
-      // 内部ナビゲーション: router駆動で処理
-      if (analysis.documentPath) {
-        await handleInternalNavigation(analysis.documentPath, href);
-      }
-      break;
+    // shouldPreventDefaultの場合のみイベントをキャンセル
+    if (analysis.shouldPreventDefault) {
+      event.preventDefault();
+    }
 
-    default:
-      console.warn('Unknown link type:', analysis.type);
+    // リンクタイプ別の処理
+    switch (analysis.type) {
+      case 'external':
+      case 'anchor':
+        // デフォルトの挙動を許可（外部リンク・アンカーリンク）
+        return;
+
+      case 'api-transformed':
+      case 'absolute':
+      case 'internal':
+        // 内部ナビゲーション: router駆動で処理
+        if (analysis.documentPath) {
+          await handleInternalNavigation(analysis.documentPath, href);
+        }
+        break;
+
+      default:
+        console.warn('Unknown link type:', analysis.type);
+    }
   }
+
+  // アンカーリンクや外部リンクはデフォルト動作を許可
 }
 
 /**
@@ -371,16 +450,23 @@ async function handleInternalNavigation(documentPath: string, originalHref: stri
       repositoryId,
       currentPath,
       currentRef,
+      finalNavigation: {
+        name: 'DocumentView',
+        params: { repositoryId },
+        query: { path: documentPath, ref: currentRef }
+      },
       timestamp: new Date().toISOString()
     });
 
-    // 新しい設計: useDocumentRouterのnavigateToInternalLinkを使用
-    await navigateToInternalLink(
-      originalHref,
-      repositoryId,
-      currentPath,
-      currentRef
-    );
+    // 直接ルーターを使用してナビゲーション（デバッグのため）
+    await router.push({
+      name: 'DocumentView',
+      params: { repositoryId },
+      query: { 
+        path: documentPath,
+        ref: currentRef 
+      }
+    });
 
   } catch (error) {
     console.error('Failed to handle internal navigation:', error);

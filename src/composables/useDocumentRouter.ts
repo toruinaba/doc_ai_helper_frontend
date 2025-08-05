@@ -81,26 +81,29 @@ export function useDocumentRouter() {
   const resolveRelativePath = (relativePath: string, currentPath: string): string => {
     if (relativePath.startsWith('/')) {
       // 既に絶対パス
-      return relativePath;
+      return relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
     }
 
-    const currentDir = currentPath.split('/').slice(0, -1).join('/');
+    // 現在のディレクトリパスを取得（ファイル名を除く）
+    const currentParts = currentPath.split('/').slice(0, -1);
+    let targetParts = relativePath.split('/');
     
-    if (relativePath.startsWith('./')) {
-      // ./path 形式 -> 現在のディレクトリからの相対パス
-      const cleanPath = relativePath.substring(2);
-      return currentDir ? `${currentDir}/${cleanPath}` : cleanPath;
+    // './'で始まる場合は削除
+    if (targetParts[0] === '.') {
+      targetParts = targetParts.slice(1);
     }
     
-    if (relativePath.startsWith('../')) {
-      // ../path 形式 -> 親ディレクトリからの相対パス
-      const parentDir = currentDir.split('/').slice(0, -1).join('/');
-      const cleanPath = relativePath.substring(3);
-      return parentDir ? `${parentDir}/${cleanPath}` : cleanPath;
+    // '../'の処理 - 複数レベル対応
+    while (targetParts.length > 0 && targetParts[0] === '..') {
+      if (currentParts.length > 0) {
+        currentParts.pop(); // 一つ上のディレクトリに移動
+      }
+      targetParts.shift(); // '../'を削除
     }
     
-    // path 形式 -> 現在のディレクトリからの相対パス
-    return currentDir ? `${currentDir}/${relativePath}` : relativePath;
+    // 最終パスを構築
+    const resolvedParts = [...currentParts, ...targetParts];
+    return resolvedParts.join('/');
   };
 
   /**

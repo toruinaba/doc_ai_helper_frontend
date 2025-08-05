@@ -78,6 +78,31 @@ export interface DocumentContextConfig {
 }
 
 /**
+ * リンク処理モード
+ */
+export type LinkProcessingMode = 'legacy' | 'selective' | 'hybrid';
+// 注意: バックエンド仕様変更により transform_links=true は実質的に images-only 動作
+export type TransformLinksMode = 'true' | 'false';
+
+/**
+ * リンク処理設定 - 責任分界アプローチ用
+ */
+export interface LinkProcessingConfig {
+  /** メインの処理モード */
+  mode: LinkProcessingMode;
+  /** バックエンドのtransform_linksパラメータ */
+  transformMode: TransformLinksMode;
+  /** CDN最適化を有効にするか */
+  enableCdnOptimization: boolean;
+  /** 実験的機能を有効にするか */
+  enableExperimentalFeatures: boolean;
+  /** エラー時のフォールバック */
+  enableFallback: boolean;
+  /** デバッグモード */
+  debugMode: boolean;
+}
+
+/**
  * 環境変数からリポジトリのデフォルト設定を取得
  * @returns リポジトリのデフォルト設定
  */
@@ -177,5 +202,103 @@ export function getDefaultDocumentContextConfig(): DocumentContextConfig {
     enableRepositoryContext: true,
     enableDocumentMetadata: true,
     completeToolFlow: true
+  };
+}
+
+/**
+ * リンク処理設定を取得 - 責任分界アプローチ
+ */
+export function getLinkProcessingConfig(): LinkProcessingConfig {
+  const mode = (import.meta.env.VITE_LINK_PROCESSING_MODE || 'legacy') as LinkProcessingMode;
+  
+  // バックエンド仕様変更対応: transform_links=true は実質的に images-only
+  let transformMode: TransformLinksMode;
+  switch (mode) {
+    case 'selective':
+      // 責任分界モード: バックエンドは画像CDNのみ、フロントエンドはドキュメントリンク処理
+      transformMode = 'true';
+      break;
+    case 'hybrid':
+      // ハイブリッドモード: 設定に応じて切り替え
+      transformMode = (import.meta.env.VITE_TRANSFORM_LINKS_MODE === 'false') ? 'false' : 'true';
+      break;
+    case 'legacy':
+    default:
+      // レガシーモード: 従来通り全て変換（バックエンド仕様変更で実質的に画像のみ）
+      transformMode = 'true';
+      break;
+  }
+  
+  return {
+    mode,
+    transformMode,
+    enableCdnOptimization: import.meta.env.VITE_ENABLE_CDN_OPTIMIZATION !== 'false',
+    enableExperimentalFeatures: import.meta.env.VITE_ENABLE_EXPERIMENTAL_FEATURES === 'true',
+    enableFallback: import.meta.env.VITE_ENABLE_LINK_PROCESSING_FALLBACK !== 'false',
+    debugMode: import.meta.env.VITE_LINK_PROCESSING_DEBUG === 'true'
+  };
+}
+
+/**
+ * 選択的リンク処理を使用するかどうかを判定
+ * バックエンド仕様変更により、selectiveモードではフロントエンドでドキュメントリンク処理が必要
+ */
+export function shouldUseSelectiveLinkProcessing(): boolean {
+  const config = getLinkProcessingConfig();
+  return config.mode === 'selective' || config.mode === 'hybrid';
+}
+
+/**
+ * フロントエンドでドキュメントリンク処理が必要か判定
+ * バックエンドが画像CDNのみ変換するため、ドキュメントリンクはフロントエンドで処理
+ */
+export function shouldProcessDocumentLinksInFrontend(): boolean {
+  const config = getLinkProcessingConfig();
+  // selective モードでは必ずフロントエンドでドキュメントリンク処理
+  return config.mode === 'selective';
+}
+
+/**
+ * 本番環境かどうかを判定
+ */
+export function isProductionEnvironment(): boolean {
+  return import.meta.env.PROD;
+}
+
+/**
+ * 開発環境での実験的機能を有効にするか判定
+ */
+export function shouldEnableExperimentalFeatures(): boolean {
+  const config = getLinkProcessingConfig();
+  return config.enableExperimentalFeatures || (!isProductionEnvironment() && config.debugMode);
+}
+
+/**
+ * 統合アプリケーション設定
+ */
+export interface AppConfig {
+  repository: RepositoryConfig;
+  api: ApiConfig;
+  llm: LLMConfig;
+  defaults: DefaultsConfig;
+  ui: UIConfig;
+  appDefaults: AppDefaultsConfig;
+  documentContext: DocumentContextConfig;
+  linkProcessing: LinkProcessingConfig;
+}
+
+/**
+ * 全ての設定を統合したアプリケーション設定を取得
+ */
+export function getAppConfig(): AppConfig {
+  return {
+    repository: getDefaultRepositoryConfig(),
+    api: getApiConfig(),
+    llm: getLLMConfig(),
+    defaults: getDefaultsConfig(),
+    ui: getUIConfig(),
+    appDefaults: getAppDefaultsConfig(),
+    documentContext: getDefaultDocumentContextConfig(),
+    linkProcessing: getLinkProcessingConfig()
   };
 }

@@ -7,7 +7,11 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import apiClient from '../services/api';
 import { types } from '../services/api';
-import { getDefaultRepositoryConfig, getApiConfig } from '../utils/config.util';
+import { 
+  getDefaultRepositoryConfig, 
+  getApiConfig, 
+  getLinkProcessingConfig 
+} from '../utils/config.util';
 import { useAsyncOperation } from '../composables/useAsyncOperation';
 
 export const useDocumentStore = defineStore('document', () => {
@@ -60,14 +64,25 @@ export const useDocumentStore = defineStore('document', () => {
       // 実際のAPIを使用
       console.log(`Using API for document fetch: ${currentService.value}/${currentOwner.value}/${currentRepo.value}/${path}`);
       
-      // バックエンドのURLを環境変数から取得
+      // リンク処理設定を取得
+      const linkProcessingConfig = getLinkProcessingConfig();
       const apiConfig = getApiConfig();
       const backendUrl = apiConfig.backendUrl;
       
       // バックエンドURLを完全にシンプルな形式にする
       // 例: http://localhost:8000/api/v1 → http://localhost:8000
       const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?.*$/, '');
-      console.log(`Using backend URL for links: ${baseUrlForLinks} (original: ${backendUrl})`);
+      
+      // transform_linksパラメータを設定に応じて決定
+      const transformLinks = linkProcessingConfig.transformMode;
+      
+      console.log(`Link processing config:`, {
+        mode: linkProcessingConfig.mode,
+        transformMode: transformLinks,
+        baseUrlForLinks,
+        originalBackendUrl: backendUrl,
+        debugMode: linkProcessingConfig.debugMode
+      });
       
       currentDocument.value = await apiClient.getDocument(
         currentService.value,
@@ -75,7 +90,7 @@ export const useDocumentStore = defineStore('document', () => {
         currentRepo.value,
         path,
         ref,
-        true,
+        transformLinks,
         baseUrlForLinks
       );
       console.log('Document fetched successfully:', {

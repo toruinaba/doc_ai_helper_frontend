@@ -6,6 +6,7 @@
  */
 import { ApiClientFactory } from './api-client.factory'
 import type { components } from './types.auto'
+import type { TransformLinksMode } from '../../utils/config.util'
 
 type DocumentResponse = components['schemas']['DocumentResponse']
 type RepositoryStructureResponse = components['schemas']['RepositoryStructureResponse']
@@ -93,7 +94,7 @@ export class ApiService {
    * @param repo リポジトリ名
    * @param path ドキュメントパス
    * @param ref ブランチまたはタグ名（デフォルト: main）
-   * @param transformLinks 相対リンクを絶対リンクに変換するかどうか（デフォルト: true）
+   * @param transformLinks リンク変換モード - 'true'(画像CDNのみ変換), 'false'(変換なし) またはboolean(後方互換性) - バックエンド仕様変更対応
    * @param baseUrl リンク変換のベースURL
    * @returns ドキュメントレスポンス
    */
@@ -103,7 +104,7 @@ export class ApiService {
     repo: string,
     path: string,
     ref: string = 'main',
-    transformLinks: boolean = true,
+    transformLinks: TransformLinksMode | boolean = true,
     baseUrl?: string
   ): Promise<DocumentResponse> {
     return this.factory.getDocumentClient().getDocument(

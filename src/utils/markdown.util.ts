@@ -9,6 +9,8 @@ import 'highlight.js/styles/github.css'; // GitHub風のスタイル
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import mermaid from 'mermaid';
+import { shouldProcessDocumentLinksInFrontend, getLinkProcessingConfig } from './config.util';
+import { analyzeRawMarkdownLink, isRelativePath, resolveRelativePath } from './link-processing.util';
 
 // Mermaidの初期化
 mermaid.initialize({
@@ -88,98 +90,16 @@ marked.use({
       return `<pre class="hljs"><code class="language-${validLanguage}">${highlightedCode}</code></pre>`;
     },
 
-    // リンクのレンダリングをカスタマイズ
+    // リンクのレンダリングをカスタマイズ - 責任分界アプローチ対応
     link(token) {
       // トークンからhref、title、テキストを取得
       const { href, title, text } = token;
-      
-      // hrefが存在しない場合や文字列でない場合の対策
       const hrefStr = href ? String(href) : '';
       
-      // API URL形式かどうか判定
-      const isApiUrl = hrefStr.match(/\/api\/v1\/documents\/contents\//i) || 
-                       hrefStr.match(/^http(s)?:\/\/[^/]+\/api\/v1\/documents\/contents\//i);
+      // グローバルに設定された現在のドキュメントパスを取得
+      const currentPath = (globalThis as any).__currentDocumentPath || '';
       
-      // 相対パスかどうかの判定を厳密に行う
-      const isAbsoluteUrl = hrefStr.match(/^(https?:\/\/|\/\/|mailto:|tel:)/i);
-      const isAnchor = hrefStr.startsWith('#');
-      
-      // 既にAPIエンドポイントのURLになっていないか確認
-      const containsApiEndpoint = hrefStr.includes('/api/v1/documents/contents/');
-      
-      // 外部リンク判定
-      const isExternal = isAbsoluteUrl && !containsApiEndpoint && (
-        // 現在のホスト名を含まないURLは外部リンクとみなす
-        !hrefStr.includes(window.location.hostname) ||
-        // 特定のプロトコル形式は外部リンクとみなす
-        hrefStr.startsWith('mailto:') || 
-        hrefStr.startsWith('tel:')
-      );
-      
-      // リンククラスを決定
-      let linkClass = '';
-      let processedHref = hrefStr;
-      
-      if (isExternal) {
-        linkClass = 'external-link';
-      } else if (isAnchor) {
-        linkClass = 'anchor-link';
-      } else if (isApiUrl || containsApiEndpoint) {
-        linkClass = 'absolute-link';
-        
-        // APIリンクの場合、ドキュメントパスのみを抽出する
-        
-        // URL内に完全なAPIパスが含まれている場合（http://localhost:8000/api/v1/documents/contents/mock/example/docs-project/path）
-        const fullUrlMatch = hrefStr.match(/https?:\/\/[^/]+\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-        if (fullUrlMatch && fullUrlMatch[1]) {
-          processedHref = fullUrlMatch[1];
-          console.log(`Extracted path from full API URL: ${processedHref} (original: ${hrefStr})`);
-        } else {
-          // /api/v1/documents/contents/service/owner/repo/path 形式のURLからパスだけを抽出
-          const pathMatch = hrefStr.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
-          if (pathMatch && pathMatch[1]) {
-            // APIパスからドキュメントパスだけを抽出
-            processedHref = pathMatch[1];
-            console.log(`Extracted path from API URL: ${processedHref} (original: ${hrefStr})`);
-          } else if (hrefStr.match(/^https?:\/\//)) {
-            // それ以外の完全なURL形式で、APIパスが含まれていない場合
-            // おそらくhttp://localhost:8000/getting-started.mdのような形式
-            try {
-              const url = new URL(hrefStr);
-              // パスだけを取得（先頭の/は除去）
-              processedHref = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-              console.log(`Extracted path from absolute URL: ${processedHref} (original: ${hrefStr})`);
-            } catch (e) {
-              console.error(`Failed to parse URL: ${hrefStr}`, e);
-            }
-          }
-        }
-      } else if (isAbsoluteUrl) {
-        // 絶対URLだがAPI URLではないもの
-        linkClass = 'absolute-link';
-      } else {
-        // 上記以外は内部リンク (相対パス) として扱う
-        linkClass = 'internal-link';
-      }
-      
-      // 相対パスの場合はそのまま使用し、Vue Routerで処理できるようにする
-      const target = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
-      const titleAttr = title ? ` title="${title}"` : '';
-      
-      console.log('Rendering link:', {
-        href: hrefStr,
-        processedHref,
-        text,
-        isExternal,
-        isAnchor,
-        isAbsoluteUrl,
-        isApiUrl,
-        linkClass,
-        title: title || null,
-        timestamp: new Date().toISOString()
-      });
-      
-      return `<a href="${processedHref}"${target}${titleAttr} class="${linkClass}" data-original-href="${hrefStr}" data-link-type="${linkClass.replace('-link', '')}">${text}</a>`;
+      return renderLinkWithResponsibilityBoundary(hrefStr, text, title || undefined, currentPath);
     }
   },
   // 拡張マークダウン構文（GitHub風）を有効化
@@ -264,4 +184,154 @@ export function extractFrontmatter(markdown: string): {
     frontmatter: null,
     content: markdown
   };
+}
+
+/**
+ * 責任分界アプローチに基づいたリンクレンダリング
+ * バックエンド仕様変更対応: transform_links=true は画像CDNのみ変換
+ * @param href リンクURL
+ * @param text リンクテキスト
+ * @param title リンクタイトル
+ * @param currentPath 現在のドキュメントパス
+ * @returns レンダリングされたHTML
+ */
+export function renderLinkWithResponsibilityBoundary(
+  href: string, 
+  text: string, 
+  title?: string, 
+  currentPath: string = ''
+): string {
+  const config = getLinkProcessingConfig();
+  const shouldProcessDocLinks = shouldProcessDocumentLinksInFrontend();
+  
+  // バックエンド仕様変更対応: 
+  // - transform_links=true: 画像CDNはバックエンドで変換済み
+  // - ドキュメントリンクは生のままのためフロントエンドで処理必要
+  
+  // 1. 外部リンク判定
+  if (href.startsWith('http://') || href.startsWith('https://')) {
+    const target = ' target="_blank" rel="noopener noreferrer"';
+    const titleAttr = title ? ` title="${title}"` : '';
+    return `<a href="${href}"${target}${titleAttr} class="external-link" data-link-type="external">${text}</a>`;
+  }
+  
+  // 2. アンカーリンク
+  if (href.startsWith('#')) {
+    const titleAttr = title ? ` title="${title}"` : '';
+    return `<a href="${href}"${titleAttr} class="anchor-link" data-link-type="anchor">${text}</a>`;
+  }
+  
+  // 3. バックエンドで変換済みAPI URL (レガシーモードや一部ケース)
+  if (href.includes('/api/v1/documents/contents/')) {
+    // API URLからドキュメントパスを抽出
+    const pathMatch = href.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
+    const documentPath = pathMatch && pathMatch[1] ? decodeURIComponent(pathMatch[1]) : href;
+    
+    if (config.debugMode) {
+      console.log(`Processing API URL link: ${href} -> ${documentPath}`);
+    }
+    
+    const titleAttr = title ? ` title="${title}"` : '';
+    return `<a href="${documentPath}"${titleAttr} class="internal-link" data-link-type="internal" data-original-href="${href}">${text}</a>`;
+  }
+  
+  // 4. フロントエンドでドキュメントリンク処理が必要な場合
+  if (shouldProcessDocLinks) {
+    // 生のMarkdownリンクを処理する
+    try {
+      const linkAnalysis = analyzeRawMarkdownLink(href, currentPath);
+      
+      if (config.debugMode) {
+        console.log(`Processing raw markdown link:`, {
+          href,
+          currentPath,
+          analysis: linkAnalysis,
+          mode: config.mode
+        });
+      }
+      
+      const titleAttr = title ? ` title="${title}"` : '';
+      
+      if (linkAnalysis.type === 'external') {
+        const target = ' target="_blank" rel="noopener noreferrer"';
+        return `<a href="${linkAnalysis.href}"${target}${titleAttr} class="external-link" data-link-type="external">${text}</a>`;
+      } else if (linkAnalysis.type === 'anchor') {
+        return `<a href="${linkAnalysis.href}"${titleAttr} class="anchor-link" data-link-type="anchor">${text}</a>`;
+      } else if (linkAnalysis.type === 'internal' && linkAnalysis.documentPath) {
+        // 内部リンク: data-document-path 属性でパス情報を保持
+        return `<a href="#" data-document-path="${linkAnalysis.documentPath}"${titleAttr} class="internal-link" data-link-type="internal" data-original-href="${href}">${text}</a>`;
+      }
+    } catch (error) {
+      console.error(`Failed to analyze link: ${href}`, error);
+      
+      // フォールバック: レガシー処理
+      if (config.enableFallback) {
+        return renderLegacyLink(href, text, title);
+      }
+    }
+  }
+  
+  // 5. デフォルト: レガシー処理
+  return renderLegacyLink(href, text, title);
+}
+
+/**
+ * レガシーリンク処理 (フォールバック用)
+ * @param href リンクURL
+ * @param text リンクテキスト
+ * @param title リンクタイトル
+ * @returns レンダリングされたHTML
+ */
+function renderLegacyLink(href: string, text: string, title?: string): string {
+  const titleAttr = title ? ` title="${title}"` : '';
+  
+  // 簡単な判定でリンククラスを決定
+  if (href.startsWith('http://') || href.startsWith('https://')) {
+    const target = ' target="_blank" rel="noopener noreferrer"';
+    return `<a href="${href}"${target}${titleAttr} class="external-link">${text}</a>`;
+  } else if (href.startsWith('#')) {
+    return `<a href="${href}"${titleAttr} class="anchor-link">${text}</a>`;
+  } else {
+    // フォールバック: data-document-path でパス情報を保持
+    return `<a href="#" data-document-path="${href}"${titleAttr} class="internal-link">${text}</a>`;
+  }
+}
+
+/**
+ * 責任分界アプローチ対応のMarkdownレンダリング
+ * @param markdown マークダウン文字列
+ * @param currentPath 現在のドキュメントパス　(相対パス解決用)
+ * @returns HTML文字列
+ */
+export function renderMarkdownWithResponsibilityBoundary(
+  markdown: string, 
+  currentPath: string = ''
+): string {
+  if (!markdown) {
+    return '';
+  }
+  
+  // グローバルに現在のパスを設定し、linkレンダラーで使用
+  (globalThis as any).__currentDocumentPath = currentPath;
+  
+  // $$...$$形式のブロック数式を処理
+  let processedMarkdown = markdown.replace(/\$\$([^$]+?)\$\$/g, (match, formula) => {
+    try {
+      const renderedMath = katex.renderToString(formula.trim(), { 
+        throwOnError: false,
+        displayMode: true 
+      });
+      return `<div class="katex-display">${renderedMath}</div>`;
+    } catch (error) {
+      console.error('KaTeX block error:', error);
+      return `<div class="math-error">Math rendering failed: ${(error as Error).message}</div>`;
+    }
+  });
+  
+  const result = marked.parse(processedMarkdown) as string;
+  
+  // グローバル変数をクリア
+  delete (globalThis as any).__currentDocumentPath;
+  
+  return result;
 }

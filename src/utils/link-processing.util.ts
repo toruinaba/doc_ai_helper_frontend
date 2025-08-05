@@ -8,7 +8,7 @@
 /**
  * リンクの種類を判定する
  */
-export type LinkType = 'external' | 'anchor' | 'api-transformed' | 'absolute' | 'internal';
+export type LinkType = 'external' | 'anchor' | 'api-transformed' | 'absolute' | 'internal' | 'raw-markdown';
 
 /**
  * リンク解析結果
@@ -146,7 +146,7 @@ export function processInternalLinkPath(href: string): string {
 }
 
 /**
- * 相対パスを絶対パスに解決
+ * 相対パスを絶対パスに解決（Quarto対応改善版）
  * @param relativePath 相対パス
  * @param currentPath 現在のドキュメントパス
  * @returns 解決された絶対パス
@@ -154,7 +154,7 @@ export function processInternalLinkPath(href: string): string {
 export function resolveRelativePath(relativePath: string, currentPath: string): string {
   // 既に絶対パスの場合
   if (relativePath.startsWith('/')) {
-    return relativePath;
+    return relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
   }
   
   // APIパスが含まれている場合はそのまま返す
@@ -162,23 +162,26 @@ export function resolveRelativePath(relativePath: string, currentPath: string): 
     return relativePath;
   }
   
-  const currentDir = currentPath.split('/').slice(0, -1).join('/');
+  // 現在のディレクトリパスを取得（ファイル名を除く）
+  const currentParts = currentPath.split('/').slice(0, -1);
+  let targetParts = relativePath.split('/');
   
-  if (relativePath.startsWith('./')) {
-    // ./path 形式 -> 現在のディレクトリからの相対パス
-    const cleanPath = relativePath.substring(2);
-    return currentDir ? `${currentDir}/${cleanPath}` : cleanPath;
+  // './'で始まる場合は削除
+  if (targetParts[0] === '.') {
+    targetParts = targetParts.slice(1);
   }
   
-  if (relativePath.startsWith('../')) {
-    // ../path 形式 -> 親ディレクトリからの相対パス
-    const parentDir = currentDir.split('/').slice(0, -1).join('/');
-    const cleanPath = relativePath.substring(3);
-    return parentDir ? `${parentDir}/${cleanPath}` : cleanPath;
+  // '../'の処理 - 複数レベル対応
+  while (targetParts.length > 0 && targetParts[0] === '..') {
+    if (currentParts.length > 0) {
+      currentParts.pop(); // 一つ上のディレクトリに移動
+    }
+    targetParts.shift(); // '../'を削除
   }
   
-  // path 形式 -> 現在のディレクトリからの相対パス
-  return currentDir ? `${currentDir}/${relativePath}` : relativePath;
+  // 最終パスを構築
+  const resolvedParts = [...currentParts, ...targetParts];
+  return resolvedParts.join('/');
 }
 
 /**
@@ -192,4 +195,81 @@ export function isRelativePath(path: string): boolean {
     path.startsWith('../') || 
     (!path.startsWith('/') && !path.includes('/api/v1/'))
   );
+}
+
+/**
+ * Raw Markdownリンクの解析（フロントエンド完全委譲用）
+ * @param href 元のhref
+ * @param currentPath 現在のドキュメントパス
+ * @returns 処理されたリンク解析結果
+ */
+export function analyzeRawMarkdownLink(href: string, currentPath: string): LinkAnalysisResult {
+  // 1. 外部リンク
+  if (href.startsWith('http://') || href.startsWith('https://')) {
+    return {
+      type: 'external',
+      href,
+      shouldPreventDefault: false
+    };
+  }
+  
+  // 2. アンカーリンク
+  if (href.startsWith('#')) {
+    return {
+      type: 'anchor',
+      href,
+      shouldPreventDefault: false
+    };
+  }
+  
+  // 3. 絶対パス内部リンク
+  if (href.startsWith('/')) {
+    return {
+      type: 'internal',
+      href,
+      documentPath: href.startsWith('/') ? href.substring(1) : href,
+      shouldPreventDefault: true
+    };
+  }
+  
+  // 4. 相対パス内部リンク
+  if (isRelativePath(href)) {
+    const resolvedPath = resolveRelativePath(href, currentPath);
+    return {
+      type: 'internal',
+      href,
+      documentPath: resolvedPath,
+      shouldPreventDefault: true
+    };
+  }
+  
+  // デフォルト：外部として扱う
+  return {
+    type: 'external',
+    href,
+    shouldPreventDefault: false
+  };
+}
+
+/**
+ * フロントエンド完全委譲モードでリンクを解析
+ * @param link HTMLAnchorElement
+ * @param currentPath 現在のドキュメントパス
+ * @param useFrontendComplete フロントエンド完全委譲モードを使用するか
+ * @returns リンク解析結果
+ */
+export function analyzeLinkElementWithMode(
+  link: HTMLAnchorElement, 
+  currentPath: string = '', 
+  useFrontendComplete: boolean = false
+): LinkAnalysisResult {
+  const href = link.getAttribute('href') || '';
+  
+  if (useFrontendComplete) {
+    // フロントエンド完全委譲モード：生のMarkdownリンクを解析
+    return analyzeRawMarkdownLink(href, currentPath);
+  } else {
+    // 従来のAPI変換モード
+    return analyzeLinkElement(link);
+  }
 }

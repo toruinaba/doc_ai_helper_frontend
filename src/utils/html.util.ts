@@ -86,3 +86,131 @@ export function sanitizeQuartoHtml(html: string): string {
   
   return sanitized;
 }
+
+/**
+ * HTMLドキュメント内のリンクを処理する
+ * 責任分界アプローチで内部リンクにdata-document-path属性を追加
+ * @param html HTML文字列
+ * @param currentPath 現在のドキュメントパス
+ * @returns リンク処理済みHTML
+ */
+export function processHtmlLinksWithResponsibilityBoundary(html: string, currentPath: string = ''): string {
+  if (!html) return html;
+  
+  console.log('Processing HTML links with responsibility boundary:', {
+    currentPath,
+    htmlLength: html.length,
+    timestamp: new Date().toISOString()
+  });
+  
+  // HTMLをDOMとして解析
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const links = doc.querySelectorAll('a[href]');
+  
+  console.log(`Found ${links.length} links to process`);
+  
+  links.forEach(link => {
+    const href = link.getAttribute('href');
+    if (!href) return;
+    
+    // 外部リンク
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      link.setAttribute('target', '_blank');
+      link.setAttribute('rel', 'noopener noreferrer');
+      link.classList.add('external-link');
+      link.setAttribute('data-link-type', 'external');
+      return;
+    }
+    
+    // アンカーリンク
+    if (href.startsWith('#')) {
+      link.classList.add('anchor-link');
+      link.setAttribute('data-link-type', 'anchor');
+      return;
+    }
+    
+    // API URL
+    if (href.includes('/api/v1/documents/contents/')) {
+      const pathMatch = href.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
+      const documentPath = pathMatch && pathMatch[1] ? decodeURIComponent(pathMatch[1]) : href;
+      
+      link.setAttribute('href', '#');
+      link.setAttribute('data-document-path', documentPath);
+      link.classList.add('internal-link');
+      link.setAttribute('data-link-type', 'internal');
+      link.setAttribute('data-original-href', href);
+      return;
+    }
+    
+    // 内部リンク（相対パス・絶対パス）
+    // Quartoでよく使われるパターンを含む判定
+    const isRelative = href.startsWith('./') || href.startsWith('../') || 
+                      (!href.startsWith('/') && !href.includes('/api/v1/') && !href.startsWith('http'));
+    const isAbsolute = href.startsWith('/') && !href.includes('/api/v1/');
+    
+    console.log(`Link analysis: ${href} - isRelative: ${isRelative}, isAbsolute: ${isAbsolute}`);
+    
+    if (isRelative || isAbsolute) {
+      let documentPath = href;
+      
+      // 相対パスを解決
+      if (isRelative) {
+        documentPath = resolveRelativePath(href, currentPath);
+        console.log(`Resolved relative path: ${href} -> ${documentPath} (currentPath: ${currentPath})`);
+      } else if (isAbsolute) {
+        documentPath = href.startsWith('/') ? href.substring(1) : href;
+        console.log(`Processed absolute path: ${href} -> ${documentPath}`);
+      }
+      
+      // Quartoの拡張子なしリンクに .html または .qmd を追加する場合の処理
+      // （必要に応じて）
+      if (!documentPath.includes('.') && !documentPath.endsWith('/')) {
+        console.log(`Adding .html extension to extensionless link: ${documentPath}`);
+        documentPath = documentPath + '.html';
+      }
+      
+      link.setAttribute('href', '#');
+      link.setAttribute('data-document-path', documentPath);
+      link.classList.add('internal-link');
+      link.setAttribute('data-link-type', 'internal');
+      link.setAttribute('data-original-href', href);
+    }
+  });
+  
+  // bodyの内容のみを返す
+  return doc.body.innerHTML;
+}
+
+/**
+ * 相対パスを絶対パスに解決（HTML用）- Quarto対応改善版
+ * @param relativePath 相対パス
+ * @param currentPath 現在のドキュメントパス
+ * @returns 解決された絶対パス
+ */
+function resolveRelativePath(relativePath: string, currentPath: string): string {
+  if (relativePath.startsWith('/')) {
+    return relativePath.substring(1);
+  }
+  
+  // 現在のディレクトリパスを取得（ファイル名を除く）
+  const currentParts = currentPath.split('/').slice(0, -1);
+  let targetParts = relativePath.split('/');
+  
+  // './'で始まる場合は削除
+  if (targetParts[0] === '.') {
+    targetParts = targetParts.slice(1);
+  }
+  
+  // '../'の処理 - 複数レベル対応
+  while (targetParts.length > 0 && targetParts[0] === '..') {
+    if (currentParts.length > 0) {
+      currentParts.pop(); // 一つ上のディレクトリに移動
+    }
+    targetParts.shift(); // '../'を削除
+  }
+  
+  // 最終パスを構築
+  const resolvedParts = [...currentParts, ...targetParts];
+  return resolvedParts.join('/');
+}

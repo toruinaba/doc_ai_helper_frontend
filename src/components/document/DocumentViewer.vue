@@ -164,8 +164,6 @@ const renderedContent = computed(() => {
   // 責任分界アプローチの設定を確認
   const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();
   
-  console.log('MARKDOWN DEBUG: shouldUseResponsibilityBoundary =', shouldUseResponsibilityBoundary);
-  console.log('MARKDOWN DEBUG: document type =', document.value.type);
   
   // ドキュメントタイプに応じてレンダリング方法を切り替え
   switch (document.value.type) {
@@ -173,11 +171,8 @@ const renderedContent = computed(() => {
       // マークダウンの場合 - quartoと同様に常にDOM処理を使用
       const { content: bodyContent } = extractFrontmatter(content);
       
-      console.log('Markdown processing - always using DOM link processing like quarto');
-      
-      // quartoと同じ方式：常にDOM処理でリンクを変換
-      const renderedHtml = renderMarkdown(bodyContent);
-      return processHtmlLinksWithResponsibilityBoundary(renderedHtml, currentPath, documentRoot);
+      // 適切なリンク処理のため、専用の関数を使用
+      return renderMarkdownWithResponsibilityBoundary(bodyContent, currentPath, documentRoot);
       
     case 'quarto':
       // Quartoの場合：HTMLかマークダウンかを判定
@@ -368,12 +363,6 @@ async function handleLinkClick(event: MouseEvent) {
 
   // 内部リンクの判定と処理
   if (linkType === 'internal' && documentPath) {
-    console.log('Internal link click detected:', {
-      linkType,
-      documentPath,
-      originalHref,
-      href
-    });
     // 内部リンク: フロントエンドでナビゲーション処理
     event.preventDefault();
     await handleInternalNavigation(documentPath, originalHref || href || '#');

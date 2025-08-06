@@ -164,29 +164,20 @@ const renderedContent = computed(() => {
   // 責任分界アプローチの設定を確認
   const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();
   
+  console.log('MARKDOWN DEBUG: shouldUseResponsibilityBoundary =', shouldUseResponsibilityBoundary);
+  console.log('MARKDOWN DEBUG: document type =', document.value.type);
+  
   // ドキュメントタイプに応じてレンダリング方法を切り替え
   switch (document.value.type) {
     case 'markdown':
-      // マークダウンの場合
+      // マークダウンの場合 - quartoと同様に常にDOM処理を使用
       const { content: bodyContent } = extractFrontmatter(content);
       
-      console.log('Markdown processing mode:', {
-        shouldUseResponsibilityBoundary,
-        currentPath,
-        documentRoot,
-        contentLength: bodyContent.length
-      });
+      console.log('Markdown processing - always using DOM link processing like quarto');
       
-      if (shouldUseResponsibilityBoundary) {
-        // 責任分界アプローチ: フロントエンドでドキュメントリンク処理
-        const result = renderMarkdownWithResponsibilityBoundary(bodyContent, currentPath, documentRoot);
-        console.log('Markdown with responsibility boundary processed');
-        return result;
-      } else {
-        // レガシーモード: 既存の処理
-        console.log('Markdown legacy mode processed');
-        return renderMarkdown(bodyContent);
-      }
+      // quartoと同じ方式：常にDOM処理でリンクを変換
+      const renderedHtml = renderMarkdown(bodyContent);
+      return processHtmlLinksWithResponsibilityBoundary(renderedHtml, currentPath, documentRoot);
       
     case 'quarto':
       // Quartoの場合：HTMLかマークダウンかを判定

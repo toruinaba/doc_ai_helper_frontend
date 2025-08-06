@@ -157,6 +157,11 @@ export function processHtmlLinksWithResponsibilityBoundary(html: string, current
         documentPath = documentPath + '.html';
       }
       
+      // 既存の属性とクラスを強制的にクリア
+      link.className = '';
+      link.removeAttribute('data-link-type');
+      
+      // 正しい属性を設定
       link.setAttribute('href', '#');
       link.setAttribute('data-document-path', documentPath);
       link.classList.add('internal-link');

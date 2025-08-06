@@ -68,7 +68,6 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { useDocumentRouter } from '@/composables/useDocumentRouter';
-import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-processing.util';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
 import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml, processHtmlLinksWithResponsibilityBoundary } from '@/utils/html.util';
 import mermaid from 'mermaid';
@@ -148,17 +147,14 @@ const renderedContent = computed(() => {
   // 現在のドキュメントパスを取得 (相対パス解決用)
   const currentPath = document.value.path || '';
   
-  // ドキュメントルートを取得（Phase 2実装）
+  // ドキュメントルートを取得
   const selectedRepo = repositoryStore.selectedRepository;
-  // 移行ガイドPhase 2に従った実装
   const documentRoot = selectedRepo?.document_root_directory || 
-                      (selectedRepo?.root_path ? selectedRepo.root_path.split('/').slice(0, -1).join('/') : '') ||
                       currentPath.split('/').slice(0, -1).join('/');
   
-  // 新しい前提条件：
+  // フィールド構造：
   // 1. document_root_directory: ドキュメントベースディレクトリ（例："docs"）
-  // 2. root_document_path: メインドキュメントファイル（例："docs/README.md"）
-  // 3. root_path: レガシーフィールド（下位互換性のため保持）
+  // 2. root_document_path: メインドキュメントファイル（例："walkthrough.html"）
   
   // ドキュメントタイプに応じてレンダリング方法を切り替え
   switch (document.value.type) {
@@ -227,13 +223,12 @@ const currentPath = computed(() => {
 });
 
 const rootPath = computed(() => {
-  // Phase 2実装: 新しいフィールド構造でパスを構築
   const selectedRepo = repositoryStore.selectedRepository;
   if (!selectedRepo) {
     return 'README.md';
   }
   
-  // 新しいフィールド構造: document_root_directory + root_document_path
+  // フィールド構造: document_root_directory + root_document_path
   if (selectedRepo.document_root_directory && selectedRepo.root_document_path) {
     const baseDir = selectedRepo.document_root_directory.endsWith('/') 
       ? selectedRepo.document_root_directory 
@@ -244,11 +239,6 @@ const rootPath = computed(() => {
   // root_document_pathのみが設定されている場合
   if (selectedRepo.root_document_path) {
     return selectedRepo.root_document_path;
-  }
-  
-  // レガシーフィールド: root_path
-  if (selectedRepo.root_path) {
-    return selectedRepo.root_path;
   }
   
   // デフォルト
@@ -365,18 +355,6 @@ async function handleLinkClick(event: MouseEvent) {
     return;
   }
 
-  // レガシーサポート: data-document-path属性がない場合の処理
-  if (href && !documentPath) {
-    const analysis: LinkAnalysisResult = analyzeLinkElement(link);
-
-    if (analysis.shouldPreventDefault) {
-      event.preventDefault();
-      
-      if (analysis.documentPath) {
-        await handleInternalNavigation(analysis.documentPath, href);
-      }
-    }
-  }
 }
 
 /**

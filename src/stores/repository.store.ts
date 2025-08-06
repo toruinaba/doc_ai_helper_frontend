@@ -30,11 +30,6 @@ export const useRepositoryStore = defineStore('repository', () => {
   const error = ref<string | null>(null);
   const healthStatus = ref<Record<number, boolean>>({});
   
-  // レガシー対応：既存の環境変数ベース設定
-  const currentService = ref<string>(defaultConfig.service);
-  const currentOwner = ref<string>(defaultConfig.owner);
-  const currentRepo = ref<string>(defaultConfig.repo);
-  const currentRef = ref<string>(defaultConfig.ref);
   
   // リポジトリ一覧取得
   async function fetchRepositories(options?: { skip?: number; limit?: number }) {
@@ -272,10 +267,6 @@ export const useRepositoryStore = defineStore('repository', () => {
     isLoading,
     error,
     healthStatus,
-    currentService,
-    currentOwner,
-    currentRepo,
-    currentRef,
     
     // Computed
     healthyRepositories,

@@ -9,6 +9,7 @@ import { ref, computed } from 'vue';
 import { repositoryService } from '../services/api/repository.service';
 import type { components } from '../services/api/types.auto';
 import { getDefaultRepositoryConfig } from '../utils/config.util';
+import apiClient from '../services/api';
 
 // OpenAPIから自動生成された型を使用
 type RepositoryResponse = components['schemas']['RepositoryResponse'];
@@ -29,7 +30,12 @@ export const useRepositoryStore = defineStore('repository', () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const healthStatus = ref<Record<number, boolean>>({});
-  
+
+  // デフォルト値（レガシー互換性用）
+  const currentService = ref<string>(defaultConfig.service);
+  const currentOwner = ref<string>(defaultConfig.owner);
+  const currentRepo = ref<string>(defaultConfig.repo);
+  const currentRef = ref<string>(defaultConfig.ref);
   
   // リポジトリ一覧取得
   async function fetchRepositories(options?: { skip?: number; limit?: number }) {
@@ -70,7 +76,7 @@ export const useRepositoryStore = defineStore('repository', () => {
   
   // リポジトリ検索
   async function searchRepository(
-    query: types.SearchQuery,
+    query: components['schemas']['SearchQuery'],
     service: string = currentService.value,
     owner: string = currentOwner.value,
     repo: string = currentRepo.value
@@ -267,6 +273,10 @@ export const useRepositoryStore = defineStore('repository', () => {
     isLoading,
     error,
     healthStatus,
+    currentService,
+    currentOwner,
+    currentRepo,
+    currentRef,
     
     // Computed
     healthyRepositories,

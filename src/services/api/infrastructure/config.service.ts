@@ -143,7 +143,7 @@ export function updateMCPToolsConfig(config: Partial<typeof defaultStreamingConf
 export function isToolEnabled(toolName: string): boolean {
   const config = getMCPToolsConfig();
   // currentConfig.mcpTools構造に基づいてツールの有効状態を確認
-  return config.enabled && config.toolChoice !== 'none';
+  return config.enableDetailedLogging && config.enableProgressMonitoring;
 }
 
 /**
@@ -152,11 +152,10 @@ export function isToolEnabled(toolName: string): boolean {
 export function logMCPToolsConfig(): void {
   const config = getMCPToolsConfig();
   console.group('🛠️ MCPツール設定');
-  console.log('有効:', config.enabled);
-  console.log('実行モード:', config.executionMode);
-  console.log('ツール選択:', config.toolChoice);
-  console.log('プログレス監視:', config.enableProgressMonitoring);
   console.log('詳細ログ:', config.enableDetailedLogging);
+  console.log('プログレス監視:', config.enableProgressMonitoring);
+  console.log('ツール実行タイムアウト:', config.toolExecutionTimeout);
+  console.log('自動パース:', config.autoParseResults);
   console.groupEnd();
 }
 

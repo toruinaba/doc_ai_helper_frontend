@@ -118,7 +118,29 @@ export const useRepositoryStore = defineStore('repository', () => {
     error.value = null;
     
     try {
+      // デバッグログ：ストアレベルでのデータ確認
+      console.log('Repository Store - Update Request:', {
+        id,
+        data,
+        newFields: {
+          document_root_directory: data.document_root_directory,
+          root_document_path: data.root_document_path,
+          repository_root: data.repository_root
+        }
+      });
+      
       const updatedRepository = await repositoryService.updateRepository(id, data);
+      
+      // デバッグログ：レスポンスデータ確認
+      console.log('Repository Store - Update Response:', {
+        updatedRepository,
+        newFieldsInResponse: {
+          document_root_directory: updatedRepository.document_root_directory,
+          root_document_path: updatedRepository.root_document_path,
+          repository_root: updatedRepository.repository_root
+        }
+      });
+      
       const index = repositories.value.findIndex((repo) => repo.id === id);
       if (index !== -1) {
         repositories.value[index] = updatedRepository;

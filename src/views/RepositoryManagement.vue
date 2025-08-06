@@ -100,8 +100,12 @@
               <span>{{ selectedRepository.default_branch }}</span>
             </div>
             <div class="detail-item">
-              <label>ルートパス</label>
-              <span>{{ selectedRepository.root_path || 'なし' }}</span>
+              <label>ルートドキュメントパス</label>
+              <span>{{ selectedRepository.root_document_path || selectedRepository.root_path || 'なし' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>ドキュメントルートディレクトリ</label>
+              <span>{{ selectedRepository.document_root_directory || '自動推測' }}</span>
             </div>
             <div class="detail-item">
               <label>公開設定</label>
@@ -188,6 +192,7 @@ import type { components } from '@/services/api/types.auto'
 
 type RepositoryResponse = components['schemas']['RepositoryResponse']
 type RepositoryCreate = components['schemas']['RepositoryCreate']
+type RepositoryUpdate = components['schemas']['RepositoryUpdate']
 
 // ストアとユーティリティ
 const repositoryStore = useRepositoryStore()
@@ -248,8 +253,37 @@ async function handleSubmitRepository(data: RepositoryCreate) {
   
   try {
     if (selectedRepository.value) {
-      // 更新
-      await repositoryStore.updateRepository(selectedRepository.value.id, data)
+      // 更新: RepositoryCreateからRepositoryUpdateへ変換
+      const updateData: RepositoryUpdate = {
+        name: data.name,
+        owner: data.owner,
+        service_type: data.service_type,
+        url: data.url,
+        base_url: data.base_url,
+        default_branch: data.default_branch,
+        repository_root: data.repository_root,
+        // 新規フィールドは空文字やundefinedの場合はnullに変換
+        document_root_directory: data.document_root_directory?.trim() || null,
+        root_document_path: data.root_document_path?.trim() || null,
+        root_path: data.root_path?.trim() || null,
+        description: data.description?.trim() || null,
+        is_public: data.is_public,
+        access_token: data.access_token?.trim() || null,
+        metadata: data.metadata || {}
+      }
+      
+      // デバッグログ：送信データを確認
+      console.log('Repository Update Request:', {
+        repositoryId: selectedRepository.value.id,
+        updateData: updateData,
+        newFields: {
+          document_root_directory: updateData.document_root_directory,
+          root_document_path: updateData.root_document_path,
+          repository_root: updateData.repository_root
+        }
+      })
+      
+      await repositoryStore.updateRepository(selectedRepository.value.id, updateData)
       toast.add({
         severity: 'success',
         summary: '成功',
@@ -273,12 +307,16 @@ async function handleSubmitRepository(data: RepositoryCreate) {
     // ヘルスチェック
     await checkRepositoriesHealth()
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('リポジトリの保存に失敗:', error)
+    
+    // エラーの詳細を取得
+    const errorMessage = getErrorMessage(error, selectedRepository.value)
+    
     toast.add({
       severity: 'error',
       summary: 'エラー',
-      detail: selectedRepository.value ? 'リポジトリの更新に失敗しました' : 'リポジトリの作成に失敗しました',
+      detail: errorMessage,
       life: 5000
     })
   } finally {
@@ -289,6 +327,80 @@ async function handleSubmitRepository(data: RepositoryCreate) {
 function handleCancelForm() {
   showForm.value = false
   selectedRepository.value = null
+}
+
+/**
+ * エラーメッセージを取得する
+ */
+function getErrorMessage(error: any, isUpdate: boolean): string {
+  // HTTPエラーレスポンスの場合
+  if (error.response?.status) {
+    const status = error.response.status
+    const data = error.response.data
+    
+    switch (status) {
+      case 409:
+        if (isUpdate) {
+          return 'リポジトリの更新で競合が発生しました。他のユーザーによって同時に変更された可能性があります。'
+        } else {
+          return '同じ名前またはURLのリポジトリが既に存在します。別の名前またはURLを指定してください。'
+        }
+      case 400:
+        // バックエンドからの詳細エラーメッセージがある場合はそれを使用
+        if (data?.detail) {
+          return `入力データに問題があります: ${data.detail}`
+        }
+        return '入力データに問題があります。フォームの内容を確認してください。'
+      case 422:
+        if (data?.detail && Array.isArray(data.detail)) {
+          // バリデーションエラーの詳細を表示
+          const validationErrors = data.detail.map((err: any) => 
+            `${err.loc?.[1] || 'フィールド'}: ${err.msg}`
+          ).join(', ')
+          return `入力値が正しくありません: ${validationErrors}`
+        }
+        return '入力値が正しくありません。フォームの内容を確認してください。'
+      case 500:
+        return 'サーバーエラーが発生しました。しばらく時間をおいて再試行してください。'
+      default:
+        return `予期しないエラーが発生しました (${status})`
+    }
+  }
+  
+  // ネットワークエラーの場合
+  if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
+    return 'ネットワークエラーが発生しました。接続状態を確認してください。'
+  }
+  
+  // その他のエラー
+  const action = isUpdate ? '更新' : '作成'
+  return error.message || `リポジトリの${action}に失敗しました`
+}
+
+/**
+ * リポジトリ設定からドキュメントパスを構築
+ */
+function buildDocumentPath(repository: RepositoryResponse): string {
+  // 新しいフィールド構造: document_root_directory + root_document_path
+  if (repository.document_root_directory && repository.root_document_path) {
+    const baseDir = repository.document_root_directory.endsWith('/') 
+      ? repository.document_root_directory 
+      : repository.document_root_directory + '/';
+    return baseDir + repository.root_document_path;
+  }
+  
+  // root_document_pathのみが設定されている場合
+  if (repository.root_document_path) {
+    return repository.root_document_path;
+  }
+  
+  // レガシーフィールド: root_path
+  if (repository.root_path) {
+    return repository.root_path;
+  }
+  
+  // デフォルト
+  return 'README.md';
 }
 
 function handleDeleteRepository(repository: RepositoryResponse) {
@@ -332,8 +444,17 @@ function handleOpenRepository(repository: RepositoryResponse) {
   documentStore.currentRef = repository.default_branch
   
   // デフォルトドキュメントパスを設定
-  // root_pathがファイルパスとして設定されている場合はそのまま使用
-  const defaultPath = repository.root_path || 'README.md'
+  // Phase 2実装: 新しいフィールド構造でパスを構築
+  const defaultPath = buildDocumentPath(repository)
+  
+  console.log('Repository open - Document path construction:', {
+    repository: {
+      document_root_directory: repository.document_root_directory,
+      root_document_path: repository.root_document_path,
+      root_path: repository.root_path
+    },
+    constructedPath: defaultPath
+  })
   
   // ドキュメントを読み込み
   documentStore.fetchDocument(defaultPath).then(() => {

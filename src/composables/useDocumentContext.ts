@@ -45,7 +45,10 @@ export function useDocumentContext() {
         repositoryId: selectedRepo.id,
         isPublic: selectedRepo.is_public,
         description: selectedRepo.description,
-        rootPath: selectedRepo.root_path
+        // Phase 2実装: 新しいフィールドを優先、フォールバック付き
+        rootDocumentPath: selectedRepo.root_document_path || selectedRepo.root_path,
+        documentRootDirectory: selectedRepo.document_root_directory,
+        rootPath: selectedRepo.root_path  // レガシーサポート
       };
     }
     
@@ -80,8 +83,11 @@ export function useDocumentContext() {
       repositoryMetadata += `\n説明: ${repo.description}`;
     }
     repositoryMetadata += `\nアクセス: ${repo.isPublic ? '公開' : '非公開'}`;
-    if (repo.rootPath) {
-      repositoryMetadata += `\nドキュメントルート: ${repo.rootPath}`;
+    if (repo.rootDocumentPath) {
+      repositoryMetadata += `\nメインドキュメント: ${repo.rootDocumentPath}`;
+    }
+    if (repo.documentRootDirectory) {
+      repositoryMetadata += `\nドキュメントディレクトリ: ${repo.documentRootDirectory}`;
     }
 
     return `以下のドキュメントに関する質問に答えてください：

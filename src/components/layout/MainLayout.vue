@@ -67,6 +67,32 @@ type RepositoryResponse = components['schemas']['RepositoryResponse'];
 const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
 
+/**
+ * リポジトリ設定からドキュメントパスを構築
+ */
+function buildDocumentPath(repository: RepositoryResponse): string {
+  // 新しいフィールド構造: document_root_directory + root_document_path
+  if (repository.document_root_directory && repository.root_document_path) {
+    const baseDir = repository.document_root_directory.endsWith('/') 
+      ? repository.document_root_directory 
+      : repository.document_root_directory + '/';
+    return baseDir + repository.root_document_path;
+  }
+  
+  // root_document_pathのみが設定されている場合
+  if (repository.root_document_path) {
+    return repository.root_document_path;
+  }
+  
+  // レガシーフィールド: root_path
+  if (repository.root_path) {
+    return repository.root_path;
+  }
+  
+  // デフォルト
+  return 'README.md';
+}
+
 // イベントハンドラー
 function onRepositoryChange(repository: RepositoryResponse | null) {
   console.log('Repository changed:', repository);
@@ -75,8 +101,8 @@ function onRepositoryChange(repository: RepositoryResponse | null) {
     documentStore.currentPath = '';
     
     // リポジトリのデフォルトドキュメントを読み込む可能性がある場合
-    // root_pathがファイルパスとして設定されている場合はそのまま使用
-    const defaultPath = repository.root_path || 'README.md';
+    // Phase 2実装: 新しいフィールド構造でパスを構築
+    const defaultPath = buildDocumentPath(repository);
     
     // ドキュメントの存在確認後に読み込み（オプション）
     // documentStore.fetchDocument(defaultPath);

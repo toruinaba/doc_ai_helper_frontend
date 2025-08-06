@@ -132,13 +132,49 @@ function goToRepositoryManagement() {
   router.push('/admin/repositories');
 }
 
+/**
+ * リポジトリ設定からドキュメントパスを構築
+ */
+function buildDocumentPath(repository: RepositoryResponse): string {
+  // 新しいフィールド構造: document_root_directory + root_document_path
+  if (repository.document_root_directory && repository.root_document_path) {
+    const baseDir = repository.document_root_directory.endsWith('/') 
+      ? repository.document_root_directory 
+      : repository.document_root_directory + '/';
+    return baseDir + repository.root_document_path;
+  }
+  
+  // root_document_pathのみが設定されている場合
+  if (repository.root_document_path) {
+    return repository.root_document_path;
+  }
+  
+  // レガシーフィールド: root_path
+  if (repository.root_path) {
+    return repository.root_path;
+  }
+  
+  // デフォルト
+  return 'README.md';
+}
+
 async function selectRepository(repository: RepositoryResponse) {
   try {
     // リポジトリを選択（メタデータのみ）
     repositoryStore.selectRepository(repository);
     
     // デフォルトドキュメントパスを設定
-    const defaultPath = repository.root_path || 'README.md';
+    // Phase 2実装: 新しいフィールド構造でパスを構築
+    const defaultPath = buildDocumentPath(repository);
+    
+    console.log('Document path construction:', {
+      repository: {
+        document_root_directory: repository.document_root_directory,
+        root_document_path: repository.root_document_path,
+        root_path: repository.root_path
+      },
+      constructedPath: defaultPath
+    });
     
     // 新しい設計: router-driven navigation with query parameters
     router.push({

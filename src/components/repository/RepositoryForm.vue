@@ -103,13 +103,33 @@
         </div>
 
         <div class="form-field">
-          <label for="root_path">ルートドキュメントパス</label>
+          <label for="root_document_path">ルートドキュメントパス</label>
+          <InputText
+            id="root_document_path"
+            v-model="formData.root_document_path"
+            placeholder="README.md, docs/index.md"
+          />
+          <small class="field-help">メインドキュメントファイルのパス（省略時: README.md）</small>
+        </div>
+
+        <div class="form-field">
+          <label for="document_root_directory">ドキュメントルートディレクトリ</label>
+          <InputText
+            id="document_root_directory"
+            v-model="formData.document_root_directory"
+            placeholder="docs, documentation"
+          />
+          <small class="field-help">ドキュメントベースディレクトリ（省略時: 自動推測）</small>
+        </div>
+
+        <div class="form-field">
+          <label for="root_path">ルートパス（旧）</label>
           <InputText
             id="root_path"
             v-model="formData.root_path"
             placeholder="README.md, index.html, docs/index.md"
           />
-          <small class="field-help">メインドキュメントファイルのパス（省略時: README.md）</small>
+          <small class="field-help">レガシーフィールド。root_document_pathの使用を推奨</small>
         </div>
       </div>
 
@@ -203,6 +223,7 @@ import {
   Message
 } from 'primevue'
 import Select from 'primevue/select'
+import { useRepositoryStore } from '@/stores/repository.store'
 import type { components } from '@/services/api/types.auto'
 
 type RepositoryCreate = components['schemas']['RepositoryCreate']
@@ -228,6 +249,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+// ストア
+const repositoryStore = useRepositoryStore()
+
 // フォームデータ
 const formData = reactive<RepositoryCreate>({
   name: '',
@@ -236,6 +260,9 @@ const formData = reactive<RepositoryCreate>({
   url: '',
   base_url: null,
   default_branch: 'main',
+  repository_root: '/',
+  document_root_directory: null,
+  root_document_path: null,
   root_path: null,
   description: null,
   is_public: true,
@@ -292,6 +319,9 @@ watch(() => props.repository, (newRepository) => {
       url: newRepository.url,
       base_url: newRepository.base_url,
       default_branch: newRepository.default_branch,
+      repository_root: newRepository.repository_root,
+      document_root_directory: newRepository.document_root_directory,
+      root_document_path: newRepository.root_document_path,
       root_path: newRepository.root_path,
       description: newRepository.description,
       is_public: newRepository.is_public,
@@ -317,12 +347,27 @@ function validateField(fieldName: string) {
   
   const value = formData[fieldName as keyof RepositoryCreate]
   
+  // 相互バリデーション用: name/ownerが変更された場合は両方をチェック
+  if (fieldName === 'name' || fieldName === 'owner') {
+    errors.name = ''
+    errors.owner = ''
+  }
+  
   switch (fieldName) {
     case 'name':
       if (!value) {
         errors[fieldName] = 'リポジトリ名は必須です'
       } else if (!/^[a-zA-Z0-9._-]+$/.test(value as string)) {
         errors[fieldName] = '英数字、ピリオド、ハイフン、アンダースコアのみ使用可能です'
+      } else if (formData.owner) {
+        // 名前とオーナーの組み合わせで重複チェック（編集時は自分自身を除外）
+        const duplicateRepo = repositoryStore.repositories.find(repo => 
+          repo.name === value && repo.owner === formData.owner && 
+          (!props.repository || repo.id !== props.repository.id)
+        )
+        if (duplicateRepo) {
+          errors[fieldName] = 'この名前とオーナーの組み合わせは既に存在します'
+        }
       }
       break
       
@@ -331,6 +376,15 @@ function validateField(fieldName: string) {
         errors[fieldName] = '所有者名は必須です'
       } else if (!/^[a-zA-Z0-9._-]+$/.test(value as string)) {
         errors[fieldName] = '英数字、ピリオド、ハイフン、アンダースコアのみ使用可能です'
+      } else if (formData.name) {
+        // 名前とオーナーの組み合わせで重複チェック（編集時は自分自身を除外）
+        const duplicateRepo = repositoryStore.repositories.find(repo => 
+          repo.name === formData.name && repo.owner === value && 
+          (!props.repository || repo.id !== props.repository.id)
+        )
+        if (duplicateRepo) {
+          errors[fieldName] = 'この名前とオーナーの組み合わせは既に存在します'
+        }
       }
       break
       
@@ -339,6 +393,14 @@ function validateField(fieldName: string) {
         errors[fieldName] = 'URLは必須です'
       } else if (!/^https?:\/\/.+/.test(value as string)) {
         errors[fieldName] = '有効なHTTP/HTTPS URLを入力してください'
+      } else {
+        // 重複チェック（編集時は自分自身を除外）
+        const duplicateRepo = repositoryStore.repositories.find(repo => 
+          repo.url === value && (!props.repository || repo.id !== props.repository.id)
+        )
+        if (duplicateRepo) {
+          errors[fieldName] = 'このURLのリポジトリは既に存在します'
+        }
       }
       break
       
@@ -417,6 +479,17 @@ async function testConnection() {
 
 function handleSubmit() {
   if (validateForm()) {
+    // デバッグログ：フォームから送信されるデータを確認
+    console.log('RepositoryForm - Submit Data:', {
+      formData: { ...formData },
+      newFields: {
+        document_root_directory: formData.document_root_directory,
+        root_document_path: formData.root_document_path,
+        repository_root: formData.repository_root
+      },
+      isEdit: !!props.repository
+    });
+    
     emit('submit', { ...formData })
   }
 }
@@ -434,6 +507,9 @@ function resetForm() {
     url: '',
     base_url: null,
     default_branch: 'main',
+    repository_root: '/',
+    document_root_directory: null,
+    root_document_path: null,
     root_path: null,
     description: null,
     is_public: true,

@@ -67,7 +67,6 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
-import { useRouter } from 'vue-router';
 import { useDocumentRouter } from '@/composables/useDocumentRouter';
 import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-processing.util';
 import { renderMarkdown, renderMarkdownWithResponsibilityBoundary, extractFrontmatter } from '@/utils/markdown.util';
@@ -97,7 +96,6 @@ const props = withDefaults(defineProps<DocumentViewerProps>(), {
 
 const documentStore = useDocumentStore();
 const repositoryStore = useRepositoryStore();
-const router = useRouter();
 const { navigateToDocument } = useDocumentRouter();
 
 // 状態を参照
@@ -366,61 +364,27 @@ async function handleLinkClick(event: MouseEvent) {
   const linkType = link.getAttribute('data-link-type');
   const originalHref = link.getAttribute('data-original-href');
 
-  console.log('Link clicked:', {
-    href,
-    documentPath,
-    linkType,
-    originalHref,
-    linkElement: link,
-    allAttributes: {
-      href: link.getAttribute('href'),
-      'data-document-path': link.getAttribute('data-document-path'),
-      'data-link-type': link.getAttribute('data-link-type'),
-      'data-original-href': link.getAttribute('data-original-href'),
-      class: link.getAttribute('class')
-    }
-  });
 
   // 内部リンクの判定と処理
   if (linkType === 'internal' && documentPath) {
-    console.log('Processing internal link:', { documentPath, originalHref });
     // 内部リンク: フロントエンドでナビゲーション処理
     event.preventDefault();
     await handleInternalNavigation(documentPath, originalHref || href || '#');
     return;
   }
 
-  // レガシーサポート: 既存のanalyzeLinkElementロジック
+  // レガシーサポート: data-document-path属性がない場合の処理
   if (href && !documentPath) {
     const analysis: LinkAnalysisResult = analyzeLinkElement(link);
 
-    // shouldPreventDefaultの場合のみイベントをキャンセル
     if (analysis.shouldPreventDefault) {
       event.preventDefault();
-    }
-
-    // リンクタイプ別の処理
-    switch (analysis.type) {
-      case 'external':
-      case 'anchor':
-        // デフォルトの挙動を許可（外部リンク・アンカーリンク）
-        return;
-
-      case 'api-transformed':
-      case 'absolute':
-      case 'internal':
-        // 内部ナビゲーション: router駆動で処理
-        if (analysis.documentPath) {
-          await handleInternalNavigation(analysis.documentPath, href);
-        }
-        break;
-
-      default:
-        console.warn('Unknown link type:', analysis.type);
+      
+      if (analysis.documentPath) {
+        await handleInternalNavigation(analysis.documentPath, href);
+      }
     }
   }
-
-  // アンカーリンクや外部リンクはデフォルト動作を許可
 }
 
 /**
@@ -433,35 +397,6 @@ async function handleInternalNavigation(documentPath: string, originalHref: stri
     const currentPath = getCurrentDocumentPath();
     const currentRef = props.ref || getCurrentRef();
     
-    console.log('=== INTERNAL NAVIGATION DEBUG ===');
-    console.log('Input parameters:', {
-      documentPath,
-      originalHref,
-      repositoryId,
-      currentPath,
-      currentRef
-    });
-    
-    console.log('Repository context:', {
-      propsRepositoryId: props.repositoryId,
-      selectedRepository: repositoryStore.selectedRepository,
-      documentStoreContext: {
-        service: documentStore.currentService,
-        owner: documentStore.currentOwner,
-        repo: documentStore.currentRepo,
-        path: documentStore.currentPath,
-        ref: documentStore.currentRef
-      }
-    });
-    
-    console.log('Expected API call will be made to:', {
-      service: documentStore.currentService,
-      owner: documentStore.currentOwner,
-      repo: documentStore.currentRepo,
-      path: documentPath,
-      ref: currentRef,
-      fullApiPath: `/api/v1/documents/contents/${documentStore.currentService}/${documentStore.currentOwner}/${documentStore.currentRepo}/${documentPath}?ref=${currentRef}`
-    });
     
     if (!repositoryId) {
       console.error('Cannot navigate: repositoryId is not available');
@@ -469,17 +404,11 @@ async function handleInternalNavigation(documentPath: string, originalHref: stri
     }
 
     // useDocumentRouterを使用してナビゲーション
-    console.log('Using navigateToDocument with:', {
-      repositoryId,
-      path: documentPath,
-      ref: currentRef
-    });
     await navigateToDocument({
       repositoryId,
       path: documentPath,
       ref: currentRef
     });
-    console.log('Navigation completed successfully');
 
   } catch (error) {
     console.error('Failed to handle internal navigation:', error, {
@@ -546,12 +475,6 @@ async function navigateToRootDocument() {
       return;
     }
 
-    console.log('Navigating to root document (new router-driven approach):', {
-      repositoryId,
-      rootDocumentPath,
-      currentRef,
-      timestamp: new Date().toISOString()
-    });
     
     // ルートドキュメントへナビゲーション
     await navigateToDocument({

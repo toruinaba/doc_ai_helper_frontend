@@ -6,7 +6,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { useDocumentStore } from '@/stores/document.store';
-import { getMCPToolsConfig } from '@/utils/mcp-config.util';
+import { getMCPToolsConfig } from '@/services/api/infrastructure/config.service';
 import { updateStreamingConfig, StreamingType } from '@/services/api/infrastructure';
 import { getAppDefaultsConfig } from '@/utils/config.util';
 import { loadSettings, type StreamingSettings, type MCPSettings } from '@/utils/settings.util';

@@ -68,7 +68,7 @@ class LLMService {
     }
 
     // 既存の関数を使用して新しいリクエスト形式で送信
-    return await _sendLLMQuery(request as any);
+    return await _sendLLMQuery(request);
   }
 
   /**
@@ -90,7 +90,7 @@ class LLMService {
     }
 
     // 既存の関数を使用して新しいリクエスト形式で送信
-    return await _sendLLMQuery(request as any);
+    return await _sendLLMQuery(request);
   }
 
   /**

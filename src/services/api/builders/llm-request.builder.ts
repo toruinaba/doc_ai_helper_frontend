@@ -102,7 +102,7 @@ export class LLMRequestBuilder {
     // ドキュメントからリポジトリコンテキストを自動生成
     const defaultsConfig = getDefaultsConfig();
     this.options.repositoryContext = {
-      service: document.service as any,
+      service: document.service as components['schemas']['GitService'],
       owner: document.owner,
       repo: document.repository,
       ref: document.ref || defaultsConfig.branch,
@@ -113,7 +113,7 @@ export class LLMRequestBuilder {
     // ドキュメントメタデータを自動生成
     this.options.documentMetadata = {
       title: document.name,
-      type: defaultsConfig.documentType as any,
+      type: defaultsConfig.documentType as components['schemas']['DocumentType-Input'],
       filename: document.name,
       file_extension: document.name.includes('.') ? document.name.split('.').pop() || null : null,
       last_modified: document.metadata.last_modified,

@@ -18,7 +18,7 @@ export interface ClientMessage {
   timestamp: Date;
   // MCPツール関連の情報
   toolCalls?: ToolCall[];
-  toolResults?: any[];
+  toolResults?: { [key: string]: unknown }[];
   isToolExecuting?: boolean;
 }
 

@@ -91,17 +91,11 @@ marked.use({
       return `<pre class="hljs"><code class="language-${validLanguage}">${highlightedCode}</code></pre>`;
     },
 
-    // リンクのレンダリングをカスタマイズ - 責任分界アプローチ対応
+    // リンクは基本的なHTMLのみ生成（DOM後処理に委譲）
     link(token) {
-      // トークンからhref、title、テキストを取得
       const { href, title, text } = token;
-      const hrefStr = href ? String(href) : '';
-      
-      // グローバルに設定された現在のドキュメントパスとドキュメントルートを取得
-      const currentPath = (globalThis as any).__currentDocumentPath || '';
-      const documentRoot = (globalThis as any).__documentRoot || '';
-      
-      return renderLinkWithResponsibilityBoundary(hrefStr, text, title || undefined, currentPath, documentRoot);
+      const titleAttr = title ? ` title="${title}"` : '';
+      return `<a href="${href}"${titleAttr}>${text}</a>`;
     }
   },
   // 拡張マークダウン構文（GitHub風）を有効化

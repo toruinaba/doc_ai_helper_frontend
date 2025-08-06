@@ -107,6 +107,7 @@ export function processHtmlLinksWithResponsibilityBoundary(html: string, current
     const href = link.getAttribute('href');
     if (!href) return;
     
+    
     // 外部リンク
     if (href.startsWith('http://') || href.startsWith('https://')) {
       link.setAttribute('target', '_blank');
@@ -141,6 +142,7 @@ export function processHtmlLinksWithResponsibilityBoundary(html: string, current
     const isRelative = href.startsWith('./') || href.startsWith('../') || 
                       (!href.startsWith('/') && !href.includes('/api/v1/') && !href.startsWith('http'));
     const isAbsolute = href.startsWith('/') && !href.includes('/api/v1/');
+    
     
     if (isRelative || isAbsolute) {
       let documentPath = href;

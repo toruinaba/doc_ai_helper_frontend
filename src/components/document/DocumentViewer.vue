@@ -72,8 +72,6 @@ import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-proces
 import { renderMarkdown, renderMarkdownWithResponsibilityBoundary, extractFrontmatter } from '@/utils/markdown.util';
 import { shouldProcessDocumentLinksInFrontend } from '@/utils/config.util';
 import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml, processHtmlLinksWithResponsibilityBoundary } from '@/utils/html.util';
-import { marked } from 'marked';
-import hljs from 'highlight.js';
 import mermaid from 'mermaid';
 import { DateFormatter } from '@/utils/date-formatter.util';
 import FrontmatterDisplay from './FrontmatterDisplay.vue';
@@ -173,22 +171,10 @@ const renderedContent = computed(() => {
       // マークダウンの場合 - quartoと同様に常にDOM処理を使用
       const { content: bodyContent } = extractFrontmatter(content);
       
-      // quartoと同じ方式：基本的なMarkdown変換 + DOM後処理
-      // カスタムレンダラーを避けて、基本的なmarked変換のみ使用
-      const baseHtml = marked.parse(bodyContent, { 
-        gfm: true, 
-        breaks: false,
-        renderer: {
-          // 基本的なコードハイライトのみ保持
-          code(code, language) {
-            const validLanguage = language && hljs.getLanguage(language) ? language : 'plaintext';
-            const highlightedCode = hljs.highlight(code, { language: validLanguage }).value;
-            return `<pre class="hljs"><code class="language-${validLanguage}">${highlightedCode}</code></pre>`;
-          }
-        }
-      });
+      // 基本的なMarkdown変換を使用し、その後DOM処理でリンクを変換
+      const baseHtml = renderMarkdown(bodyContent);
       
-      // quartoと同じDOM後処理でリンクを変換
+      // quartoと同じDOM後処理でリンクを変換（カスタムレンダラーの結果を上書き）
       return processHtmlLinksWithResponsibilityBoundary(baseHtml, currentPath, documentRoot);
       
     case 'quarto':

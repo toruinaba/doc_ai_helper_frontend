@@ -11,6 +11,7 @@ import 'katex/dist/katex.min.css';
 import mermaid from 'mermaid';
 import { shouldProcessDocumentLinksInFrontend, getLinkProcessingConfig } from './config.util';
 import { analyzeRawMarkdownLink, isRelativePath, resolveRelativePath } from './link-processing.util';
+import { processHtmlLinksWithResponsibilityBoundary } from './html.util';
 
 // Mermaidの初期化
 mermaid.initialize({
@@ -261,8 +262,8 @@ export function renderLinkWithResponsibilityBoundary(
         return `<a href="${linkAnalysis.href}"${titleAttr} class="anchor-link" data-link-type="anchor">${text}</a>`;
       } else if (linkAnalysis.type === 'internal' && linkAnalysis.documentPath) {
         // 内部リンク: data-document-path 属性でパス情報を保持
-        // 元のhrefを保持してリンクの見た目を維持
-        return `<a href="${href}" data-document-path="${linkAnalysis.documentPath}"${titleAttr} class="internal-link" data-link-type="internal" data-original-href="${href}">${text}</a>`;
+        // ブラウザの相対パス解決を防ぐため、JavaScriptで処理するhrefを使用
+        return `<a href="#" data-document-path="${linkAnalysis.documentPath}"${titleAttr} class="internal-link" data-link-type="internal" data-original-href="${href}">${text}</a>`;
       }
     } catch (error) {
       console.error(`Failed to analyze link: ${href}`, error);
@@ -296,8 +297,8 @@ function renderLegacyLink(href: string, text: string, title?: string): string {
     return `<a href="${href}"${titleAttr} class="anchor-link">${text}</a>`;
   } else {
     // フォールバック: data-document-path でパス情報を保持
-    // 元のhrefを保持してリンクの見た目を維持
-    return `<a href="${href}" data-document-path="${href}"${titleAttr} class="internal-link">${text}</a>`;
+    // ブラウザの相対パス解決を防ぐため、JavaScriptで処理するhrefを使用
+    return `<a href="#" data-document-path="${href}"${titleAttr} class="internal-link" data-original-href="${href}">${text}</a>`;
   }
 }
 
@@ -316,9 +317,9 @@ export function renderMarkdownWithResponsibilityBoundary(
     return '';
   }
   
-  // グローバルに現在のパスとドキュメントルートを設定し、linkレンダラーで使用
-  (globalThis as any).__currentDocumentPath = currentPath;
-  (globalThis as any).__documentRoot = documentRoot;
+  // リンク処理をDOM後処理に移行するため、グローバル変数は不要
+  // (globalThis as any).__currentDocumentPath = currentPath;
+  // (globalThis as any).__documentRoot = documentRoot;
   
   // $$...$$形式のブロック数式を処理
   let processedMarkdown = markdown.replace(/\$\$([^$]+?)\$\$/g, (match, formula) => {
@@ -336,9 +337,8 @@ export function renderMarkdownWithResponsibilityBoundary(
   
   const result = marked.parse(processedMarkdown) as string;
   
-  // グローバル変数をクリア
-  delete (globalThis as any).__currentDocumentPath;
-  delete (globalThis as any).__documentRoot;
+  // DOM処理でリンクを変換（quartoと同じ方式）
+  const processedHtml = processHtmlLinksWithResponsibilityBoundary(result, currentPath, documentRoot);
   
-  return result;
+  return processedHtml;
 }

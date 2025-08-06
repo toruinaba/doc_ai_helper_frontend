@@ -85,11 +85,14 @@ import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import type { components } from '@/services/api/types.auto';
 import type { DocumentViewProps } from '@/types/router';
+import { getLogger } from '@/utils/logger.util';
 
 type RepositoryResponse = components['schemas']['RepositoryResponse'];
 
 // Router Props (from router configuration)
 const props = defineProps<DocumentViewProps>();
+
+const logger = getLogger('DocumentView');
 
 const route = useRoute();
 const router = useRouter();
@@ -120,7 +123,7 @@ function openChatDialog() {
  * ブランチ変更時の処理
  */
 function onBranchChange(branch: string) {
-  console.log('Branch changed:', branch);
+  logger.debug('Branch changed:', branch);
   
   // 新しい設計: router.pushで明示的にナビゲーション
   navigateToDocument({
@@ -152,7 +155,7 @@ async function initializeRepository(repositoryId: string) {
       documentStore.currentRepo = repository.name;
       documentStore.currentRef = props.ref;
       
-      console.log('Repository initialized:', {
+      logger.debug('Repository initialized:', {
         repositoryId,
         service: repository.service_type,
         owner: repository.owner,
@@ -166,7 +169,7 @@ async function initializeRepository(repositoryId: string) {
       throw new Error(`Repository with ID ${repositoryId} not found`);
     }
   } catch (error) {
-    console.error('Failed to initialize repository:', error);
+    logger.error('Failed to initialize repository:', error);
     throw error;
   }
 }
@@ -176,7 +179,7 @@ async function initializeRepository(repositoryId: string) {
  */
 async function loadDocument(path: string, ref: string) {
   try {
-    console.log('Loading document via new router-driven approach:', {
+    logger.debug('Loading document via new router-driven approach:', {
       path,
       ref,
       repositoryId: props.repositoryId,
@@ -186,9 +189,9 @@ async function loadDocument(path: string, ref: string) {
     // 明示的にAPIを呼び出し（watcherなし）
     await documentStore.fetchDocument(path, ref);
     
-    console.log('Document loaded successfully via router-driven approach');
+    logger.debug('Document loaded successfully via router-driven approach');
   } catch (error) {
-    console.error('Failed to load document:', error);
+    logger.error('Failed to load document:', error);
     throw error;
   }
 }
@@ -197,7 +200,7 @@ async function loadDocument(path: string, ref: string) {
 watch(
   () => [props.repositoryId, props.documentPath, props.ref],
   async ([repositoryId, documentPath, ref], oldValues) => {
-    console.log('DocumentView route watcher triggered:', {
+    logger.debug('DocumentView route watcher triggered:', {
       repositoryId,
       documentPath,
       ref,
@@ -208,7 +211,7 @@ watch(
     
     // ルートパラメータが無効な場合は何もしない
     if (!isValidRoute.value) {
-      console.warn('Invalid route parameters, skipping document load');
+      logger.warn('Invalid route parameters, skipping document load');
       return;
     }
     
@@ -220,7 +223,7 @@ watch(
       await loadDocument(documentPath, ref);
       
     } catch (error) {
-      console.error('Failed to process route change:', error);
+      logger.error('Failed to process route change:', error);
       // エラー時はホームに戻る
       router.push('/');
     }
@@ -235,7 +238,7 @@ onMounted(async () => {
     try {
       await repositoryStore.fetchRepositories();
     } catch (error) {
-      console.error('Failed to fetch repositories:', error);
+      logger.error('Failed to fetch repositories:', error);
     }
   }
 });

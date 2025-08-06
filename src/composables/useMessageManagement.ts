@@ -6,6 +6,7 @@
  */
 import { ref, isRef } from 'vue';
 import type { components } from '@/services/api/types.auto';
+import { getLogger } from '@/utils/logger.util';
 
 // 型エイリアス
 type ToolCall = components['schemas']['ToolCall'];
@@ -22,6 +23,8 @@ export interface ClientMessage {
 }
 
 export function useMessageManagement() {
+  const logger = getLogger('MessageManagement');
+  
   // 状態
   const messages = ref<ClientMessage[]>([]);
   
@@ -54,7 +57,7 @@ export function useMessageManagement() {
     // 新しいユーザーメッセージが追加されると最適化履歴は無効になる
     invalidateOptimizedHistory();
     
-    console.log('Added user message:', content.substring(0, 50) + '...');
+    logger.debug('Added user message:', content.substring(0, 50) + '...');
     return message;
   }
 
@@ -70,7 +73,7 @@ export function useMessageManagement() {
     };
     
     messages.value.push(message);
-    console.log('Added system message:', content.substring(0, 50) + '...');
+    logger.debug('Added system message:', content.substring(0, 50) + '...');
     return message;
   }
 
@@ -78,7 +81,7 @@ export function useMessageManagement() {
    * アシスタントメッセージを追加
    */
   function addAssistantMessage(content: string): ClientMessage {
-    console.log('Adding assistant message with content:', content.substring(0, 100) + '...');
+    logger.debug('Adding assistant message with content:', content.substring(0, 100) + '...');
     const message: ClientMessage = {
       id: generateMessageId(),
       role: 'assistant',
@@ -87,9 +90,9 @@ export function useMessageManagement() {
     };
     
     messages.value.push(message);
-    console.log('Messages after adding assistant message:', messages.value.length);
-    console.log('Full messages array:', messages.value.map(m => ({ id: m.id, role: m.role, contentLength: m.content.length })));
-    console.log('Vue reactivity check - messages.value is reactive:', isRef(messages));
+    logger.debug('Messages after adding assistant message:', messages.value.length);
+    logger.debug('Full messages array:', messages.value.map(m => ({ id: m.id, role: m.role, contentLength: m.content.length })));
+    logger.debug('Vue reactivity check - messages.value is reactive:', isRef(messages));
     return message;
   }
 
@@ -115,7 +118,7 @@ export function useMessageManagement() {
   function clearMessages(): void {
     messages.value = [];
     clearOptimizedHistory();
-    console.log('Messages cleared');
+    logger.debug('Messages cleared');
   }
 
   /**
@@ -124,12 +127,12 @@ export function useMessageManagement() {
   function getConversationHistory() {
     // 最適化履歴が有効な場合はそれを使用
     if (hasOptimizedHistory.value && optimizedConversationHistory.value.length > 0) {
-      console.log('Using optimized conversation history for request:', optimizedConversationHistory.value.length, 'messages');
+      logger.debug('Using optimized conversation history for request:', optimizedConversationHistory.value.length, 'messages');
       return optimizedConversationHistory.value;
     }
     
     // 最適化履歴がない場合は通常のメッセージ履歴を使用
-    console.log('Using regular message history for request:', messages.value.length, 'messages');
+    logger.debug('Using regular message history for request:', messages.value.length, 'messages');
     return messages.value.map(msg => ({
       role: msg.role,
       content: msg.content,
@@ -143,7 +146,7 @@ export function useMessageManagement() {
   function saveOptimizedHistory(optimizedHistory: components['schemas']['MessageItem'][]): void {
     optimizedConversationHistory.value = [...optimizedHistory];
     hasOptimizedHistory.value = true;
-    console.log('Saved optimized conversation history:', optimizedHistory.length, 'messages');
+    logger.debug('Saved optimized conversation history:', optimizedHistory.length, 'messages');
   }
 
   /**
@@ -151,7 +154,7 @@ export function useMessageManagement() {
    */
   function invalidateOptimizedHistory(): void {
     hasOptimizedHistory.value = false;
-    console.log('Invalidated optimized conversation history');
+    logger.debug('Invalidated optimized conversation history');
   }
 
   /**
@@ -160,7 +163,7 @@ export function useMessageManagement() {
   function clearOptimizedHistory(): void {
     optimizedConversationHistory.value = [];
     hasOptimizedHistory.value = false;
-    console.log('Cleared optimized conversation history');
+    logger.debug('Cleared optimized conversation history');
   }
 
   /**
@@ -174,7 +177,7 @@ export function useMessageManagement() {
    * 最適化された会話履歴で置き換え
    */
   function replaceWithOptimizedHistory(optimizedHistory: any[]): void {
-    console.log('Replacing conversation history with optimized version:', optimizedHistory.length, 'messages');
+    logger.debug('Replacing conversation history with optimized version:', optimizedHistory.length, 'messages');
     
     // 最適化履歴を保存（次回のリクエストで使用）
     saveOptimizedHistory(optimizedHistory);
@@ -182,7 +185,7 @@ export function useMessageManagement() {
     // UI表示用にメッセージも更新
     messages.value = [];
     optimizedHistory.forEach((msg: any, index: number) => {
-      console.log(`Adding optimized message ${index} with role ${msg.role}`);
+      logger.debug(`Adding optimized message ${index} with role ${msg.role}`);
       const clientMsg: ClientMessage = {
         id: generateMessageId(),
         role: msg.role as 'user' | 'assistant' | 'system',
@@ -192,7 +195,7 @@ export function useMessageManagement() {
       messages.value.push(clientMsg);
     });
     
-    console.log('Updated messages after optimization:', messages.value.length);
+    logger.debug('Updated messages after optimization:', messages.value.length);
   }
 
   return {

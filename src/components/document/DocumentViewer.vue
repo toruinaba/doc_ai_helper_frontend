@@ -69,8 +69,7 @@ import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { useDocumentRouter } from '@/composables/useDocumentRouter';
 import { analyzeLinkElement, type LinkAnalysisResult } from '@/utils/link-processing.util';
-import { renderMarkdown, renderMarkdownWithResponsibilityBoundary, extractFrontmatter } from '@/utils/markdown.util';
-import { shouldProcessDocumentLinksInFrontend } from '@/utils/config.util';
+import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
 import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml, processHtmlLinksWithResponsibilityBoundary } from '@/utils/html.util';
 import mermaid from 'mermaid';
 import { DateFormatter } from '@/utils/date-formatter.util';
@@ -161,10 +160,6 @@ const renderedContent = computed(() => {
   // 2. root_document_path: メインドキュメントファイル（例："docs/README.md"）
   // 3. root_path: レガシーフィールド（下位互換性のため保持）
   
-  // 責任分界アプローチの設定を確認
-  const shouldUseResponsibilityBoundary = shouldProcessDocumentLinksInFrontend();
-  
-  
   // ドキュメントタイプに応じてレンダリング方法を切り替え
   switch (document.value.type) {
     case 'markdown':
@@ -189,11 +184,9 @@ const renderedContent = computed(() => {
         // QMD形式 → マークダウンとして処理
         const { content: qmdContent } = extractFrontmatter(content);
         
-        if (shouldUseResponsibilityBoundary) {
-          return renderMarkdownWithResponsibilityBoundary(qmdContent, currentPath, documentRoot);
-        } else {
-          return renderMarkdown(qmdContent);
-        }
+        // markdownと同じ方式でDOM後処理を適用
+        const qmdHtml = renderMarkdown(qmdContent);
+        return processHtmlLinksWithResponsibilityBoundary(qmdHtml, currentPath, documentRoot);
       }
       
     case 'html':

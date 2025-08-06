@@ -170,11 +170,21 @@ const renderedContent = computed(() => {
       // マークダウンの場合
       const { content: bodyContent } = extractFrontmatter(content);
       
+      console.log('Markdown processing mode:', {
+        shouldUseResponsibilityBoundary,
+        currentPath,
+        documentRoot,
+        contentLength: bodyContent.length
+      });
+      
       if (shouldUseResponsibilityBoundary) {
         // 責任分界アプローチ: フロントエンドでドキュメントリンク処理
-        return renderMarkdownWithResponsibilityBoundary(bodyContent, currentPath, documentRoot);
+        const result = renderMarkdownWithResponsibilityBoundary(bodyContent, currentPath, documentRoot);
+        console.log('Markdown with responsibility boundary processed');
+        return result;
       } else {
         // レガシーモード: 既存の処理
+        console.log('Markdown legacy mode processed');
         return renderMarkdown(bodyContent);
       }
       
@@ -367,6 +377,12 @@ async function handleLinkClick(event: MouseEvent) {
 
   // 内部リンクの判定と処理
   if (linkType === 'internal' && documentPath) {
+    console.log('Internal link click detected:', {
+      linkType,
+      documentPath,
+      originalHref,
+      href
+    });
     // 内部リンク: フロントエンドでナビゲーション処理
     event.preventDefault();
     await handleInternalNavigation(documentPath, originalHref || href || '#');

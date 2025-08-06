@@ -98,10 +98,18 @@ export function sanitizeQuartoHtml(html: string): string {
 export function processHtmlLinksWithResponsibilityBoundary(html: string, currentPath: string = '', documentRoot: string = ''): string {
   if (!html) return html;
   
+  console.log('Processing HTML links:', {
+    htmlLength: html.length,
+    currentPath,
+    documentRoot
+  });
+  
   // HTMLをDOMとして解析
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const links = doc.querySelectorAll('a[href]');
+  
+  console.log(`Found ${links.length} links to process`);
   
   links.forEach(link => {
     const href = link.getAttribute('href');
@@ -145,6 +153,8 @@ export function processHtmlLinksWithResponsibilityBoundary(html: string, current
     if (isRelative || isAbsolute) {
       let documentPath = href;
       
+      console.log('Processing internal link:', { href, isRelative, isAbsolute, currentPath, documentRoot });
+      
       // 相対パスを解決
       if (isRelative) {
         documentPath = resolveRelativePath(href, currentPath, documentRoot);
@@ -156,6 +166,11 @@ export function processHtmlLinksWithResponsibilityBoundary(html: string, current
       if (!documentPath.includes('.') && !documentPath.endsWith('/')) {
         documentPath = documentPath + '.html';
       }
+      
+      console.log('Internal link processed:', { 
+        originalHref: href, 
+        resolvedPath: documentPath 
+      });
       
       link.setAttribute('href', '#');
       link.setAttribute('data-document-path', documentPath);

@@ -29,7 +29,7 @@
               @pathChange="onPathChange"
             />
             <div class="panel-divider" />
-            <RepositoryNavigator />
+            <!-- RepositoryNavigator temporarily removed -->
           </div>
         </SplitterPanel>
         <SplitterPanel :size="50" :minSize="30">
@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import DocumentViewer from '@/components/document/DocumentViewer.vue';
-import RepositoryNavigator from '@/components/repository/RepositoryNavigator.vue';
+// RepositoryNavigator temporarily removed
 import RepositorySelector from '@/components/repository/RepositorySelector.vue';
 import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue';
 import Splitter from 'primevue/splitter';

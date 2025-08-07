@@ -49,30 +49,18 @@ export type FileTreeItem = components["schemas"]["FileTreeItem"];
 // RepositoryStructureResponse: 自動生成版を使用
 export type RepositoryStructureResponse = components["schemas"]["RepositoryStructureResponse"];
 
-// リポジトリ関連の型定義 - Fallback definitions
-export type GitServiceType = 'github' | 'gitlab' | 'bitbucket' | 'mock';
+// Repository types now use auto-generated versions
+// GitServiceType: 自動生成版を使用
+export type GitServiceType = components["schemas"]["GitServiceType"];
 
-export interface RepositoryCreate {
-  name: string;
-  owner: string;
-  service_type: GitServiceType;
-  description?: string;
-}
+// RepositoryCreate: 自動生成版を使用  
+export type RepositoryCreate = components["schemas"]["RepositoryCreate"];
 
-export interface RepositoryResponse {
-  id: number;
-  name: string;
-  owner: string;
-  service_type: GitServiceType;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-}
+// RepositoryResponse: 自動生成版を使用
+export type RepositoryResponse = components["schemas"]["RepositoryResponse"];
 
-export interface RepositoryUpdate {
-  name?: string;
-  description?: string;
-}
+// RepositoryUpdate: 自動生成版を使用
+export type RepositoryUpdate = components["schemas"]["RepositoryUpdate"];
 
 // 検索関連の型定義
 // SearchQuery: 自動生成版を使用

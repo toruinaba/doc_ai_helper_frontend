@@ -78,7 +78,7 @@ import { useDocumentRouter, useDocumentRoute } from '@/composables/useDocumentRo
 import AppNavigation from '@/components/layout/AppNavigation.vue';
 import DocumentViewer from '@/components/document/DocumentViewer.vue';
 import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue';
-import ChatModal from '@/components/assistant/ChatModal.vue';
+import ChatModal from '@/components/chat/ChatModal.vue';
 import Splitter from 'primevue/splitter';
 import SplitterPanel from 'primevue/splitterpanel';
 import Button from 'primevue/button';

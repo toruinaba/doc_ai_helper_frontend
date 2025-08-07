@@ -27,15 +27,6 @@ interface ImportMetaEnv {
    */
   readonly VITE_MCP_TOOLS_ENABLED: string;
   
-  /**
-   * 利用可能なMCPツールのリスト（カンマ区切り）
-   */
-  readonly VITE_MCP_AVAILABLE_TOOLS: string;
-  
-  /**
-   * MCPツールの説明（name:description形式、カンマ区切り）
-   */
-  readonly VITE_MCP_TOOL_DESCRIPTIONS: string;
   
   /**
    * MCPツールのデフォルト実行モード

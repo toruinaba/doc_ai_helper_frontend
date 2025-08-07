@@ -9,23 +9,7 @@ import type { components } from '../../types.auto'
 
 type LLMQueryRequest = components['schemas']['LLMQueryRequest']
 
-// Fallback types for streaming (not fully defined in current API spec)
-interface LLMStreamingRequest {
-  prompt: string
-  provider: string
-  model?: string
-  conversation_history?: components['schemas']['MessageItem'][]
-  stream?: boolean
-  disable_cache?: boolean
-}
-
-interface StreamingLLMResponse {
-  data: {
-    content?: string
-    error?: string
-    [key: string]: any
-  }
-}
+import type { LLMStreamingRequest, StreamingLLMResponse } from '../../types';
 
 export class StreamingApiClient extends BaseHttpClient {
   /**
@@ -57,9 +41,8 @@ export class StreamingApiClient extends BaseHttpClient {
     
     // クエリパラメータの構築
     const params = new URLSearchParams()
-    if (streamingRequest.provider) params.append('provider', streamingRequest.provider)
-    if (streamingRequest.model) params.append('model', streamingRequest.model)
-    if (streamingRequest.disable_cache) params.append('disable_cache', 'true')
+    if (streamingRequest.query?.provider) params.append('provider', streamingRequest.query.provider)
+    if (streamingRequest.query?.model) params.append('model', streamingRequest.query.model)
     
     // URLにクエリパラメータを追加
     const fullUrl = `${url}?${params.toString()}`

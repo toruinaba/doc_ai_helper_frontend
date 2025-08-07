@@ -75,13 +75,13 @@ export const useDocumentStore = defineStore('document', () => {
       // transform_linksパラメータを設定に応じて決定
       const transformLinks = linkProcessingConfig.transformMode;
       
-      console.log(`Link processing config:`, {
-        mode: linkProcessingConfig.mode,
-        transformMode: transformLinks,
-        baseUrlForLinks,
-        originalBackendUrl: backendUrl,
-        debugMode: linkProcessingConfig.debugMode
-      });
+      if (linkProcessingConfig.debugMode) {
+        console.log(`Link processing config:`, {
+          transformMode: transformLinks,
+          baseUrlForLinks,
+          originalBackendUrl: backendUrl,
+        });
+      }
       
       currentDocument.value = await apiClient.getDocument(
         currentService.value,

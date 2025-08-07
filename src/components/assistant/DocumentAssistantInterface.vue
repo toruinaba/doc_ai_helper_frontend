@@ -55,8 +55,8 @@ import { getUIConfig, getAppDefaultsConfig } from '@/utils/config.util';
 
 // コンポーネントインポート
 import DocumentContextPanel from '@/components/assistant/DocumentContextPanel.vue';
-import MessagesList from '@/components/assistant/MessagesList.vue';
-import MessageInputForm from '@/components/assistant/MessageInputForm.vue';
+import MessagesList from '@/components/chat/MessagesList.vue';
+import MessageInputForm from '@/components/chat/MessageInputForm.vue';
 
 // Type definitions
 type ToolExecutionMode = 'auto' | 'manual' | 'required' | 'none';

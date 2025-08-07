@@ -78,26 +78,13 @@ export interface DocumentContextConfig {
 }
 
 /**
- * リンク処理モード
- */
-export type LinkProcessingMode = 'legacy' | 'selective' | 'hybrid';
-// 注意: バックエンド仕様変更により transform_links=true は実質的に images-only 動作
-export type TransformLinksMode = 'true' | 'false';
-
-/**
- * リンク処理設定 - 責任分界アプローチ用
+ * リンク処理設定 - 簡素化版
  */
 export interface LinkProcessingConfig {
-  /** メインの処理モード */
-  mode: LinkProcessingMode;
   /** バックエンドのtransform_linksパラメータ */
-  transformMode: TransformLinksMode;
+  transformMode: boolean;
   /** CDN最適化を有効にするか */
   enableCdnOptimization: boolean;
-  /** 実験的機能を有効にするか */
-  enableExperimentalFeatures: boolean;
-  /** エラー時のフォールバック */
-  enableFallback: boolean;
   /** デバッグモード */
   debugMode: boolean;
 }
@@ -156,9 +143,9 @@ export function getLLMConfig(): LLMConfig {
  */
 export function getDefaultsConfig(): DefaultsConfig {
   return {
-    encoding: import.meta.env.VITE_DEFAULT_ENCODING || 'utf-8',
-    documentType: import.meta.env.VITE_DEFAULT_DOCUMENT_TYPE || 'markdown',
-    branch: import.meta.env.VITE_DEFAULT_BRANCH || 'main'
+    encoding: 'utf-8',
+    documentType: 'markdown', 
+    branch: 'main'
   };
 }
 
@@ -206,57 +193,17 @@ export function getDefaultDocumentContextConfig(): DocumentContextConfig {
 }
 
 /**
- * リンク処理設定を取得 - 責任分界アプローチ
+ * リンク処理設定を取得 - 簡素化版
  */
 export function getLinkProcessingConfig(): LinkProcessingConfig {
-  const mode = (import.meta.env.VITE_LINK_PROCESSING_MODE || 'legacy') as LinkProcessingMode;
-  
-  // バックエンド仕様変更対応: transform_links=true は実質的に images-only
-  let transformMode: TransformLinksMode;
-  switch (mode) {
-    case 'selective':
-      // 責任分界モード: バックエンドは画像CDNのみ、フロントエンドはドキュメントリンク処理
-      transformMode = 'true';
-      break;
-    case 'hybrid':
-      // ハイブリッドモード: 設定に応じて切り替え
-      transformMode = (import.meta.env.VITE_TRANSFORM_LINKS_MODE === 'false') ? 'false' : 'true';
-      break;
-    case 'legacy':
-    default:
-      // レガシーモード: 従来通り全て変換（バックエンド仕様変更で実質的に画像のみ）
-      transformMode = 'true';
-      break;
-  }
-  
   return {
-    mode,
-    transformMode,
+    transformMode: import.meta.env.VITE_TRANSFORM_LINKS !== 'false',
     enableCdnOptimization: import.meta.env.VITE_ENABLE_CDN_OPTIMIZATION !== 'false',
-    enableExperimentalFeatures: import.meta.env.VITE_ENABLE_EXPERIMENTAL_FEATURES === 'true',
-    enableFallback: import.meta.env.VITE_ENABLE_LINK_PROCESSING_FALLBACK !== 'false',
     debugMode: import.meta.env.VITE_LINK_PROCESSING_DEBUG === 'true'
   };
 }
 
-/**
- * 選択的リンク処理を使用するかどうかを判定
- * バックエンド仕様変更により、selectiveモードではフロントエンドでドキュメントリンク処理が必要
- */
-export function shouldUseSelectiveLinkProcessing(): boolean {
-  const config = getLinkProcessingConfig();
-  return config.mode === 'selective' || config.mode === 'hybrid';
-}
-
-/**
- * フロントエンドでドキュメントリンク処理が必要か判定
- * バックエンドが画像CDNのみ変換するため、ドキュメントリンクはフロントエンドで処理
- */
-export function shouldProcessDocumentLinksInFrontend(): boolean {
-  const config = getLinkProcessingConfig();
-  // selective モードでは必ずフロントエンドでドキュメントリンク処理
-  return config.mode === 'selective';
-}
+// Legacy link processing functions removed - simplified configuration
 
 /**
  * 本番環境かどうかを判定
@@ -265,13 +212,7 @@ export function isProductionEnvironment(): boolean {
   return import.meta.env.PROD;
 }
 
-/**
- * 開発環境での実験的機能を有効にするか判定
- */
-export function shouldEnableExperimentalFeatures(): boolean {
-  const config = getLinkProcessingConfig();
-  return config.enableExperimentalFeatures || (!isProductionEnvironment() && config.debugMode);
-}
+// Experimental features function removed - simplified configuration
 
 /**
  * 統合アプリケーション設定

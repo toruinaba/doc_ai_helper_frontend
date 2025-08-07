@@ -43,8 +43,8 @@ import { useDocumentAssistant } from '@/composables/useDocumentAssistant';
 import { useDocumentContext } from '@/composables/useDocumentContext';
 
 // コンポーネントインポート
-import MessagesList from '@/components/assistant/MessagesList.vue';
-import MessageInputForm from '@/components/assistant/MessageInputForm.vue';
+import MessagesList from './MessagesList.vue';
+import MessageInputForm from './MessageInputForm.vue';
 
 // Template refs
 const chatMessagesRef = ref();

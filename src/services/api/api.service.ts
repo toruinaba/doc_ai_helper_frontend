@@ -6,7 +6,7 @@
  */
 import { ApiClientFactory } from './api-client.factory'
 import type { components } from './types.auto'
-import type { TransformLinksMode } from '../../utils/config.util'
+// TransformLinksMode removed - now using boolean
 
 type DocumentResponse = components['schemas']['DocumentResponse']
 type RepositoryStructureResponse = components['schemas']['RepositoryStructureResponse']
@@ -15,61 +15,15 @@ type LLMResponse = components['schemas']['LLMResponse']
 type MCPToolsResponse = components['schemas']['MCPToolsResponse']
 type MCPToolInfo = components['schemas']['MCPToolInfo']
 
-// Fallback types for missing schemas
-interface RepositoryResponse {
-  id: number
-  name: string
-  owner: string
-  service_type: 'github' | 'gitlab' | 'bitbucket' | 'forgejo'
-  created_at: string
-  updated_at: string
-}
+// Use auto-generated types consistently
+type RepositoryResponse = components['schemas']['RepositoryResponse']
+type RepositoryCreate = components['schemas']['RepositoryCreate']  
+type RepositoryUpdate = components['schemas']['RepositoryUpdate']
 
-interface RepositoryCreate {
-  name: string
-  owner: string
-  service_type: 'github' | 'gitlab' | 'bitbucket' | 'forgejo'
-  url: string
-  base_url?: string | null
-  default_branch: string
-  repository_root: string
-  document_root_directory?: string | null
-  is_public: boolean
-  metadata: Record<string, any> | null
-  description?: string
-}
+type SearchQuery = components['schemas']['SearchQuery']
+type SearchResponse = components['schemas']['SearchResponse']
 
-interface RepositoryUpdate {
-  name?: string
-  description?: string
-}
-
-interface SearchQuery {
-  query: string
-  limit: number
-  offset: number
-}
-
-interface SearchResponse {
-  results: any[]
-  total: number
-}
-
-interface LLMStreamingRequest {
-  prompt: string
-  provider: string
-  model?: string
-  conversation_history?: components['schemas']['MessageItem'][]
-  stream?: boolean
-}
-
-interface StreamingLLMResponse {
-  data: {
-    content?: string
-    error?: string
-    [key: string]: any
-  }
-}
+import type { LLMStreamingRequest, StreamingLLMResponse } from './types';
 
 export class ApiService {
   private factory: ApiClientFactory
@@ -111,7 +65,7 @@ export class ApiService {
     repo: string,
     path: string,
     ref: string = 'main',
-    transformLinks: TransformLinksMode | boolean = true,
+    transformLinks: boolean = true,
     baseUrl?: string
   ): Promise<DocumentResponse> {
     return this.factory.getDocumentClient().getDocument(

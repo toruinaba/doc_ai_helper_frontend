@@ -384,7 +384,7 @@ async function handleInternalNavigation(documentPath: string, originalHref: stri
     console.error('Failed to handle internal navigation:', error, {
       documentPath,
       originalHref,
-      stack: error.stack
+      stack: (error as Error).stack
     });
   }
 }
@@ -462,7 +462,7 @@ async function navigateToRootDocument() {
 watch(renderedContent, () => {
   nextTick(() => {
     // 新しいMermaidダイアグラムがある場合は再レンダリング
-    const mermaidElements = document.querySelectorAll('.mermaid-diagram:not(.mermaid-rendered)');
+    const mermaidElements = globalThis.document.querySelectorAll('.mermaid-diagram:not(.mermaid-rendered)');
     if (mermaidElements.length > 0) {
       try {
         mermaid.run();

@@ -97,7 +97,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Panel, Button, Tag, Menu, type MenuItem } from 'primevue'
+import Panel from 'primevue/panel'
+import Button from 'primevue/button'
+import Tag from 'primevue/tag'
+import Menu from 'primevue/menu'
+import type { MenuItem } from 'primevue/menuitem'
 import type { components } from '@/services/api/types.auto'
 
 type RepositoryResponse = components['schemas']['RepositoryResponse']
@@ -125,7 +129,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // テンプレート参照
-const menu = ref<Menu>()
+const menu = ref<typeof Menu>()
 
 // コンピューテッド プロパティ
 const truncatedName = computed(() => {

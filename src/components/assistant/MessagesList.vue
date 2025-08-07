@@ -222,7 +222,9 @@ watch(chatMessagesRef, (newRef) => {
 });
 
 // メッセージ配列の変更を監視（リアクティブ更新対応）
-watch(() => [props.messages.length, props.isLoading], async ([newLength, newIsLoading], [oldLength, oldIsLoading]) => {
+watch(() => [props.messages.length, props.isLoading], async (newValues: (number | boolean)[], oldValues?: (number | boolean)[]) => {
+  const [newLength, newIsLoading] = newValues;
+  const [oldLength, oldIsLoading] = oldValues || [0, false];
   await nextTick();
   
   if (!chatMessagesRef.value) return;

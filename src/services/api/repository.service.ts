@@ -108,7 +108,7 @@ export class RepositoryService {
 
     const url = `/repositories/${repositoryId}/context${params.toString() ? `?${params.toString()}` : ''}`
     
-    return this.repositoryClient.get<RepositoryContext>(url)
+    return this.repositoryClient.getRepositoryContext<RepositoryContext>(url)
   }
 
   // ===== Utility Methods =====

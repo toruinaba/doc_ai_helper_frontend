@@ -196,7 +196,9 @@ function getServiceSeverity(service: string): 'success' | 'info' | 'warning' | '
 }
 
 function toggleMenu(event: Event) {
-  menu.value?.toggle(event)
+  if (menu.value && typeof (menu.value as any).toggle === 'function') {
+    (menu.value as any).toggle(event);
+  }
 }
 
 // メニュー項目

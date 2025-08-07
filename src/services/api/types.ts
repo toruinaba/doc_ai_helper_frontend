@@ -55,7 +55,7 @@ export type GitServiceType = 'github' | 'gitlab' | 'bitbucket' | 'mock';
 export interface RepositoryCreate {
   name: string;
   owner: string;
-  service: GitServiceType;
+  service_type: GitServiceType;
   description?: string;
 }
 
@@ -63,7 +63,7 @@ export interface RepositoryResponse {
   id: number;
   name: string;
   owner: string;
-  service: GitServiceType;
+  service_type: GitServiceType;
   description?: string;
   created_at: string;
   updated_at: string;

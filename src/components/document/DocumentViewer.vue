@@ -28,7 +28,7 @@
               <i v-if="item.icon" :class="item.icon"></i>
               <span v-if="item.label">{{ item.label }}</span>
             </span>
-            <span v-else @click="item.command" class="p-menuitem-link" style="cursor: pointer;">
+            <span v-else @click="(event: Event) => item.command && item.command(event as any)" class="p-menuitem-link" style="cursor: pointer;">
               <i v-if="item.icon" :class="item.icon"></i>
               <span v-if="item.label" class="p-menuitem-text">{{ item.label }}</span>
             </span>

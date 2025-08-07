@@ -101,8 +101,8 @@ export const useDocumentStore = defineStore('document', () => {
         service: currentService.value,
         owner: currentOwner.value,
         repo: currentRepo.value,
-        error: err instanceof Error ? err.message : 'Unknown error',
-        statusCode: err.response?.status
+        error: (err as Error).message || 'Unknown error',
+        statusCode: (err as any)?.response?.status
       });
       error.value = err instanceof Error ? err.message : 'Failed to fetch document';
       throw err;

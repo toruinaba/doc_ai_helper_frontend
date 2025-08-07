@@ -311,7 +311,7 @@ async function handleSubmitRepository(data: RepositoryCreate) {
     console.error('リポジトリの保存に失敗:', error)
     
     // エラーの詳細を取得
-    const errorMessage = getErrorMessage(error, selectedRepository.value)
+    const errorMessage = getErrorMessage(error, Boolean(selectedRepository.value))
     
     toast.add({
       severity: 'error',

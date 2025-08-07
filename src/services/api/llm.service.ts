@@ -33,6 +33,13 @@ export interface LLMQueryOptions {
   includeDocument?: boolean;
   systemPrompt?: string;
   customOptions?: Record<string, any>;
+  repositoryContext?: {
+    service: string;
+    owner: string;
+    repo: string;
+    ref: string;
+    current_path: string;
+  };
 }
 
 export interface LLMToolsOptions extends LLMQueryOptions {

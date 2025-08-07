@@ -20,7 +20,7 @@ interface RepositoryResponse {
   id: number
   name: string
   owner: string
-  service: string
+  service_type: 'github' | 'gitlab' | 'bitbucket' | 'forgejo'
   created_at: string
   updated_at: string
 }
@@ -28,7 +28,14 @@ interface RepositoryResponse {
 interface RepositoryCreate {
   name: string
   owner: string
-  service: string
+  service_type: 'github' | 'gitlab' | 'bitbucket' | 'forgejo'
+  url: string
+  base_url?: string | null
+  default_branch: string
+  repository_root: string
+  document_root_directory?: string | null
+  is_public: boolean
+  metadata: Record<string, any> | null
   description?: string
 }
 

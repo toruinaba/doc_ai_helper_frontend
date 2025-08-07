@@ -81,7 +81,7 @@ export function useDocumentAssistant(messagesRef?: any) {
   const useToolsForMessage = ref(allSettings.mcp.enabled);
   const mcpToolsEnabled = ref(allSettings.mcp.enabled);
   const executionMode = ref<ToolExecutionMode>(allSettings.mcp.executionMode);
-  const availableTools = ref<MCPToolConfig[]>(mcpConfig.availableTools);
+  const availableTools = ref<MCPToolConfig[]>([]);
   const streamingType = ref<string>(allSettings.streaming.type);
   
   // 設定変更のリスナー

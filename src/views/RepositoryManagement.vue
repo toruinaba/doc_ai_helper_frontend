@@ -1,30 +1,30 @@
 <template>
   <div class="repository-management">
     <AppNavigation />
-    <!-- ヘッダー -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1>リポジトリ管理</h1>
-        <p>ドキュメントリポジトリの登録・管理を行います</p>
-      </div>
-      <div class="header-actions">
+    
+    <!-- ページヘッダー -->
+    <PageHeader
+      title="リポジトリ管理"
+      description="ドキュメントリポジトリの登録・管理を行います"
+      icon="pi pi-database"
+    >
+      <template #actions>
         <Button
           label="新規追加"
           icon="pi pi-plus"
           @click="showAddDialog"
         />
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- エラー表示 -->
-    <Message
+    <StatusMessage
       v-if="repositoryStore.error"
+      :message="repositoryStore.error"
       severity="error"
       :closable="true"
       @close="repositoryStore.error = null"
-    >
-      {{ repositoryStore.error }}
-    </Message>
+    />
 
     <!-- リポジトリ一覧 -->
     <RepositoryList
@@ -55,115 +55,22 @@
     <!-- 削除確認ダイアログ -->
     <ConfirmDialog />
 
-    <!-- 詳細情報ダイアログ -->
-    <Dialog
+    <!-- リポジトリ詳細ダイアログ -->
+    <DetailsDialog
       :visible="showDetails"
-      header="リポジトリ詳細"
-      :modal="true"
-      :draggable="false"
-      :blockScroll="true"
-      appendTo="body"
-      class="repository-details-dialog"
+      title="リポジトリ詳細"
+      :showEditButton="true"
+      editButtonLabel="編集"
+      maxWidth="900px"
       @update:visible="showDetails = $event"
+      @edit="editFromDetails"
+      @close="showDetails = false"
     >
-      <div v-if="selectedRepository" class="repository-details">
-        <div class="detail-section">
-          <h4>基本情報</h4>
-          <div class="detail-grid">
-            <div class="detail-item">
-              <label>名前</label>
-              <span>{{ selectedRepository.name }}</span>
-            </div>
-            <div class="detail-item">
-              <label>所有者</label>
-              <span>{{ selectedRepository.owner }}</span>
-            </div>
-            <div class="detail-item">
-              <label>サービス</label>
-              <Tag :value="selectedRepository.service_type" />
-            </div>
-            <div class="detail-item">
-              <label>URL</label>
-              <a :href="selectedRepository.url" target="_blank" class="repository-url">
-                {{ selectedRepository.url }}
-                <i class="pi pi-external-link" />
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div class="detail-section">
-          <h4>設定</h4>
-          <div class="detail-grid">
-            <div class="detail-item">
-              <label>デフォルトブランチ</label>
-              <span>{{ selectedRepository.default_branch }}</span>
-            </div>
-            <div class="detail-item">
-              <label>ルートドキュメントパス</label>
-              <span>{{ selectedRepository.root_document_path || selectedRepository.root_path || 'なし' }}</span>
-            </div>
-            <div class="detail-item">
-              <label>ドキュメントルートディレクトリ</label>
-              <span>{{ selectedRepository.document_root_directory || '自動推測' }}</span>
-            </div>
-            <div class="detail-item">
-              <label>公開設定</label>
-              <Tag 
-                :value="selectedRepository.is_public ? '公開' : '非公開'"
-                :severity="selectedRepository.is_public ? 'success' : 'warning'"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="detail-section">
-          <h4>システム情報</h4>
-          <div class="detail-grid">
-            <div class="detail-item">
-              <label>ID</label>
-              <span>{{ selectedRepository.id }}</span>
-            </div>
-            <div class="detail-item">
-              <label>作成日時</label>
-              <span>{{ formatDateTime(selectedRepository.created_at) }}</span>
-            </div>
-            <div class="detail-item">
-              <label>更新日時</label>
-              <span>{{ formatDateTime(selectedRepository.updated_at) }}</span>
-            </div>
-            <div class="detail-item">
-              <label>対応ブランチ</label>
-              <div class="branch-list">
-                <Tag 
-                  v-for="branch in selectedRepository.supported_branches"
-                  :key="branch"
-                  :value="branch"
-                  severity="secondary"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="selectedRepository.description" class="detail-section">
-          <h4>説明</h4>
-          <p>{{ selectedRepository.description }}</p>
-        </div>
-      </div>
-
-      <template #footer>
-        <Button
-          label="閉じる"
-          severity="secondary"
-          @click="showDetails = false"
-        />
-        <Button
-          label="編集"
-          @click="editFromDetails"
-        />
-      </template>
-    </Dialog>
+      <RepositoryDetailsView
+        :repository="selectedRepository"
+        :healthStatus="getRepositoryHealthStatus(selectedRepository)"
+      />
+    </DetailsDialog>
 
     <!-- トースト通知 -->
     <Toast />
@@ -177,15 +84,16 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { 
   Button, 
-  Message, 
-  Dialog, 
-  Tag, 
   Toast, 
   ConfirmDialog 
 } from 'primevue'
 import { useRepositoryStore } from '@/stores/repository.store'
 import { useDocumentStore } from '@/stores/document.store'
 import AppNavigation from '@/components/layout/AppNavigation.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import StatusMessage from '@/components/common/StatusMessage.vue'
+import DetailsDialog from '@/components/common/DetailsDialog.vue'
+import RepositoryDetailsView from '@/components/repository/RepositoryDetailsView.vue'
 import RepositoryList from '@/components/repository/RepositoryList.vue'
 import RepositoryForm from '@/components/repository/RepositoryForm.vue'
 import type { components } from '@/services/api/types.auto'
@@ -534,6 +442,17 @@ function editFromDetails() {
 }
 
 // ユーティリティ
+function getRepositoryHealthStatus(repository: RepositoryResponse | null): 'healthy' | 'unhealthy' | 'unknown' {
+  if (!repository) return 'unknown'
+  
+  const healthStatusValue = repositoryStore.healthStatus[repository.id]
+  
+  // healthStatus is boolean or undefined
+  if (healthStatusValue === true) return 'healthy'
+  if (healthStatusValue === false) return 'unhealthy'
+  return 'unknown'
+}
+
 function formatDateTime(dateString: string): string {
   return new Date(dateString).toLocaleString('ja-JP', {
     year: 'numeric',
@@ -561,137 +480,10 @@ function formatDateTime(dateString: string): string {
   width: 100%;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--surface-border);
-  
-  .header-content {
-    h1 {
-      margin: 0 0 0.5rem 0;
-      color: var(--text-color);
-      font-size: 2rem;
-      font-weight: 600;
-    }
-    
-    p {
-      margin: 0;
-      color: var(--text-color-secondary);
-      font-size: 1rem;
-    }
-  }
-  
-  .header-actions {
-    flex-shrink: 0;
-  }
-}
-
-.repository-details-dialog {
-  width: 90vw;
-  max-width: 700px;
-}
-
-.repository-details {
-  .detail-section {
-    margin-bottom: 1.5rem;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-    
-    h4 {
-      margin: 0 0 1rem 0;
-      color: var(--text-color);
-      font-size: 1.1rem;
-      font-weight: 600;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--surface-border);
-    }
-    
-    p {
-      margin: 0;
-      color: var(--text-color);
-      line-height: 1.5;
-    }
-  }
-  
-  .detail-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    
-    @media (min-width: 768px) {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-  
-  .detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    
-    label {
-      font-weight: 500;
-      color: var(--text-color-secondary);
-      font-size: 0.9rem;
-    }
-    
-    span {
-      color: var(--text-color);
-    }
-    
-    .repository-url {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--primary-color);
-      text-decoration: none;
-      
-      &:hover {
-        text-decoration: underline;
-      }
-      
-      i {
-        font-size: 0.8rem;
-      }
-    }
-    
-    .branch-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-  }
-}
-
 // レスポンシブ対応
 @media (max-width: 992px) {
   .repository-management {
     padding: 1rem;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-    
-    .header-actions {
-      .p-button {
-        width: 100%;
-      }
-    }
-  }
-  
-  .repository-details-dialog {
-    width: 95vw;
-    margin: 1rem;
-  }
-  
-  .detail-grid {
-    grid-template-columns: 1fr !important;
   }
 }
 </style>

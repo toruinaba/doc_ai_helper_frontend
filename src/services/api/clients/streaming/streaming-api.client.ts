@@ -41,8 +41,7 @@ export class StreamingApiClient extends BaseHttpClient {
     
     // クエリパラメータの構築
     const params = new URLSearchParams()
-    if (streamingRequest.query?.provider) params.append('provider', streamingRequest.query.provider)
-    if (streamingRequest.query?.model) params.append('model', streamingRequest.query.model)
+    // Note: LLMQueryRequestはプロバイダーやモデル情報を含まないため、デフォルトを使用
     
     // URLにクエリパラメータを追加
     const fullUrl = `${url}?${params.toString()}`

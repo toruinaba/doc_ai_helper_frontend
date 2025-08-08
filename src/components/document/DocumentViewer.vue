@@ -130,7 +130,7 @@ const frontmatter = computed(() => {
   }
 
   // トランスフォーム済みコンテンツがある場合はそれを使う
-  const content = document.value.transformed_content || document.value.content.content;
+  const content = document.value.content.transformed_content || document.value.content.content;
   
   // フロントマターを抽出（markdown/quartoのみ）
   const { frontmatter } = extractFrontmatter(content);

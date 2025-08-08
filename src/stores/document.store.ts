@@ -6,7 +6,58 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import apiClient from '../services/api';
-import { types } from '../services/api';
+// Note: Using API response type definitions for compatibility with actual API
+type DocumentResponse = {
+  path: string;
+  name: string;
+  type: 'markdown' | 'html' | 'other' | 'quarto';
+  metadata: {
+    size: number;
+    last_modified: string;
+    content_type: string;
+    sha?: string | null;
+    download_url?: string | null;
+    html_url?: string | null;
+    raw_url?: string | null;
+    extra?: { [key: string]: unknown } | null;
+  };
+  content: {
+    content?: string | null;
+    transformed_content?: string | null;
+    encoding?: string | null;
+  };
+  repository: string;
+  owner: string;
+  service: string;
+  ref?: string | null;
+  links?: Array<{
+    text: string;
+    url: string;
+    is_image: boolean;
+    position: [number, number];
+    is_external: boolean;
+  }> | null;
+};
+
+type FileTreeItem = {
+  path: string;
+  name: string;
+  type: string;
+  size?: number | null;
+  sha?: string | null;
+  download_url?: string | null;
+  html_url?: string | null;
+  git_url?: string | null;
+  children?: FileTreeItem[];
+};
+
+type LinkInfo = {
+  text: string;
+  url: string;
+  is_image: boolean;
+  position: [number, number];
+  is_external: boolean;
+};
 import { 
   getDefaultRepositoryConfig, 
   getApiConfig, 
@@ -20,8 +71,8 @@ export const useDocumentStore = defineStore('document', () => {
   const apiConfig = getApiConfig();
 
   // 状態
-  const currentDocument = ref<types.DocumentResponse | null>(null);
-  const repositoryStructure = ref<types.FileTreeItem[]>([]);
+  const currentDocument = ref<DocumentResponse | null>(null);
+  const repositoryStructure = ref<FileTreeItem[]>([]);
   
   // 非同期操作管理
   const asyncOp = useAsyncOperation({
@@ -151,7 +202,7 @@ export const useDocumentStore = defineStore('document', () => {
   }
 
   // ドキュメントのリンクをクリックしたときの処理
-  async function navigateToLink(link: types.LinkInfo) {
+  async function navigateToLink(link: LinkInfo) {
     if (link.is_external) {
       // 外部リンクは新しいタブで開く
       window.open(link.url, '_blank');

@@ -5,11 +5,12 @@
  */
 import apiClient from '..';
 import { shouldUseMockApi } from '../../../utils/config.util';
-import type { 
-  LLMQueryRequest, 
-  LLMResponse,
-  MessageItem
-} from '../types';
+import type { components } from '../types.auto';
+
+// 自動生成型のエイリアス
+type LLMQueryRequest = components['schemas']['LLMQueryRequest'];
+type LLMResponse = components['schemas']['LLMResponse'];
+type MessageItem = components['schemas']['MessageItem'];
 
 /**
  * LLMにクエリを送信

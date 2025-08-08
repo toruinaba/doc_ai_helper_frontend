@@ -15,7 +15,38 @@ type MessageItem = components['schemas']['MessageItem'];
 type ProviderCapabilities = components['schemas']['ProviderCapabilities'];
 type MCPToolsResponse = components['schemas']['MCPToolsResponse'];
 type MCPToolInfo = components['schemas']['MCPToolInfo'];
-import type { DocumentResponse } from './types';
+// Note: Using API response type definitions for compatibility with actual API
+type DocumentResponse = {
+  path: string;
+  name: string;
+  type: 'markdown' | 'html' | 'other' | 'quarto';
+  metadata: {
+    size: number;
+    last_modified: string;
+    content_type: string;
+    sha?: string | null;
+    download_url?: string | null;
+    html_url?: string | null;
+    raw_url?: string | null;
+    extra?: { [key: string]: unknown } | null;
+  };
+  content: {
+    content?: string | null;
+    transformed_content?: string | null;
+    encoding?: string | null;
+  };
+  repository: string;
+  owner: string;
+  service: string;
+  ref?: string | null;
+  links?: Array<{
+    text: string;
+    url: string;
+    is_image: boolean;
+    position: [number, number];
+    is_external: boolean;
+  }> | null;
+};
 import { 
   sendLLMQuery as _sendLLMQuery,
   getLLMCapabilities as _getLLMCapabilities,

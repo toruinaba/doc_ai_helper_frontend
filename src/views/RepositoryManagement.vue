@@ -19,8 +19,8 @@
 
     <!-- エラー表示 -->
     <StatusMessage
-      v-if="repositoryStore.error"
-      :message="repositoryStore.error"
+      v-if="error"
+      :message="error"
       severity="error"
       :closable="true"
       @close="repositoryStore.error = null"
@@ -28,9 +28,9 @@
 
     <!-- リポジトリ一覧 -->
     <RepositoryList
-      :repositories="repositoryStore.repositories"
-      :healthStatus="repositoryStore.healthStatus"
-      :isLoading="repositoryStore.isLoading"
+      :repositories="repositories"
+      :healthStatus="healthStatus"
+      :isLoading="isLoading"
       :loadingRepositories="loadingRepositories"
       @open="handleOpenRepository"
       @edit="handleEditRepository"
@@ -79,16 +79,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useConfirm } from 'primevue/useconfirm'
-import { useToast } from 'primevue/usetoast'
 import { 
   Button, 
   Toast, 
   ConfirmDialog 
 } from 'primevue'
 import { useRepositoryStore } from '@/stores/repository.store'
-import { useDocumentStore } from '@/stores/document.store'
+import { useRepositoryOperations } from '@/composables/useRepositoryOperations'
 import AppNavigation from '@/components/layout/AppNavigation.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusMessage from '@/components/common/StatusMessage.vue'
@@ -102,48 +99,37 @@ type RepositoryResponse = components['schemas']['RepositoryResponse']
 type RepositoryCreate = components['schemas']['RepositoryCreate']
 type RepositoryUpdate = components['schemas']['RepositoryUpdate']
 
-// ストアとユーティリティ
+// Composables を使用
 const repositoryStore = useRepositoryStore()
-const documentStore = useDocumentStore()
-const router = useRouter()
-const confirm = useConfirm()
-const toast = useToast()
+const {
+  // State
+  isSubmitting,
+  loadingRepositories,
+  repositories,
+  isLoading,
+  error,
+  healthStatus,
+  
+  // Operations
+  createRepository,
+  updateRepository,
+  deleteRepository,
+  openRepository,
+  cloneRepository,
+  refreshRepositoryHealth,
+  refreshRepositories,
+  getRepositoryHealthStatus
+} = useRepositoryOperations()
 
-// リアクティブな状態
+// ローカル状態
 const showForm = ref(false)
 const showDetails = ref(false)
 const selectedRepository = ref<RepositoryResponse | null>(null)
-const isSubmitting = ref(false)
-const loadingRepositories = ref<number[]>([])
 
 // ライフサイクル
 onMounted(async () => {
-  await loadRepositories()
-  await checkRepositoriesHealth()
+  await refreshRepositories()
 })
-
-// メソッド
-async function loadRepositories() {
-  try {
-    await repositoryStore.fetchRepositories()
-  } catch (error) {
-    console.error('リポジトリ一覧の読み込みに失敗:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'エラー',
-      detail: 'リポジトリ一覧の読み込みに失敗しました',
-      life: 5000
-    })
-  }
-}
-
-async function checkRepositoriesHealth() {
-  try {
-    await repositoryStore.checkMultipleRepositoryHealth()
-  } catch (error) {
-    console.error('ヘルスチェックに失敗:', error)
-  }
-}
 
 // イベントハンドラー
 function showAddDialog() {
@@ -157,78 +143,35 @@ function handleEditRepository(repository: RepositoryResponse) {
 }
 
 async function handleSubmitRepository(data: RepositoryCreate) {
-  isSubmitting.value = true
+  let success = false
   
-  try {
-    if (selectedRepository.value) {
-      // 更新: RepositoryCreateからRepositoryUpdateへ変換
-      const updateData: RepositoryUpdate = {
-        name: data.name,
-        owner: data.owner,
-        service_type: data.service_type,
-        url: data.url,
-        base_url: data.base_url,
-        default_branch: data.default_branch,
-        repository_root: data.repository_root,
-        // 新規フィールドは空文字やundefinedの場合はnullに変換
-        document_root_directory: data.document_root_directory?.trim() || null,
-        root_document_path: data.root_document_path?.trim() || null,
-        root_path: data.root_path?.trim() || null,
-        description: data.description?.trim() || null,
-        is_public: data.is_public,
-        access_token: data.access_token?.trim() || null,
-        metadata: data.metadata || {}
-      }
-      
-      // デバッグログ：送信データを確認
-      console.log('Repository Update Request:', {
-        repositoryId: selectedRepository.value.id,
-        updateData: updateData,
-        newFields: {
-          document_root_directory: updateData.document_root_directory,
-          root_document_path: updateData.root_document_path,
-          repository_root: updateData.repository_root
-        }
-      })
-      
-      await repositoryStore.updateRepository(selectedRepository.value.id, updateData)
-      toast.add({
-        severity: 'success',
-        summary: '成功',
-        detail: 'リポジトリが更新されました',
-        life: 3000
-      })
-    } else {
-      // 新規作成
-      await repositoryStore.createRepository(data)
-      toast.add({
-        severity: 'success',
-        summary: '成功',
-        detail: 'リポジトリが作成されました',
-        life: 3000
-      })
-    }
+  if (selectedRepository.value) {
+    // 更新: RepositoryCreateからRepositoryUpdateへ変換
+    const updateData = {
+      name: data.name!,
+      owner: data.owner!,
+      service_type: data.service_type!,
+      url: data.url!,
+      base_url: data.base_url,
+      default_branch: data.default_branch!,
+      repository_root: data.repository_root!,
+      document_root_directory: data.document_root_directory?.trim() || null,
+      root_document_path: data.root_document_path?.trim() || null,
+      root_path: data.root_path?.trim() || null,
+      description: data.description?.trim() || null,
+      is_public: data.is_public!,
+      access_token: data.access_token?.trim() || null,
+      metadata: data.metadata || {}
+    } as RepositoryUpdate
     
+    success = await updateRepository(selectedRepository.value.id, updateData)
+  } else {
+    success = await createRepository(data)
+  }
+  
+  if (success) {
     showForm.value = false
     selectedRepository.value = null
-    
-    // ヘルスチェック
-    await checkRepositoriesHealth()
-    
-  } catch (error: any) {
-    console.error('リポジトリの保存に失敗:', error)
-    
-    // エラーの詳細を取得
-    const errorMessage = getErrorMessage(error, Boolean(selectedRepository.value))
-    
-    toast.add({
-      severity: 'error',
-      summary: 'エラー',
-      detail: errorMessage,
-      life: 5000
-    })
-  } finally {
-    isSubmitting.value = false
   }
 }
 
@@ -237,198 +180,28 @@ function handleCancelForm() {
   selectedRepository.value = null
 }
 
-/**
- * エラーメッセージを取得する
- */
-function getErrorMessage(error: any, isUpdate: boolean): string {
-  // HTTPエラーレスポンスの場合
-  if (error.response?.status) {
-    const status = error.response.status
-    const data = error.response.data
-    
-    switch (status) {
-      case 409:
-        if (isUpdate) {
-          return 'リポジトリの更新で競合が発生しました。他のユーザーによって同時に変更された可能性があります。'
-        } else {
-          return '同じ名前またはURLのリポジトリが既に存在します。別の名前またはURLを指定してください。'
-        }
-      case 400:
-        // バックエンドからの詳細エラーメッセージがある場合はそれを使用
-        if (data?.detail) {
-          return `入力データに問題があります: ${data.detail}`
-        }
-        return '入力データに問題があります。フォームの内容を確認してください。'
-      case 422:
-        if (data?.detail && Array.isArray(data.detail)) {
-          // バリデーションエラーの詳細を表示
-          const validationErrors = data.detail.map((err: any) => 
-            `${err.loc?.[1] || 'フィールド'}: ${err.msg}`
-          ).join(', ')
-          return `入力値が正しくありません: ${validationErrors}`
-        }
-        return '入力値が正しくありません。フォームの内容を確認してください。'
-      case 500:
-        return 'サーバーエラーが発生しました。しばらく時間をおいて再試行してください。'
-      default:
-        return `予期しないエラーが発生しました (${status})`
-    }
-  }
-  
-  // ネットワークエラーの場合
-  if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
-    return 'ネットワークエラーが発生しました。接続状態を確認してください。'
-  }
-  
-  // その他のエラー
-  const action = isUpdate ? '更新' : '作成'
-  return error.message || `リポジトリの${action}に失敗しました`
-}
-
-/**
- * リポジトリ設定からドキュメントパスを構築
- */
-function buildDocumentPath(repository: RepositoryResponse): string {
-  // 新しいフィールド構造: document_root_directory + root_document_path
-  if (repository.document_root_directory && repository.root_document_path) {
-    const baseDir = repository.document_root_directory.endsWith('/') 
-      ? repository.document_root_directory 
-      : repository.document_root_directory + '/';
-    return baseDir + repository.root_document_path;
-  }
-  
-  // root_document_pathのみが設定されている場合
-  if (repository.root_document_path) {
-    return repository.root_document_path;
-  }
-  
-  // レガシーフィールド: root_path
-  if (repository.root_path) {
-    return repository.root_path;
-  }
-  
-  // デフォルト
-  return 'README.md';
-}
-
 function handleDeleteRepository(repository: RepositoryResponse) {
-  confirm.require({
-    message: `「${repository.name}」を削除しますか？この操作は取り消せません。`,
-    header: 'リポジトリ削除の確認',
-    icon: 'pi pi-exclamation-triangle',
-    rejectClass: 'p-button-secondary p-button-outlined',
-    rejectLabel: 'キャンセル',
-    acceptLabel: '削除',
-    accept: async () => {
-      try {
-        await repositoryStore.deleteRepository(repository.id)
-        toast.add({
-          severity: 'success',
-          summary: '成功',
-          detail: 'リポジトリが削除されました',
-          life: 3000
-        })
-      } catch (error) {
-        console.error('リポジトリの削除に失敗:', error)
-        toast.add({
-          severity: 'error',
-          summary: 'エラー',
-          detail: 'リポジトリの削除に失敗しました',
-          life: 5000
-        })
-      }
-    }
-  })
+  deleteRepository(repository)
 }
 
 function handleOpenRepository(repository: RepositoryResponse) {
-  // リポジトリを選択してドキュメントビューアに移動
-  repositoryStore.selectRepository(repository)
-  
-  // ドキュメントストアにリポジトリ情報を設定
-  documentStore.currentService = repository.service_type
-  documentStore.currentOwner = repository.owner
-  documentStore.currentRepo = repository.name
-  documentStore.currentRef = repository.default_branch
-  
-  // デフォルトドキュメントパスを設定
-  // Phase 2実装: 新しいフィールド構造でパスを構築
-  const defaultPath = buildDocumentPath(repository)
-  
-  console.log('Repository open - Document path construction:', {
-    repository: {
-      document_root_directory: repository.document_root_directory,
-      root_document_path: repository.root_document_path,
-      root_path: repository.root_path
-    },
-    constructedPath: defaultPath
-  })
-  
-  // ドキュメントを読み込み
-  documentStore.fetchDocument(defaultPath).then(() => {
-    toast.add({
-      severity: 'success',
-      summary: 'リポジトリ選択',
-      detail: `${repository.name} のドキュメントを読み込みました`,
-      life: 2000
-    })
-  }).catch(() => {
-    toast.add({
-      severity: 'warn',
-      summary: 'リポジトリ選択',
-      detail: `${repository.name} が選択されました（ドキュメント読み込み失敗）`,
-      life: 3000
-    })
-  })
-  
-  // ドキュメント表示ページに移動
-  router.push(`/documents/${repository.id}`)
+  openRepository(repository)
 }
 
-async function handleRefreshRepositories() {
-  await loadRepositories()
-  await checkRepositoriesHealth()
-  
-  toast.add({
-    severity: 'success',
-    summary: '更新完了',
-    detail: 'リポジトリ一覧を更新しました',
-    life: 2000
-  })
+function handleRefreshRepositories() {
+  refreshRepositories()
 }
 
-async function handleRefreshRepository(repository: RepositoryResponse) {
-  loadingRepositories.value.push(repository.id)
-  
-  try {
-    await repositoryStore.checkRepositoryHealth(repository)
-    toast.add({
-      severity: 'success',
-      summary: '更新完了',
-      detail: `${repository.name} の状態を更新しました`,
-      life: 2000
-    })
-  } catch (error) {
-    console.error('リポジトリの更新に失敗:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'エラー',
-      detail: 'リポジトリの更新に失敗しました',
-      life: 3000
-    })
-  } finally {
-    loadingRepositories.value = loadingRepositories.value.filter(id => id !== repository.id)
-  }
+function handleRefreshRepository(repository: RepositoryResponse) {
+  refreshRepositoryHealth(repository)
 }
 
 function handleCloneRepository(repository: RepositoryResponse) {
-  // クローン機能（将来実装）
-  toast.add({
-    severity: 'info',
-    summary: '機能予定',
-    detail: 'クローン機能は今後実装予定です',
-    life: 3000
-  })
+  const clonedData = cloneRepository(repository)
+  selectedRepository.value = null
+  showForm.value = true
+  
+  // Note: クローン機能は将来のRepositoryFormの改良で完全実装予定
 }
 
 function handleViewDetails(repository: RepositoryResponse) {
@@ -442,17 +215,6 @@ function editFromDetails() {
 }
 
 // ユーティリティ
-function getRepositoryHealthStatus(repository: RepositoryResponse | null): 'healthy' | 'unhealthy' | 'unknown' {
-  if (!repository) return 'unknown'
-  
-  const healthStatusValue = repositoryStore.healthStatus[repository.id]
-  
-  // healthStatus is boolean or undefined
-  if (healthStatusValue === true) return 'healthy'
-  if (healthStatusValue === false) return 'unhealthy'
-  return 'unknown'
-}
-
 function formatDateTime(dateString: string): string {
   return new Date(dateString).toLocaleString('ja-JP', {
     year: 'numeric',

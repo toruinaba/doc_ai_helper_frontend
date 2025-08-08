@@ -9,14 +9,166 @@
     >
       <div class="controls-content">
         <slot name="controls-content">
-          <ControlsContent />
+          <!-- 標準テンプレート形式の内容 -->
+          <div class="controls-grid">
+            <!-- 検索セクション -->
+            <div v-if="showSearch" class="search-section">
+              <IconField>
+                <InputIcon class="pi pi-search" />
+                <InputText 
+                  :modelValue="searchQuery"
+                  :placeholder="searchPlaceholder"
+                  class="search-input"
+                  @update:modelValue="handleSearchInput"
+                />
+              </IconField>
+            </div>
+            
+            <!-- フィルターセクション -->
+            <div class="filter-section">
+              <ServiceSelector
+                v-if="showServiceFilter"
+                :modelValue="selectedService"
+                placeholder="サービス"
+                class="service-filter"
+                @update:modelValue="handleServiceChange"
+              />
+              
+              <Dropdown
+                v-for="filter in customFilters"
+                :key="filter.key"
+                :modelValue="filter.value"
+                :options="filter.options"
+                optionLabel="label"
+                optionValue="value"
+                :placeholder="filter.label"
+                :showClear="filter.showClear !== false"
+                :class="`filter-${filter.key}`"
+                @update:modelValue="(value) => handleCustomFilterChange(filter.key, value)"
+              />
+            </div>
+            
+            <!-- アクションセクション -->
+            <div class="actions-section">
+              <Dropdown
+                v-if="showSort && sortOptions?.length"
+                :modelValue="sortBy"
+                :options="sortOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="ソート"
+                class="sort-dropdown"
+                @update:modelValue="handleSortChange"
+              />
+              
+              <SelectButton
+                v-if="showViewMode && viewModeOptions?.length"
+                :modelValue="viewMode"
+                :options="viewModeOptions"
+                optionLabel="label"
+                optionValue="value"
+                class="view-mode-selector"
+                @update:modelValue="handleViewModeChange"
+              >
+                <template #option="{ option }">
+                  <i :class="option.icon"></i>
+                </template>
+              </SelectButton>
+              
+              <Button
+                v-if="showRefresh"
+                :loading="loading"
+                :disabled="loading"
+                icon="pi pi-refresh"
+                class="refresh-button"
+                severity="secondary"
+                @click="handleRefresh"
+              />
+            </div>
+          </div>
         </slot>
       </div>
     </FormSection>
     
     <div v-else class="controls-content">
       <slot name="controls-content">
-        <ControlsContent />
+        <!-- 標準テンプレート形式の内容 -->
+        <div class="controls-grid">
+          <!-- 検索セクション -->
+          <div v-if="showSearch" class="search-section">
+            <IconField>
+              <InputIcon class="pi pi-search" />
+              <InputText 
+                :modelValue="searchQuery"
+                :placeholder="searchPlaceholder"
+                class="search-input"
+                @update:modelValue="handleSearchInput"
+              />
+            </IconField>
+          </div>
+          
+          <!-- フィルターセクション -->
+          <div class="filter-section">
+            <ServiceSelector
+              v-if="showServiceFilter"
+              :modelValue="selectedService"
+              placeholder="サービス"
+              class="service-filter"
+              @update:modelValue="handleServiceChange"
+            />
+            
+            <Dropdown
+              v-for="filter in customFilters"
+              :key="filter.key"
+              :modelValue="filter.value"
+              :options="filter.options"
+              optionLabel="label"
+              optionValue="value"
+              :placeholder="filter.label"
+              :showClear="filter.showClear !== false"
+              :class="`filter-${filter.key}`"
+              @update:modelValue="(value) => handleCustomFilterChange(filter.key, value)"
+            />
+          </div>
+          
+          <!-- アクションセクション -->
+          <div class="actions-section">
+            <Dropdown
+              v-if="showSort && sortOptions?.length"
+              :modelValue="sortBy"
+              :options="sortOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="ソート"
+              class="sort-dropdown"
+              @update:modelValue="handleSortChange"
+            />
+            
+            <SelectButton
+              v-if="showViewMode && viewModeOptions?.length"
+              :modelValue="viewMode"
+              :options="viewModeOptions"
+              optionLabel="label"
+              optionValue="value"
+              class="view-mode-selector"
+              @update:modelValue="handleViewModeChange"
+            >
+              <template #option="{ option }">
+                <i :class="option.icon"></i>
+              </template>
+            </SelectButton>
+            
+            <Button
+              v-if="showRefresh"
+              :loading="loading"
+              :disabled="loading"
+              icon="pi pi-refresh"
+              class="refresh-button"
+              severity="secondary"
+              @click="handleRefresh"
+            />
+          </div>
+        </div>
       </slot>
     </div>
   </div>
@@ -153,15 +305,11 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
-const controlsClass = computed(() => {
-  const classes = [`list-controls--${props.layout}`];
-  
-  if (props.compact) {
-    classes.push('list-controls--compact');
-  }
-  
-  return classes;
-});
+const controlsClass = computed(() => ({
+  [`layout-${props.layout}`]: true,
+  'compact': props.compact,
+  'loading': props.loading
+}));
 
 // デフォルトのソートオプション
 const defaultSortOptions: SortOption[] = [
@@ -198,111 +346,7 @@ function handleRefresh() {
   emit('refresh');
 }
 
-// コンポーネント定義（内部使用）
-function ControlsContent() {
-  return null; // Vueの関数コンポーネントとして使用
-}
-</script>
-
-<script lang="ts">
-// 内部コンポーネント定義
-export default {
-  components: {
-    ControlsContent: {
-      template: `
-        <div class="controls-grid">
-          <!-- 検索セクション -->
-          <div v-if="showSearch" class="search-section">
-            <IconField>
-              <InputIcon class="pi pi-search" />
-              <InputText 
-                :modelValue="searchQuery"
-                :placeholder="searchPlaceholder"
-                class="search-input"
-                @update:modelValue="handleSearchInput"
-              />
-            </IconField>
-          </div>
-          
-          <!-- フィルターセクション -->
-          <div class="filter-section">
-            <!-- サービスフィルター -->
-            <ServiceSelector
-              v-if="showServiceFilter"
-              :modelValue="selectedService"
-              :placeholder="'サービス'"
-              class="service-filter"
-              @update:modelValue="handleServiceChange"
-            />
-            
-            <!-- カスタムフィルター -->
-            <Dropdown
-              v-for="filter in customFilters"
-              :key="filter.key"
-              :modelValue="filter.value"
-              :options="filter.options"
-              :optionLabel="(option) => option.label"
-              :optionValue="(option) => option.value"
-              :placeholder="filter.label"
-              :showClear="filter.showClear !== false"
-              :class="[\`filter-\${filter.key}\`]"
-              @update:modelValue="(value) => handleCustomFilterChange(filter.key, value)"
-            />
-            
-            <!-- ソート -->
-            <Dropdown
-              v-if="showSort"
-              :modelValue="sortBy"
-              :options="computedSortOptions"
-              :optionLabel="(option) => option.label"
-              :optionValue="(option) => option.value"
-              placeholder="並び替え"
-              class="sort-dropdown"
-              @update:modelValue="handleSortChange"
-            />
-          </div>
-          
-          <!-- コントロールセクション -->
-          <div class="view-controls">
-            <!-- 更新ボタン -->
-            <Button
-              v-if="showRefresh"
-              icon="pi pi-refresh"
-              severity="secondary"
-              outlined
-              :loading="loading"
-              @click="handleRefresh"
-              v-tooltip="'更新'"
-            />
-            
-            <!-- ビューモード切り替え -->
-            <SelectButton
-              v-if="showViewMode"
-              :modelValue="viewMode"
-              :options="viewModeOptions"
-              :optionLabel="(option) => option.label"
-              :optionValue="(option) => option.value"
-              @update:modelValue="handleViewModeChange"
-            />
-          </div>
-        </div>
-      `,
-      props: ['searchQuery', 'searchPlaceholder', 'showSearch', 'selectedService', 'showServiceFilter', 'customFilters', 'sortOptions', 'sortBy', 'showSort', 'viewModeOptions', 'viewMode', 'showViewMode', 'showRefresh', 'loading', 'showAsSection', 'sectionTitle', 'sectionIcon', 'sectionCollapsible', 'sectionCollapsed', 'layout', 'compact'],
-      emits: ['update:searchQuery', 'update:selectedService', 'update:customFilter', 'update:sortBy', 'update:viewMode', 'refresh'],
-      setup(props: any, { emit }: any) {
-        return {
-          handleSearchInput: (value: string) => emit('update:searchQuery', value),
-          handleServiceChange: (value: GitServiceType | null) => emit('update:selectedService', value),
-          handleCustomFilterChange: (key: string, value: any) => emit('update:customFilter', key, value),
-          handleSortChange: (value: string) => emit('update:sortBy', value),
-          handleViewModeChange: (value: string) => emit('update:viewMode', value),
-          handleRefresh: () => emit('refresh'),
-          computedSortOptions
-        };
-      }
-    }
-  }
-};
+// 標準Vue SFC形式への簡略化完了
 </script>
 
 <style scoped>
@@ -310,7 +354,7 @@ export default {
   margin-bottom: var(--app-spacing-base);
 }
 
-.list-controls--compact {
+.compact {
   margin-bottom: var(--app-spacing-sm);
 }
 
@@ -325,12 +369,12 @@ export default {
   flex-wrap: wrap;
 }
 
-.list-controls--vertical .controls-grid {
+.layout-vertical .controls-grid {
   flex-direction: column;
   align-items: stretch;
 }
 
-.list-controls--grid .controls-grid {
+.layout-grid .controls-grid {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: var(--app-spacing-base);
@@ -352,7 +396,7 @@ export default {
   align-items: center;
 }
 
-.view-controls {
+.actions-section {
   display: flex;
   gap: var(--app-spacing-sm);
   align-items: center;
@@ -367,27 +411,32 @@ export default {
 }
 
 /* コンパクトモード */
-.list-controls--compact .controls-grid {
+.compact .controls-grid {
   gap: var(--app-spacing-sm);
 }
 
-.list-controls--compact .search-section {
+.compact .search-section {
   min-width: 200px;
 }
 
-.list-controls--compact .filter-section {
+.compact .filter-section {
   gap: var(--app-spacing-xs);
 }
 
-.list-controls--compact .service-filter,
-.list-controls--compact .sort-dropdown,
-.list-controls--compact .filter-section :deep(.p-dropdown) {
+.compact .service-filter,
+.compact .sort-dropdown,
+.compact .filter-section :deep(.p-dropdown) {
   min-width: 120px;
+}
+
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 /* レスポンシブ対応 */
 @media (max-width: 1024px) {
-  .list-controls--grid .controls-grid {
+  .layout-grid .controls-grid {
     grid-template-columns: 1fr;
     gap: var(--app-spacing-sm);
   }
@@ -405,7 +454,7 @@ export default {
     align-items: stretch;
   }
   
-  .view-controls {
+  .actions-section {
     justify-content: center;
     flex-wrap: wrap;
   }
@@ -423,15 +472,15 @@ export default {
 }
 
 @media (max-width: 480px) {
-  .view-controls {
+  .actions-section {
     flex-direction: column;
   }
   
-  .view-controls :deep(.p-selectbutton) {
+  .actions-section :deep(.p-selectbutton) {
     width: 100%;
   }
   
-  .view-controls :deep(.p-button) {
+  .actions-section :deep(.p-button) {
     width: 100%;
     justify-content: center;
   }

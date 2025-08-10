@@ -1,11 +1,23 @@
 <template>
-  <div class="rendered-content markdown-content" v-html="renderedContent" @click="handleLinkClick"></div>
+  <div>
+    <!-- エラー表示はPrimeVue Messageコンポーネント使用 -->
+    <Message v-if="hasError" severity="error" :closable="false">
+      <div>
+        <h6 style="margin: 0 0 0.5rem 0; font-weight: 600;">{{ errorTitle }}</h6>
+        <p style="margin: 0; font-size: 0.875rem;">{{ errorMessage }}</p>
+      </div>
+    </Message>
+    
+    <!-- 正常なコンテンツ表示 -->
+    <div v-else class="rendered-content markdown-content" v-html="renderedContent" @click="handleLinkClick"></div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, watch } from 'vue';
+import { computed, nextTick, watch, ref } from 'vue';
 import { renderMarkdown, extractFrontmatter } from '@/utils/markdown.util';
 import { sanitizeHtml, sanitizeQuartoHtml, escapeHtml, processHtmlLinksWithResponsibilityBoundary } from '@/utils/html.util';
+import Message from 'primevue/message';
 import mermaid from 'mermaid';
 
 interface Props {
@@ -21,13 +33,16 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// ドキュメントタイプ別のレンダリング処理 - 責任分界アプローチ対応
+// エラー状態管理
+const errorTitle = ref('');
+const errorMessage = ref('');
+const hasError = computed(() => errorTitle.value || errorMessage.value);
+
+// ドキュメントタイプ別のレンダリング処理
 const renderedContent = computed(() => {
-  // currentDocumentStateが渡されている場合の対応
   const documentData = props.document.content || props.document;
   const documentContent = documentData?.content?.content || documentData?.content;
   
-  // typeの取得を複数の箇所から試行
   const documentType = props.document.type || 
                       props.document?.content?.type || 
                       documentData?.type;
@@ -36,24 +51,17 @@ const renderedContent = computed(() => {
     return '';
   }
 
-  // ドキュメントタイプが取得できない場合はエラー処理
+  // エラー状態をクリア
+  errorTitle.value = '';
+  errorMessage.value = '';
   if (!documentType || documentType === 'unknown') {
-    console.error('Document type is undefined or unknown:', {
-      documentType,
-      documentData,
-      propsDocument: props.document
-    });
-    return `<div class="document-error">
-      <h3>ドキュメントタイプエラー</h3>
-      <p>ドキュメントのタイプが特定できません。</p>
-      <p>受信データ: <code>${JSON.stringify({ type: documentType, hasContent: !!documentContent })}</code></p>
-    </div>`;
+    console.error('Document type is undefined or unknown:', documentType);
+    errorTitle.value = 'ドキュメントタイプエラー';
+    errorMessage.value = 'ドキュメントのタイプが特定できません。';
+    return '';
   }
 
-  // トランスフォーム済みコンテンツがある場合はそれを使う
   const content = documentData.transformed_content || documentContent;
-  
-  // ドキュメントタイプに応じてレンダリング方法を切り替え
   
   switch (documentType) {
     case 'markdown':
@@ -95,10 +103,9 @@ const renderedContent = computed(() => {
     default:
       // 予期しないdocumentTypeの場合はエラー処理
       console.error('Unexpected document type:', documentType);
-      return `<div class="document-error">
-        <h3>未対応のドキュメントタイプ</h3>
-        <p>ドキュメントタイプ '<code>${documentType}</code>' は対応していません。</p>
-      </div>`;
+      errorTitle.value = '未対応のドキュメントタイプ';
+      errorMessage.value = `ドキュメントタイプ '${documentType}' は対応していません。`;
+      return '';
   }
 });
 
@@ -245,34 +252,7 @@ watch(renderedContent, () => {
   border: 1px solid var(--app-surface-border);
 }
 
-/* エラー表示のスタイル */
-.rendered-content :deep(.document-error) {
-  margin: 1.5em 0;
-  padding: var(--app-spacing-lg);
-  background-color: var(--app-surface-error, #f8d7da);
-  border: 1px solid var(--app-border-error, #f5c6cb);
-  border-radius: var(--app-border-radius);
-  color: var(--app-text-color-error, #721c24);
-}
-
-.rendered-content :deep(.document-error h3) {
-  margin: 0 0 0.5rem 0;
-  font-size: var(--app-font-size-lg);
-  font-weight: 600;
-  color: var(--app-text-color-error, #721c24);
-}
-
-.rendered-content :deep(.document-error p) {
-  margin: 0.25rem 0;
-  font-size: var(--app-font-size-sm);
-}
-
-.rendered-content :deep(.document-error code) {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 0.125rem 0.25rem;
-  border-radius: 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-}
+/* エラー表示はPrimeVue Messageコンポーネントで処理済み */
 
 .rendered-content :deep(.mermaid-diagram svg) {
   max-width: 100%;

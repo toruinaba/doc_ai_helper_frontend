@@ -141,11 +141,30 @@ const frontmatter = computed(() => {
 
 // Simple link handler for DocumentContent
 const handleLinkClick = async (event: MouseEvent) => {
-  event.preventDefault();
   const target = event.target as HTMLAnchorElement;
-  if (target && target.href) {
-    const href = target.getAttribute('href') || target.href;
-    await navigateToDocument({ documentPath: href });
+  if (!target || !target.tagName || target.tagName.toLowerCase() !== 'a') {
+    return;
+  }
+
+  const linkType = target.getAttribute('data-link-type');
+  
+  // 外部リンクは通常の動作を許可
+  if (linkType === 'external') {
+    return;
+  }
+  
+  // アンカーリンクは通常の動作を許可（同一ページ内スクロール）
+  if (linkType === 'anchor') {
+    return;
+  }
+  
+  // 内部リンクのみナビゲーション処理
+  if (linkType === 'internal') {
+    event.preventDefault();
+    const documentPath = target.getAttribute('data-document-path');
+    if (documentPath) {
+      await navigateToDocument({ documentPath });
+    }
   }
 };
 

@@ -1,126 +1,125 @@
 <template>
-  <div class="repository-details" v-if="repository">
+  <div class="u-max-w-4xl" v-if="repository">
     <FormSection title="基本情報" icon="pi pi-info-circle">
-      <div class="details-grid">
-        <div class="detail-item">
-          <label>リポジトリ名</label>
-          <span class="detail-value">{{ repository.name }}</span>
+      <div class="u-grid u-grid-cols-2 tablet:u-grid-cols-1 u-gap-base">
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">リポジトリ名</label>
+          <span class="u-text-base">{{ repository.name }}</span>
         </div>
         
-        <div class="detail-item">
-          <label>所有者</label>
-          <span class="detail-value">{{ repository.owner }}</span>
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">所有者</label>
+          <span class="u-text-base">{{ repository.owner }}</span>
         </div>
         
-        <div v-if="repository.description" class="detail-item full-width">
-          <label>説明</label>
-          <span class="detail-value">{{ repository.description }}</span>
+        <div v-if="repository.description" class="u-flex u-flex-column u-gap-xs u-col-span-2 tablet:u-col-span-1">
+          <label class="u-font-medium u-text-sm u-text-muted">説明</label>
+          <span class="u-text-base u-break-words">{{ repository.description }}</span>
         </div>
         
-        <div class="detail-item">
-          <label>サービス</label>
-          <div class="service-value">
-            <i :class="getServiceIcon(repository.service_type)" class="service-icon"></i>
-            <span>{{ getServiceLabel(repository.service_type) }}</span>
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">サービス</label>
+          <div class="u-flex u-flex-center u-gap-sm">
+            <i :class="getServiceIcon(repository.service_type)" class="u-text-primary u-text-lg"></i>
+            <span class="u-text-base">{{ getServiceLabel(repository.service_type) }}</span>
           </div>
         </div>
         
-        <div class="detail-item">
-          <label>URL</label>
-          <a :href="repository.url" target="_blank" class="url-link">
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">URL</label>
+          <a :href="repository.url" target="_blank" class="u-text-primary u-no-underline u-flex u-flex-center u-gap-xs u-break-all u-transition-colors hover:u-text-primary-600 hover:u-underline">
             {{ repository.url }}
-            <i class="pi pi-external-link"></i>
+            <i class="pi pi-external-link u-flex-none"></i>
           </a>
         </div>
       </div>
     </FormSection>
 
     <FormSection title="Git設定" icon="pi pi-code-branch">
-      <div class="details-grid">
-        <div class="detail-item">
-          <label>デフォルトブランチ</label>
-          <span class="detail-value branch-name">
-            <i class="pi pi-code-branch"></i>
-            {{ repository.default_branch || 'main' }}
+      <div class="u-grid u-grid-cols-2 tablet:u-grid-cols-1 u-gap-base">
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">デフォルトブランチ</label>
+          <span class="u-flex u-flex-center u-gap-xs">
+            <i class="pi pi-code-branch u-text-primary"></i>
+            <span class="u-text-base">{{ repository.default_branch || 'main' }}</span>
           </span>
         </div>
         
-        <div v-if="repository.base_url" class="detail-item">
-          <label>ベースURL</label>
-          <span class="detail-value">{{ repository.base_url }}</span>
+        <div v-if="repository.base_url" class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">ベースURL</label>
+          <span class="u-text-base">{{ repository.base_url }}</span>
         </div>
       </div>
     </FormSection>
 
     <FormSection title="ドキュメント設定" icon="pi pi-file">
-      <div class="details-grid">
-        <div v-if="repository.document_root_directory" class="detail-item">
-          <label>ドキュメントルートディレクトリ</label>
-          <span class="detail-value directory-path">
-            <i class="pi pi-folder"></i>
-            {{ repository.document_root_directory }}
+      <div class="u-grid u-grid-cols-2 tablet:u-grid-cols-1 u-gap-base">
+        <div v-if="repository.document_root_directory" class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">ドキュメントルートディレクトリ</label>
+          <span class="u-flex u-flex-center u-gap-xs u-font-mono u-text-sm">
+            <i class="pi pi-folder u-text-primary"></i>
+            <span>{{ repository.document_root_directory }}</span>
           </span>
         </div>
         
-        <div v-if="repository.root_document_path" class="detail-item">
-          <label>ルートドキュメントパス</label>
-          <span class="detail-value file-path">
-            <i class="pi pi-file"></i>
-            {{ repository.root_document_path }}
+        <div v-if="repository.root_document_path" class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">ルートドキュメントパス</label>
+          <span class="u-flex u-flex-center u-gap-xs u-font-mono u-text-sm">
+            <i class="pi pi-file u-text-primary"></i>
+            <span>{{ repository.root_document_path }}</span>
           </span>
         </div>
       </div>
     </FormSection>
 
     <FormSection title="アクセス設定" icon="pi pi-shield">
-      <div class="details-grid">
-        <div class="detail-item">
-          <label>公開リポジトリ</label>
-          <span class="detail-value">
-            <i :class="repository.is_public ? 'pi pi-check text-green' : 'pi pi-times text-muted'"></i>
-            {{ repository.is_public ? 'はい' : 'いいえ' }}
+      <div class="u-grid u-grid-cols-2 tablet:u-grid-cols-1 u-gap-base">
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">公開リポジトリ</label>
+          <span class="u-flex u-flex-center u-gap-sm">
+            <i :class="repository.is_public ? 'pi pi-check u-text-success-500' : 'pi pi-times u-text-muted'"></i>
+            <span class="u-text-base">{{ repository.is_public ? 'はい' : 'いいえ' }}</span>
           </span>
         </div>
         
-        <div v-if="!repository.is_public && repository.access_token" class="detail-item">
-          <label>アクセストークン</label>
-          <span class="detail-value token-value">
-            <span>{{ maskedToken }}</span>
+        <div v-if="!repository.is_public && repository.access_token" class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">アクセストークン</label>
+          <div class="u-flex u-flex-between u-flex-center tablet:u-flex-column tablet:u-items-start tablet:u-gap-xs">
+            <span class="u-font-mono u-text-sm">{{ maskedToken }}</span>
             <Button
               icon="pi pi-eye"
               severity="secondary"
               text
               size="small"
               @click="toggleTokenVisibility"
-              class="toggle-token-btn"
             />
-          </span>
+          </div>
         </div>
       </div>
     </FormSection>
 
     <FormSection title="状態情報" icon="pi pi-info">
-      <div class="details-grid">
-        <div class="detail-item">
-          <label>状態</label>
-          <div class="status-value">
+      <div class="u-grid u-grid-cols-2 tablet:u-grid-cols-1 u-gap-base">
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">状態</label>
+          <div class="u-flex u-flex-center u-gap-sm">
             <i 
               :class="getStatusIcon(healthStatus)" 
               :style="{ color: getStatusColor(healthStatus) }"
-              class="status-icon"
+              class="u-text-lg"
             ></i>
-            <span>{{ getStatusLabel(healthStatus) }}</span>
+            <span class="u-text-base">{{ getStatusLabel(healthStatus) }}</span>
           </div>
         </div>
         
-        <div class="detail-item">
-          <label>作成日時</label>
-          <span class="detail-value">{{ formatDate(repository.created_at) }}</span>
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">作成日時</label>
+          <span class="u-text-base">{{ formatDate(repository.created_at) }}</span>
         </div>
         
-        <div class="detail-item">
-          <label>更新日時</label>
-          <span class="detail-value">{{ formatDate(repository.updated_at) }}</span>
+        <div class="u-flex u-flex-column u-gap-xs">
+          <label class="u-font-medium u-text-sm u-text-muted">更新日時</label>
+          <span class="u-text-base">{{ formatDate(repository.updated_at) }}</span>
         </div>
       </div>
     </FormSection>
@@ -250,133 +249,12 @@ function formatDate(dateString?: string): string {
 </script>
 
 <style scoped>
-.repository-details {
-  max-width: 800px;
-}
-
-.details-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--app-spacing-base);
-  margin-top: var(--app-spacing-base);
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-spacing-xs);
-}
-
-.detail-item.full-width {
-  grid-column: 1 / -1;
-}
-
-.detail-item label {
-  font-weight: 500;
-  font-size: var(--app-font-size-sm);
-  color: var(--app-text-color-secondary);
-}
-
-.detail-value {
-  font-size: var(--app-font-size-base);
-  color: var(--app-text-color);
-  word-break: break-word;
-}
-
-.service-value {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-sm);
-}
-
-.service-icon {
-  color: var(--app-primary-color);
-  font-size: 1.1rem;
-}
-
-.url-link {
-  color: var(--app-primary-color);
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-xs);
-  word-break: break-all;
-  transition: color var(--app-transition-fast);
-}
-
-.url-link:hover {
-  color: var(--app-primary-600);
-  text-decoration: underline;
-}
-
-.branch-name {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-xs);
-}
-
-.branch-name .pi {
-  color: var(--app-primary-color);
-}
-
-.directory-path,
-.file-path {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-xs);
-  font-family: var(--app-font-mono, 'Consolas', 'Monaco', monospace);
-  font-size: var(--app-font-size-sm);
-}
-
-.directory-path .pi,
-.file-path .pi {
-  color: var(--app-primary-color);
-}
-
-.token-value {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: var(--app-font-mono, 'Consolas', 'Monaco', monospace);
-  font-size: var(--app-font-size-sm);
-}
-
-.toggle-token-btn {
-  margin-left: var(--app-spacing-xs);
-}
-
-.status-value {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-sm);
-}
-
-.status-icon {
-  font-size: 1.1rem;
-}
-
-.text-green {
-  color: var(--p-green-500) !important;
-}
-
-.text-muted {
-  color: var(--app-text-color-muted) !important;
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-  .details-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .detail-item.full-width {
-    grid-column: 1;
-  }
-  
-  .token-value {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--app-spacing-xs);
-  }
-}
+/*
+ * PrimeVue v4 ユーティリティクラスで最大最適化
+ * - レスポンシブグリッドレイアウト
+ * - ユーティリティクラスでspacing/色/typography処理
+ * - tablet:プレフィックスでレスポンシブ対応
+ * 
+ * CSS記述量: 130行 → 4行 (97%削減)
+ */
 </style>

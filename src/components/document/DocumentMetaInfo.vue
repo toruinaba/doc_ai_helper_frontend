@@ -4,11 +4,11 @@
       <i class="pi pi-code-branch"></i>
       {{ repositoryContext.ref }} ブランチ
     </span>
-    <span v-if="document?.metadata.last_modified" class="last-modified">
+    <span v-if="document?.metadata?.last_modified" class="last-modified">
       <i class="pi pi-calendar"></i>
       最終更新: {{ formatDate(document.metadata.last_modified) }}
     </span>
-    <span v-if="document?.metadata.size" class="file-size">
+    <span v-if="document?.metadata?.size" class="file-size">
       <i class="pi pi-file"></i>
       {{ formatFileSize(document.metadata.size) }}
     </span>

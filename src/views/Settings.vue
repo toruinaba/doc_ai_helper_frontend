@@ -83,21 +83,21 @@
       </Card>
 
       <!-- ドキュメントコンテキスト設定 -->
-      <Card class="settings-section">
+      <Card class="u-mb-xl u-shadow-card">
         <template #title>
-          <div class="section-title">
-            <i class="pi pi-file-text"></i>
+          <div class="u-flex u-flex-center u-gap-sm u-text-xl u-font-semibold">
+            <i class="pi pi-file-text u-text-primary"></i>
             <span>ドキュメント設定</span>
           </div>
         </template>
         <template #content>
-          <div class="settings-group">
-            <div class="setting-item">
-              <div class="setting-label">
-                <label for="include-document">ドキュメント自動インクルード</label>
-                <p class="setting-description">システムプロンプトに現在のドキュメント内容を含める</p>
+          <div class="u-flex u-flex-column u-gap-lg">
+            <div class="u-flex u-flex-between u-flex-center tablet:u-flex-column tablet:u-items-stretch tablet:u-gap-base">
+              <div class="u-flex u-flex-column u-gap-xs u-flex-1">
+                <label for="include-document" class="u-font-medium u-cursor-pointer">ドキュメント自動インクルード</label>
+                <p class="u-text-sm u-text-muted u-m-0">システムプロンプトに現在のドキュメント内容を含める</p>
               </div>
-              <div class="setting-control">
+              <div class="u-flex u-justify-center tablet:u-justify-stretch">
                 <ToggleButton 
                   id="include-document"
                   v-model="documentSettings.includeDocumentInSystemPrompt" 
@@ -108,12 +108,12 @@
               </div>
             </div>
             
-            <div class="setting-item">
-              <div class="setting-label">
-                <label for="repository-context">ドキュメントコンテキスト</label>
-                <p class="setting-description">ドキュメントの情報をAIに提供します</p>
+            <div class="u-flex u-flex-between u-flex-center tablet:u-flex-column tablet:u-items-stretch tablet:u-gap-base">
+              <div class="u-flex u-flex-column u-gap-xs u-flex-1">
+                <label for="repository-context" class="u-font-medium u-cursor-pointer">ドキュメントコンテキスト</label>
+                <p class="u-text-sm u-text-muted u-m-0">ドキュメントの情報をAIに提供します</p>
               </div>
-              <div class="setting-control">
+              <div class="u-flex u-justify-center tablet:u-justify-stretch">
                 <ToggleButton 
                   id="repository-context"
                   v-model="documentSettings.enableRepositoryContext" 
@@ -124,12 +124,12 @@
               </div>
             </div>
             
-            <div class="setting-item">
-              <div class="setting-label">
-                <label for="document-metadata">ドキュメントメタデータ</label>
-                <p class="setting-description">ファイルの更新日時などのメタデータを含める</p>
+            <div class="u-flex u-flex-between u-flex-center tablet:u-flex-column tablet:u-items-stretch tablet:u-gap-base">
+              <div class="u-flex u-flex-column u-gap-xs u-flex-1">
+                <label for="document-metadata" class="u-font-medium u-cursor-pointer">ドキュメントメタデータ</label>
+                <p class="u-text-sm u-text-muted u-m-0">ファイルの更新日時などのメタデータを含める</p>
               </div>
-              <div class="setting-control">
+              <div class="u-flex u-justify-center tablet:u-justify-stretch">
                 <ToggleButton 
                   id="document-metadata"
                   v-model="documentSettings.enableDocumentMetadata" 
@@ -139,7 +139,6 @@
                 />
               </div>
             </div>
-            
           </div>
         </template>
       </Card>

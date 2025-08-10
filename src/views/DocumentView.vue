@@ -8,9 +8,9 @@
         <Splitter :style="{ height: 'calc(100vh - var(--app-header-height))' }" class="main-splitter">
           <SplitterPanel :size="60" :minSize="40" class="document-panel">
             <DocumentViewer 
-              :repository-id="props.repositoryId"
-              :document-path="props.documentPath"
-              :ref="props.ref"
+              :repository-id="documentViewerProps.repositoryId"
+              :document-path="documentViewerProps.documentPath"
+              :ref-name="documentViewerProps.ref"
             />
           </SplitterPanel>
           <SplitterPanel :size="40" :minSize="30" class="chat-panel">
@@ -22,9 +22,9 @@
       <!-- タブレット・モバイル用レイアウト (ドキュメント単体表示 + モーダルチャット) -->
       <div class="mobile-layout">
         <DocumentViewer 
-          :repository-id="props.repositoryId"
-          :document-path="props.documentPath"
-          :ref="props.ref"
+          :repository-id="documentViewerProps.repositoryId"
+          :document-path="documentViewerProps.documentPath"
+          :ref-name="documentViewerProps.ref"
         />
         
         <!-- フローティングチャットボタン -->
@@ -70,7 +70,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import AppNavigation from '@/components/layout/AppNavigation.vue'
 import DocumentViewer from '@/components/document/DocumentViewer.vue'
 import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue'
@@ -78,25 +79,22 @@ import Splitter from 'primevue/splitter'
 import SplitterPanel from 'primevue/splitterpanel'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
-import { useDocumentNavigation } from '@/composables/useDocumentNavigation'
 import type { DocumentViewProps } from '@/types/router'
 
-// Router Props (from router configuration)
-const props = defineProps<DocumentViewProps>()
+// Get route information directly instead of props
+const route = useRoute()
 
-// Document navigation composable
-const {
-  // State
-  currentRepository,
-  currentDocumentState,
-  isLoading,
-  isValidRoute,
-  
-  // Actions
-  navigateToDocument,
-  onBranchChange,
-  onDocumentPathChange
-} = useDocumentNavigation(props)
+// Extract route data
+const repositoryId = computed(() => route.params.repositoryId as string)
+const documentPath = computed(() => route.query.path as string || '')
+const documentRef = computed(() => route.query.ref as string || '')
+
+// Create props object for DocumentViewer
+const documentViewerProps = computed(() => ({
+  repositoryId: repositoryId.value,
+  documentPath: documentPath.value,
+  ref: documentRef.value
+}))
 
 // チャットモーダルの表示状態
 const showChatDialog = ref(false)

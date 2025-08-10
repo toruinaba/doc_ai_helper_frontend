@@ -146,6 +146,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 import Select from 'primevue/select';
+import Card from 'primevue/card';
 import { usePersistedConfig } from '@/composables/usePersistedConfig';
 import { loadSettings, saveDocumentSettings, type DocumentSettings } from '@/utils/settings.util';
 

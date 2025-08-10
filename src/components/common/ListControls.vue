@@ -263,6 +263,8 @@ interface Props {
   layout?: 'horizontal' | 'vertical' | 'grid';
   /** コンパクトモード */
   compact?: boolean;
+  /** カスタムCSSクラス */
+  customClass?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -305,11 +307,10 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
-const controlsClass = computed(() => ({
-  [`layout-${props.layout}`]: true,
-  'compact': props.compact,
-  'loading': props.loading
-}));
+// PrimeVue v4のユーティリティクラスでレイアウト処理するため簡素化
+const controlsClass = computed(() => {
+  return props.customClass ? [props.customClass] : [];
+});
 
 // デフォルトのソートオプション
 const defaultSortOptions: SortOption[] = [
@@ -322,8 +323,8 @@ const computedSortOptions = computed(() => {
   return props.sortOptions.length > 0 ? props.sortOptions : defaultSortOptions;
 });
 
-function handleSearchInput(value: string) {
-  emit('update:searchQuery', value);
+function handleSearchInput(value: string | undefined) {
+  emit('update:searchQuery', value || '');
 }
 
 function handleServiceChange(value: GitServiceType | null) {
@@ -334,8 +335,8 @@ function handleCustomFilterChange(filterKey: string, value: any) {
   emit('update:customFilter', filterKey, value);
 }
 
-function handleSortChange(value: string) {
-  emit('update:sortBy', value);
+function handleSortChange(value: string | undefined) {
+  emit('update:sortBy', value || '');
 }
 
 function handleViewModeChange(value: string) {
@@ -350,139 +351,29 @@ function handleRefresh() {
 </script>
 
 <style scoped>
-.list-controls {
-  margin-bottom: var(--app-spacing-base);
+/*
+ * PrimeVue v4設計トークンベースアーキテクチャで最大最適化
+ * - PrimeVueレスポンシブフォームレイアウト使用
+ * - ユーティリティクラスでflex/grid/spacing処理
+ * - mobile:/tablet:プレフィックスでレスポンシブ対応
+ * 
+ * CSS記述量: 135行 → 15行 (89%削減)
+ */
+
+/* レイアウトバリアント用の最小限スタイル */
+.layout-vertical {
+  flex-direction: column !important;
+  align-items: stretch !important;
 }
 
-.compact {
-  margin-bottom: var(--app-spacing-sm);
-}
-
-.controls-content {
-  width: 100%;
-}
-
-.controls-grid {
-  display: flex;
-  gap: var(--app-spacing-base);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.layout-vertical .controls-grid {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.layout-grid .controls-grid {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: var(--app-spacing-base);
-}
-
-.search-section {
-  flex: 1;
-  min-width: 250px;
-}
-
-.search-input {
-  width: 100%;
-}
-
-.filter-section {
-  display: flex;
-  gap: var(--app-spacing-sm);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.actions-section {
-  display: flex;
-  gap: var(--app-spacing-sm);
-  align-items: center;
-  flex-shrink: 0;
-}
-
-/* フィルターコンポーネントのスタイル */
-.service-filter,
-.sort-dropdown,
-.filter-section :deep(.p-dropdown) {
-  min-width: 140px;
-}
-
-/* コンパクトモード */
-.compact .controls-grid {
-  gap: var(--app-spacing-sm);
-}
-
-.compact .search-section {
-  min-width: 200px;
-}
-
-.compact .filter-section {
-  gap: var(--app-spacing-xs);
-}
-
-.compact .service-filter,
-.compact .sort-dropdown,
-.compact .filter-section :deep(.p-dropdown) {
-  min-width: 120px;
-}
-
-.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 1024px) {
-  .layout-grid .controls-grid {
-    grid-template-columns: 1fr;
-    gap: var(--app-spacing-sm);
-  }
+.layout-grid-3 {
+  display: grid !important;
+  grid-template-columns: 1fr auto auto !important;
 }
 
 @media (max-width: 768px) {
-  .controls-grid {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--app-spacing-sm);
-  }
-  
-  .filter-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .actions-section {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  
-  .search-section {
-    min-width: unset;
-  }
-  
-  .service-filter,
-  .sort-dropdown,
-  .filter-section :deep(.p-dropdown) {
-    min-width: unset;
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .actions-section {
-    flex-direction: column;
-  }
-  
-  .actions-section :deep(.p-selectbutton) {
-    width: 100%;
-  }
-  
-  .actions-section :deep(.p-button) {
-    width: 100%;
-    justify-content: center;
+  .layout-grid-3 {
+    grid-template-columns: 1fr !important;
   }
 }
 </style>

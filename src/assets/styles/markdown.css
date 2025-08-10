@@ -1,0 +1,281 @@
+/**
+ * Markdown Content Styles
+ * DocumentContent.vueから抽出した共通マークダウンスタイル
+ */
+
+/* ====================
+   Base Content Styles 
+   ==================== */
+
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content body {
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+.markdown-content html {
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+/* ====================
+   Headings 
+   ==================== */
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--app-text-color);
+}
+
+.markdown-content h1 {
+  font-size: var(--app-font-size-2xl);
+  border-bottom: 1px solid var(--app-surface-border);
+  padding-bottom: 0.3em;
+}
+
+.markdown-content h2 {
+  font-size: var(--app-font-size-xl);
+  border-bottom: 1px solid var(--app-surface-border);
+  padding-bottom: 0.3em;
+}
+
+.markdown-content h3 {
+  font-size: var(--app-font-size-lg);
+}
+
+.markdown-content h4 {
+  font-size: var(--app-font-size-base);
+}
+
+.markdown-content h5 {
+  font-size: var(--app-font-size-sm);
+}
+
+.markdown-content h6 {
+  font-size: var(--app-font-size-xs);
+}
+
+/* ====================
+   Text Elements 
+   ==================== */
+
+.markdown-content p {
+  margin: 1em 0;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content code {
+  background-color: var(--app-surface-100);
+  padding: 0.2em 0.4em;
+  border-radius: var(--app-border-radius-sm);
+  font-size: 0.9em;
+  font-family: var(--font-family-mono);
+}
+
+/* ====================
+   Lists 
+   ==================== */
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 1em 0;
+  padding-left: 2em;
+}
+
+.markdown-content li {
+  margin: 0.25em 0;
+}
+
+.markdown-content ul ul,
+.markdown-content ol ol,
+.markdown-content ul ol,
+.markdown-content ol ul {
+  margin: 0.25em 0;
+}
+
+/* ====================
+   Links 
+   ==================== */
+
+.markdown-content a {
+  color: var(--app-primary-color);
+  text-decoration: none;
+  transition: var(--app-transition-fast);
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+  color: var(--app-primary-600);
+}
+
+/* ====================
+   Blockquotes 
+   ==================== */
+
+.markdown-content blockquote {
+  margin: 1em 0;
+  padding: 0 1em;
+  border-left: 4px solid var(--app-surface-border);
+  background-color: var(--app-surface-50);
+  font-style: italic;
+}
+
+/* ====================
+   Tables 
+   ==================== */
+
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--app-surface-border);
+  padding: 0.5em;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: var(--app-surface-100);
+  font-weight: 600;
+}
+
+.markdown-content tr:nth-child(even) {
+  background-color: var(--app-surface-50);
+}
+
+/* ====================
+   Code Blocks 
+   ==================== */
+
+.markdown-content pre {
+  background-color: var(--app-surface-100);
+  padding: 1em;
+  border-radius: var(--app-border-radius);
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* ====================
+   Images 
+   ==================== */
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--app-border-radius);
+}
+
+/* ====================
+   Horizontal Rule 
+   ==================== */
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--app-surface-border);
+  margin: 2em 0;
+}
+
+/* ====================
+   KaTeX Support 
+   ==================== */
+
+.markdown-content .katex {
+  font-size: 1em;
+}
+
+.markdown-content .katex-display {
+  margin: 1em 0;
+  text-align: center;
+}
+
+/* ====================
+   Mermaid Diagrams 
+   ==================== */
+
+.markdown-content .mermaid {
+  text-align: center;
+  margin: 1em 0;
+}
+
+.markdown-content .mermaid-diagram {
+  display: block;
+  margin: 1em auto;
+  max-width: 100%;
+}
+
+/* ====================
+   Quarto Specific 
+   ==================== */
+
+.markdown-content .quarto-title {
+  margin-bottom: 1em;
+}
+
+.markdown-content .quarto-subtitle {
+  color: var(--app-text-color-secondary);
+  margin-bottom: 0.5em;
+}
+
+.markdown-content .quarto-authors {
+  margin-bottom: 1em;
+  font-style: italic;
+}
+
+.markdown-content .quarto-date {
+  color: var(--app-text-color-secondary);
+  font-size: var(--app-font-size-sm);
+}
+
+/* ====================
+   Responsive Adjustments 
+   ==================== */
+
+@media (max-width: 768px) {
+  .markdown-content {
+    font-size: var(--app-font-size-sm);
+  }
+  
+  .markdown-content pre {
+    padding: 0.75em;
+  }
+  
+  .markdown-content table {
+    font-size: var(--app-font-size-xs);
+  }
+  
+  .markdown-content th,
+  .markdown-content td {
+    padding: 0.25em;
+  }
+}

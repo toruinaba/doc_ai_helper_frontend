@@ -1,0 +1,619 @@
+/**
+ * Utility CSS Classes
+ * 重複の多いCSSプロパティをユーティリティクラス化
+ * 目標: 全体で200-300行のCSS削減
+ */
+
+/* ====================
+   Flexbox Utilities 
+   ==================== */
+
+/* 基本フレックス */
+.u-flex {
+  display: flex;
+}
+
+.u-inline-flex {
+  display: inline-flex;
+}
+
+/* フレックス方向 */
+.u-flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.u-flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/* アライメント（最頻出パターン） */
+.u-flex-center {
+  display: flex;
+  align-items: center;
+}
+
+.u-flex-center-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.u-flex-between {
+  display: flex;
+  justify-content: space-between;
+}
+
+.u-flex-between-center {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.u-flex-start {
+  display: flex;
+  align-items: flex-start;
+}
+
+.u-flex-end {
+  display: flex;
+  align-items: flex-end;
+}
+
+/* フレックス grow/shrink */
+.u-flex-1 {
+  flex: 1;
+}
+
+.u-flex-auto {
+  flex: auto;
+}
+
+.u-flex-none {
+  flex: none;
+}
+
+/* フレックス wrap */
+.u-flex-wrap {
+  flex-wrap: wrap;
+}
+
+.u-flex-nowrap {
+  flex-wrap: nowrap;
+}
+
+/* ====================
+   Gap Utilities 
+   ==================== */
+
+.u-gap-xs {
+  gap: var(--app-spacing-xs);
+}
+
+.u-gap-sm {
+  gap: var(--app-spacing-sm);
+}
+
+.u-gap-base {
+  gap: var(--app-spacing-base);
+}
+
+.u-gap-md {
+  gap: var(--app-spacing-md);
+}
+
+.u-gap-lg {
+  gap: var(--app-spacing-lg);
+}
+
+.u-gap-xl {
+  gap: var(--app-spacing-xl);
+}
+
+/* Row/Column specific gap */
+.u-gap-x-sm {
+  column-gap: var(--app-spacing-sm);
+}
+
+.u-gap-y-sm {
+  row-gap: var(--app-spacing-sm);
+}
+
+.u-gap-x-base {
+  column-gap: var(--app-spacing-base);
+}
+
+.u-gap-y-base {
+  row-gap: var(--app-spacing-base);
+}
+
+/* ====================
+   Width Utilities 
+   ==================== */
+
+.u-w-full {
+  width: 100%;
+}
+
+.u-w-auto {
+  width: auto;
+}
+
+.u-w-fit {
+  width: fit-content;
+}
+
+.u-min-w-0 {
+  min-width: 0;
+}
+
+.u-max-w-none {
+  max-width: none;
+}
+
+/* ====================
+   Height Utilities 
+   ==================== */
+
+.u-h-full {
+  height: 100%;
+}
+
+.u-h-auto {
+  height: auto;
+}
+
+.u-h-fit {
+  height: fit-content;
+}
+
+/* ====================
+   Spacing Utilities (Padding) 
+   ==================== */
+
+.u-p-0 {
+  padding: 0;
+}
+
+.u-p-xs {
+  padding: var(--app-spacing-xs);
+}
+
+.u-p-sm {
+  padding: var(--app-spacing-sm);
+}
+
+.u-p-base {
+  padding: var(--app-spacing-base);
+}
+
+.u-p-md {
+  padding: var(--app-spacing-md);
+}
+
+.u-p-lg {
+  padding: var(--app-spacing-lg);
+}
+
+.u-p-xl {
+  padding: var(--app-spacing-xl);
+}
+
+/* Directional padding */
+.u-px-sm {
+  padding-left: var(--app-spacing-sm);
+  padding-right: var(--app-spacing-sm);
+}
+
+.u-py-sm {
+  padding-top: var(--app-spacing-sm);
+  padding-bottom: var(--app-spacing-sm);
+}
+
+.u-px-base {
+  padding-left: var(--app-spacing-base);
+  padding-right: var(--app-spacing-base);
+}
+
+.u-py-base {
+  padding-top: var(--app-spacing-base);
+  padding-bottom: var(--app-spacing-base);
+}
+
+/* ====================
+   Spacing Utilities (Margin) 
+   ==================== */
+
+.u-m-0 {
+  margin: 0;
+}
+
+.u-m-auto {
+  margin: auto;
+}
+
+.u-mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.u-my-0 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.u-mb-base {
+  margin-bottom: var(--app-spacing-base);
+}
+
+.u-mt-base {
+  margin-top: var(--app-spacing-base);
+}
+
+.u-ml-auto {
+  margin-left: auto;
+}
+
+.u-mr-auto {
+  margin-right: auto;
+}
+
+/* ====================
+   Text Utilities 
+   ==================== */
+
+.u-text-center {
+  text-align: center;
+}
+
+.u-text-left {
+  text-align: left;
+}
+
+.u-text-right {
+  text-align: right;
+}
+
+.u-text-secondary {
+  color: var(--app-text-color-secondary);
+}
+
+.u-text-muted {
+  color: var(--app-text-color-muted);
+}
+
+/* ====================
+   Font Utilities 
+   ==================== */
+
+.u-font-xs {
+  font-size: var(--app-font-size-xs);
+}
+
+.u-font-sm {
+  font-size: var(--app-font-size-sm);
+}
+
+.u-font-base {
+  font-size: var(--app-font-size-base);
+}
+
+.u-font-lg {
+  font-size: var(--app-font-size-lg);
+}
+
+.u-font-xl {
+  font-size: var(--app-font-size-xl);
+}
+
+.u-font-light {
+  font-weight: 300;
+}
+
+.u-font-normal {
+  font-weight: 400;
+}
+
+.u-font-medium {
+  font-weight: 500;
+}
+
+.u-font-semibold {
+  font-weight: 600;
+}
+
+.u-font-bold {
+  font-weight: 700;
+}
+
+/* ====================
+   Border Utilities 
+   ==================== */
+
+.u-border {
+  border: 1px solid var(--app-surface-border);
+}
+
+.u-border-0 {
+  border: 0;
+}
+
+.u-border-t {
+  border-top: 1px solid var(--app-surface-border);
+}
+
+.u-border-b {
+  border-bottom: 1px solid var(--app-surface-border);
+}
+
+.u-rounded {
+  border-radius: var(--app-border-radius);
+}
+
+.u-rounded-sm {
+  border-radius: var(--app-border-radius-sm);
+}
+
+/* ====================
+   Display Utilities 
+   ==================== */
+
+.u-block {
+  display: block;
+}
+
+.u-inline {
+  display: inline;
+}
+
+.u-inline-block {
+  display: inline-block;
+}
+
+.u-hidden {
+  display: none;
+}
+
+.u-grid {
+  display: grid;
+}
+
+/* ====================
+   Position Utilities 
+   ==================== */
+
+.u-relative {
+  position: relative;
+}
+
+.u-absolute {
+  position: absolute;
+}
+
+.u-fixed {
+  position: fixed;
+}
+
+.u-sticky {
+  position: sticky;
+}
+
+/* ====================
+   Overflow Utilities 
+   ==================== */
+
+.u-overflow-hidden {
+  overflow: hidden;
+}
+
+.u-overflow-auto {
+  overflow: auto;
+}
+
+.u-overflow-visible {
+  overflow: visible;
+}
+
+/* ====================
+   Z-index Utilities 
+   ==================== */
+
+.u-z-10 {
+  z-index: 10;
+}
+
+.u-z-20 {
+  z-index: 20;
+}
+
+.u-z-30 {
+  z-index: 30;
+}
+
+/* ====================
+   Cursor Utilities 
+   ==================== */
+
+.u-cursor-pointer {
+  cursor: pointer;
+}
+
+.u-cursor-default {
+  cursor: default;
+}
+
+.u-cursor-not-allowed {
+  cursor: not-allowed;
+}
+
+/* ====================
+   Transition Utilities 
+   ==================== */
+
+.u-transition {
+  transition: all var(--app-transition-fast);
+}
+
+.u-transition-fast {
+  transition: all var(--app-transition-fast);
+}
+
+.u-transition-slow {
+  transition: all var(--app-transition-slow);
+}
+
+/* ====================
+   Shadow Utilities 
+   ==================== */
+
+.u-shadow {
+  box-shadow: var(--app-shadow-base);
+}
+
+.u-shadow-sm {
+  box-shadow: var(--app-shadow-sm);
+}
+
+.u-shadow-lg {
+  box-shadow: var(--app-shadow-lg);
+}
+
+.u-shadow-none {
+  box-shadow: none;
+}
+
+/* ====================
+   Background Utilities 
+   ==================== */
+
+.u-bg-surface-0 {
+  background-color: var(--app-surface-0);
+}
+
+.u-bg-surface-50 {
+  background-color: var(--app-surface-50);
+}
+
+.u-bg-surface-100 {
+  background-color: var(--app-surface-100);
+}
+
+.u-bg-transparent {
+  background-color: transparent;
+}
+
+/* ====================
+   Common Layout Patterns 
+   ==================== */
+
+/* カード共通パターン */
+.layout-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-spacing-base);
+  padding: var(--app-spacing-md);
+  background: var(--app-surface-0);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-border-radius);
+  box-shadow: var(--app-shadow-sm);
+}
+
+/* フォーム共通パターン */
+.layout-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-spacing-md);
+}
+
+.layout-form-row {
+  display: flex;
+  gap: var(--app-spacing-sm);
+  align-items: center;
+}
+
+/* ボタングループ */
+.layout-button-group {
+  display: flex;
+  gap: var(--app-spacing-sm);
+  align-items: center;
+}
+
+/* センタリング */
+.layout-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Grid パターン */
+.layout-grid {
+  display: grid;
+  gap: var(--app-spacing-base);
+}
+
+.layout-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--app-spacing-base);
+}
+
+.layout-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--app-spacing-base);
+}
+
+.layout-grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--app-spacing-base);
+}
+
+/* ====================
+   Responsive Utilities 
+   ==================== */
+
+/* Mobile First */
+@media (max-width: 480px) {
+  .mobile\:u-flex-column {
+    flex-direction: column;
+  }
+  
+  .mobile\:u-w-full {
+    width: 100%;
+  }
+  
+  .mobile\:u-text-center {
+    text-align: center;
+  }
+  
+  .mobile\:layout-grid-1 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .tablet\:u-flex-column {
+    flex-direction: column;
+  }
+  
+  .tablet\:u-w-full {
+    width: 100%;
+  }
+  
+  .tablet\:layout-grid-1 {
+    grid-template-columns: 1fr;
+  }
+  
+  .tablet\:layout-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 992px) {
+  .desktop\:u-flex-row {
+    flex-direction: row;
+  }
+}

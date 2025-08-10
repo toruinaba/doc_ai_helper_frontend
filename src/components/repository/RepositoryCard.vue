@@ -1,28 +1,36 @@
 <template>
-  <Panel class="repository-card" :class="cardClass">
-    <!-- パネルヘッダー -->
+  <Card 
+    class="u-h-full u-transition repository-card" 
+    :class="{
+      'u-opacity-70': isLoading,
+      'repository-card--unhealthy': healthStatus === 'unhealthy',
+      'repository-card--healthy': healthStatus === 'healthy'
+    }"
+  >
+    <!-- カードヘッダー -->
     <template #header>
-      <div class="repository-header">
-        <div class="repository-title">
-          <i class="pi pi-folder" />
-          <span class="repository-name">{{ truncatedName }}</span>
-          <div class="status-indicator">
+      <div class="u-flex u-flex-center u-gap-base u-w-full mobile:u-flex-wrap mobile:u-gap-sm">
+        <div class="u-flex u-flex-center u-gap-sm u-flex-1 u-min-w-0">
+          <i class="pi pi-folder u-text-primary" style="font-size: 1.1rem" />
+          <span class="u-font-semibold u-font-base u-text-overflow-ellipsis u-whitespace-nowrap u-overflow-hidden">{{ truncatedName }}</span>
+          <div class="u-ml-sm">
             <i 
               :class="statusIcon" 
-              :style="{ color: statusColor }"
+              :style="{ color: statusColor, fontSize: '0.9rem' }"
               v-tooltip="statusTooltip"
             />
           </div>
         </div>
-        <div class="repository-service">
+        <div class="u-flex-none">
           <Tag :value="repository.service_type" :severity="getServiceSeverity(repository.service_type)" />
         </div>
-        <div class="header-actions">
+        <div class="u-flex u-flex-center u-gap-xs u-flex-none u-ml-auto mobile:u-ml-0">
           <Button 
             icon="pi pi-cog"
             size="small"
             severity="secondary"
             text
+            class="u-p-xs"
             @click="$emit('edit', repository)"
             v-tooltip="'設定'"
           />
@@ -31,6 +39,7 @@
             size="small"
             severity="secondary"
             text
+            class="u-p-xs"
             @click="toggleMenu"
             aria-haspopup="true"
             aria-controls="repository-menu"
@@ -48,56 +57,56 @@
       </div>
     </template>
 
-    <!-- パネルコンテンツ -->
-    <template #default>
-      <div class="repository-content">
+    <!-- カードコンテンツ -->
+    <template #content>
+      <div class="u-flex u-flex-column u-gap-base u-h-full">
         <!-- リポジトリ情報 -->
-        <div class="repository-info">
-          <div class="repository-path">
+        <div class="u-flex u-flex-column u-gap-sm">
+          <div class="u-flex u-flex-center u-gap-xs u-text-sm u-text-muted">
             <i class="pi pi-user" />
             <span>{{ repository.owner }}/{{ repository.name }}</span>
           </div>
           
           <!-- 説明文 -->
-          <div v-if="repository.description" class="repository-description">
-            <p>{{ truncatedDescription }}</p>
-          </div>
+          <p v-if="repository.description" class="u-text-sm u-text-secondary u-line-height-relaxed u-m-0">
+            {{ truncatedDescription }}
+          </p>
         </div>
 
         <!-- リポジトリ統計 -->
-        <div class="repository-stats">
-          <div class="stat-item">
+        <div class="u-flex u-flex-column u-gap-xs u-flex-1">
+          <div class="u-flex u-flex-center u-gap-xs u-text-xs u-text-muted">
             <i class="pi pi-code-branch" />
             <span>{{ repository.default_branch }}</span>
           </div>
-          <div class="stat-item">
+          <div class="u-flex u-flex-center u-gap-xs u-text-xs u-text-muted">
             <i class="pi pi-clock" />
             <span>{{ formattedUpdatedAt }}</span>
           </div>
-          <div v-if="repository.is_public !== undefined" class="stat-item">
+          <div v-if="repository.is_public !== undefined" class="u-flex u-flex-center u-gap-xs u-text-xs u-text-muted">
             <i :class="repository.is_public ? 'pi pi-eye' : 'pi pi-eye-slash'" />
             <span>{{ repository.is_public ? '公開' : '非公開' }}</span>
           </div>
         </div>
         
         <!-- フッターアクション -->
-        <div class="repository-actions">
+        <div class="u-mt-auto">
           <Button 
             label="開く" 
             size="small"
             @click="$emit('open', repository)"
             :disabled="!isHealthy"
-            class="open-button"
+            class="u-w-full"
           />
         </div>
       </div>
     </template>
-  </Panel>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import Panel from 'primevue/panel'
+import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
@@ -178,11 +187,12 @@ const statusTooltip = computed(() => {
   return props.isHealthy ? '正常' : 'エラー: 接続できません'
 })
 
-const cardClass = computed(() => ({
-  'repository-card--healthy': props.isHealthy && !props.isLoading,
-  'repository-card--unhealthy': !props.isHealthy && !props.isLoading,
-  'repository-card--loading': props.isLoading
-}))
+// PrimeVue v4 Cardコンポーネントとユーティリティクラスでスタイリング処理するため簡素化
+// cardClassはテンプレートで直接使用
+const healthStatus = computed(() => {
+  if (props.isLoading) return 'loading'
+  return props.isHealthy ? 'healthy' : 'unhealthy'
+})
 
 // メソッド
 function getServiceSeverity(service: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast' {
@@ -235,168 +245,28 @@ const menuItems = computed<MenuItem[]>(() => [
 ])
 </script>
 
-<style scoped lang="scss">
-.repository-card {
-  height: 100%;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-  
-  &--loading {
-    opacity: 0.7;
-  }
-  
-  &--unhealthy {
-    border-left: 4px solid var(--red-500);
-  }
-  
-  &--healthy {
-    border-left: 4px solid var(--green-500);
-  }
+<style scoped>
+/*
+ * PrimeVue v4 Cardコンポーネントで最大最適化
+ * - Cardの#header, #content, #footerスロット使用
+ * - ユーティリティクラスでflex/spacing/responsive処理
+ * - mobile:プレフィックスでレスポンシブ対応
+ * 
+ * CSS記述量: 164行 → 20行 (88%削減)
+ */
+
+/* ホバーアニメーション - PrimeVueの標準アニメーション使用 */
+.repository-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--app-shadow-lg);
 }
 
-.repository-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  
-  .repository-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex: 1;
-    min-width: 0;
-    
-    .pi-folder {
-      color: var(--primary-color);
-      font-size: 1.1rem;
-    }
-    
-    .repository-name {
-      font-weight: 600;
-      font-size: 1rem;
-      color: var(--text-color);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .status-indicator {
-      margin-left: 0.5rem;
-      
-      i {
-        font-size: 0.9rem;
-      }
-    }
-  }
-  
-  .repository-service {
-    flex-shrink: 0;
-  }
-  
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    flex-shrink: 0;
-    margin-left: auto;
-    
-    :deep(.p-button) {
-      padding: 0.25rem;
-      
-      .p-button-icon {
-        font-size: 0.875rem;
-      }
-    }
-  }
+/* ヘルスステータスインジケーター */
+.repository-card--unhealthy {
+  border-left: 4px solid var(--p-red-500);
 }
 
-.repository-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-height: 120px;
-}
-
-.repository-info {
-  .repository-path {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-color-secondary);
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-    
-    .pi-user {
-      font-size: 0.8rem;
-    }
-  }
-  
-  .repository-description {
-    p {
-      margin: 0;
-      color: var(--text-color-secondary);
-      font-size: 0.9rem;
-      line-height: 1.4;
-    }
-  }
-}
-
-.repository-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: auto;
-  
-  .stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    color: var(--text-color-secondary);
-    font-size: 0.8rem;
-    
-    i {
-      font-size: 0.7rem;
-    }
-  }
-}
-
-.repository-actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--surface-border);
-  
-  .open-button {
-    min-width: 120px;
-  }
-}
-
-// レスポンシブ対応
-@media (max-width: 768px) {
-  .repository-header {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    
-    .repository-title {
-      flex: 1;
-      min-width: 200px;
-    }
-    
-    .header-actions {
-      margin-left: 0;
-    }
-  }
-  
-  .repository-actions {
-    .open-button {
-      width: 100%;
-    }
-  }
+.repository-card--healthy {
+  border-left: 4px solid var(--p-green-500);
 }
 </style>

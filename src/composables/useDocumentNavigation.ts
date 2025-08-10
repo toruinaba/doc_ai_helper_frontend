@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, type ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document.store'
 import { useRepositoryStore } from '@/stores/repository.store'
@@ -9,12 +9,16 @@ import type { components } from '@/services/api/types.auto'
 type RepositoryResponse = components['schemas']['RepositoryResponse']
 
 export interface DocumentNavigationParams {
+  repositoryId: string | ComputedRef<string>
+  documentPath: string | ComputedRef<string>  
+  ref: string | ComputedRef<string>
+}
+
+export interface DocumentViewProps {
   repositoryId: string
   documentPath: string
   ref: string
 }
-
-export interface DocumentViewProps extends DocumentNavigationParams {}
 
 /**
  * ドキュメントナビゲーション composable
@@ -23,7 +27,7 @@ export interface DocumentViewProps extends DocumentNavigationParams {}
  * 使用例:
  * const { currentRepository, isLoading, navigateToDocument, ... } = useDocumentNavigation(props)
  */
-export function useDocumentNavigation(props: DocumentViewProps) {
+export function useDocumentNavigation(params: DocumentNavigationParams) {
   const route = useRoute()
   const router = useRouter()
   const documentStore = useDocumentStore()
@@ -37,12 +41,23 @@ export function useDocumentNavigation(props: DocumentViewProps) {
   const isLoadingDocument = ref(false)
   const initializationError = ref<string | null>(null)
 
+  // Reactive computed values from params
+  const repositoryId = computed(() => 
+    typeof params.repositoryId === 'string' ? params.repositoryId : params.repositoryId.value
+  )
+  const documentPath = computed(() => 
+    typeof params.documentPath === 'string' ? params.documentPath : params.documentPath.value
+  )
+  const docRef = computed(() => 
+    typeof params.ref === 'string' ? params.ref : params.ref.value
+  )
+
   /**
    * 現在のリポジトリ情報
    */
   const currentRepository = computed((): RepositoryResponse | undefined => {
-    const repositoryId = parseInt(props.repositoryId)
-    return repositoryStore.repositories.find(r => r.id === repositoryId)
+    const repoId = parseInt(repositoryId.value)
+    return repositoryStore.repositories.find(r => r.id === repoId)
   })
 
   /**
@@ -58,12 +73,12 @@ export function useDocumentNavigation(props: DocumentViewProps) {
    * ルートパラメータの有効性チェック
    */
   const isValidRoute = computed(() => {
-    const repositoryId = parseInt(props.repositoryId)
+    const repoId = parseInt(repositoryId.value)
     return (
-      !isNaN(repositoryId) && 
-      repositoryId > 0 &&
-      props.documentPath && 
-      props.ref
+      !isNaN(repoId) && 
+      repoId > 0 &&
+      documentPath.value && 
+      docRef.value
     )
   })
 
@@ -71,14 +86,15 @@ export function useDocumentNavigation(props: DocumentViewProps) {
    * 現在のドキュメント状態
    */
   const currentDocumentState = computed(() => ({
-    repositoryId: props.repositoryId,
-    documentPath: props.documentPath,
-    ref: props.ref,
+    repositoryId: repositoryId.value,
+    documentPath: documentPath.value,
+    ref: docRef.value,
     repository: currentRepository.value,
     isLoading: isLoading.value,
     error: initializationError.value || documentStore.error,
-    content: documentStore.content,
-    metadata: documentStore.metadata
+    content: documentStore.currentDocument?.content,
+    metadata: documentStore.currentDocument?.metadata,
+    type: documentStore.currentDocument?.type
   }))
 
   /**
@@ -110,14 +126,14 @@ export function useDocumentNavigation(props: DocumentViewProps) {
       documentStore.currentService = repository.service_type
       documentStore.currentOwner = repository.owner
       documentStore.currentRepo = repository.name
-      documentStore.currentRef = props.ref
+      documentStore.currentRef = docRef.value
       
       logger.debug('Repository initialized successfully:', {
         repositoryId,
         service: repository.service_type,
         owner: repository.owner,
         repo: repository.name,
-        ref: props.ref
+        ref: docRef.value
       })
       
       return repository
@@ -154,20 +170,22 @@ export function useDocumentNavigation(props: DocumentViewProps) {
   /**
    * ドキュメントへのナビゲーション
    */
-  function navigateToDocument(params: Partial<DocumentNavigationParams>): void {
+  function navigateToDocument(navParams: Partial<{repositoryId: string, documentPath: string, ref: string}>): void {
     const navigationParams = {
-      repositoryId: params.repositoryId || props.repositoryId,
-      documentPath: params.documentPath || props.documentPath,
-      ref: params.ref || props.ref
+      repositoryId: navParams.repositoryId || repositoryId.value,
+      documentPath: navParams.documentPath || documentPath.value,
+      ref: navParams.ref || docRef.value
     }
     
     logger.debug('Navigating to document:', navigationParams)
     
     router.push({
-      name: 'document',
+      name: 'DocumentView',
       params: {
-        repositoryId: navigationParams.repositoryId,
-        documentPath: encodeURIComponent(navigationParams.documentPath),
+        repositoryId: navigationParams.repositoryId
+      },
+      query: {
+        path: navigationParams.documentPath,
         ref: navigationParams.ref
       }
     })
@@ -177,7 +195,7 @@ export function useDocumentNavigation(props: DocumentViewProps) {
    * ブランチ変更時の処理
    */
   function onBranchChange(branch: string): void {
-    logger.debug('Branch changed:', { from: props.ref, to: branch })
+    logger.debug('Branch changed:', { from: docRef.value, to: branch })
     
     navigateToDocument({
       ref: branch
@@ -188,7 +206,7 @@ export function useDocumentNavigation(props: DocumentViewProps) {
    * ドキュメントパス変更時の処理
    */
   function onDocumentPathChange(newPath: string): void {
-    logger.debug('Document path changed:', { from: props.documentPath, to: newPath })
+    logger.debug('Document path changed:', { from: documentPath.value, to: newPath })
     
     navigateToDocument({
       documentPath: newPath
@@ -231,10 +249,10 @@ export function useDocumentNavigation(props: DocumentViewProps) {
 
   // ルートパラメータの監視とドキュメント読み込み
   watch(
-    () => [props.repositoryId, props.documentPath, props.ref],
-    async ([repositoryId, documentPath, ref], oldValues) => {
+    () => [repositoryId.value, documentPath.value, docRef.value],
+    async ([repoId, docPath, docRef], oldValues) => {
       logger.debug('Route parameters changed:', {
-        new: { repositoryId, documentPath, ref },
+        new: { repositoryId: repoId, documentPath: docPath, ref: docRef },
         old: oldValues,
         isValidRoute: isValidRoute.value
       })
@@ -247,10 +265,10 @@ export function useDocumentNavigation(props: DocumentViewProps) {
       
       try {
         // リポジトリの初期化
-        await initializeRepository(repositoryId)
+        await initializeRepository(repoId)
         
         // ドキュメントの読み込み
-        await loadDocument(documentPath, ref)
+        await loadDocument(docPath, docRef)
         
       } catch (error) {
         handleNavigationError(error)
@@ -299,8 +317,8 @@ export function useDocumentRoute() {
     return (
       !isNaN(repositoryId) && 
       repositoryId > 0 &&
-      route.params.documentPath && 
-      route.params.ref
+      route.query.path && 
+      route.query.ref
     )
   })
 
@@ -308,8 +326,8 @@ export function useDocumentRoute() {
     isValidRoute,
     routeParams: computed(() => ({
       repositoryId: route.params.repositoryId as string,
-      documentPath: decodeURIComponent(route.params.documentPath as string),
-      ref: route.params.ref as string
+      documentPath: route.query.path as string,
+      ref: route.query.ref as string
     }))
   }
 }

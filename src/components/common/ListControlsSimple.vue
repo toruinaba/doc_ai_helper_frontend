@@ -1,5 +1,5 @@
 <template>
-  <div class="list-controls" :class="controlsClass">
+  <div class="u-flex u-flex-center u-gap-base u-flex-wrap tablet:u-flex-column tablet:u-items-stretch" :class="{ 'u-opacity-60 u-pointer-events-none': loading }">
     <FormSection 
       v-if="showAsSection"
       :title="sectionTitle" 
@@ -7,14 +7,156 @@
       :collapsible="sectionCollapsible"
       :collapsed="sectionCollapsed"
     >
-      <div class="controls-content">
-        <ControlsContent />
+      <div class="u-flex u-flex-center u-gap-base u-flex-wrap tablet:u-flex-column tablet:u-items-stretch">
+        <!-- 検索セクション -->
+        <div v-if="showSearch" class="u-flex-1" style="min-width: 250px">
+          <IconField class="u-w-full">
+            <InputIcon class="pi pi-search" />
+            <InputText 
+              :modelValue="searchQuery"
+              :placeholder="searchPlaceholder"
+              class="u-w-full"
+              @update:modelValue="handleSearchInput"
+            />
+          </IconField>
+        </div>
+        
+        <!-- フィルターセクション -->
+        <div class="u-flex u-gap-sm u-flex-wrap">
+          <ServiceSelector
+            v-if="showServiceFilter"
+            :modelValue="selectedService"
+            placeholder="サービス"
+            style="min-width: 120px"
+            @update:modelValue="handleServiceChange"
+          />
+          
+          <Dropdown
+            v-for="filter in customFilters"
+            :key="filter.key"
+            :modelValue="filter.value"
+            :options="filter.options"
+            optionLabel="label"
+            optionValue="value"
+            :placeholder="filter.label"
+            :showClear="filter.showClear !== false"
+            style="min-width: 120px"
+            @update:modelValue="(value) => handleCustomFilterChange(filter.key, value)"
+          />
+        </div>
+        
+        <!-- アクションセクション -->
+        <div class="u-flex u-gap-xs u-flex-none">
+          <Dropdown
+            v-if="showSort && sortOptions?.length"
+            :modelValue="sortBy"
+            :options="sortOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="ソート"
+            style="min-width: 120px"
+            @update:modelValue="handleSortChange"
+          />
+          
+          <SelectButton
+            v-if="showViewMode && viewModeOptions?.length"
+            :modelValue="viewMode"
+            :options="viewModeOptions"
+            optionLabel="label"
+            optionValue="value"
+            @update:modelValue="handleViewModeChange"
+          >
+            <template #option="{ option }">
+              <i :class="option.icon"></i>
+            </template>
+          </SelectButton>
+          
+          <Button
+            v-if="showRefresh"
+            :loading="loading"
+            :disabled="loading"
+            icon="pi pi-refresh"
+            severity="secondary"
+            @click="handleRefresh"
+          />
+        </div>
       </div>
     </FormSection>
     
-    <div v-else class="controls-content">
-      <ControlsContent />
-    </div>
+    <template v-else>
+      <!-- 検索セクション -->
+      <div v-if="showSearch" class="u-flex-1" style="min-width: 250px">
+        <IconField class="u-w-full">
+          <InputIcon class="pi pi-search" />
+          <InputText 
+            :modelValue="searchQuery"
+            :placeholder="searchPlaceholder"
+            class="u-w-full"
+            @update:modelValue="handleSearchInput"
+          />
+        </IconField>
+      </div>
+      
+      <!-- フィルターセクション -->
+      <div class="u-flex u-gap-sm u-flex-wrap">
+        <ServiceSelector
+          v-if="showServiceFilter"
+          :modelValue="selectedService"
+          placeholder="サービス"
+          style="min-width: 120px"
+          @update:modelValue="handleServiceChange"
+        />
+        
+        <Dropdown
+          v-for="filter in customFilters"
+          :key="filter.key"
+          :modelValue="filter.value"
+          :options="filter.options"
+          optionLabel="label"
+          optionValue="value"
+          :placeholder="filter.label"
+          :showClear="filter.showClear !== false"
+          style="min-width: 120px"
+          @update:modelValue="(value) => handleCustomFilterChange(filter.key, value)"
+        />
+      </div>
+      
+      <!-- アクションセクション -->
+      <div class="u-flex u-gap-xs u-flex-none">
+        <Dropdown
+          v-if="showSort && sortOptions?.length"
+          :modelValue="sortBy"
+          :options="sortOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="ソート"
+          style="min-width: 120px"
+          @update:modelValue="handleSortChange"
+        />
+        
+        <SelectButton
+          v-if="showViewMode && viewModeOptions?.length"
+          :modelValue="viewMode"
+          :options="viewModeOptions"
+          optionLabel="label"
+          optionValue="value"
+          @update:modelValue="handleViewModeChange"
+        >
+          <template #option="{ option }">
+            <i :class="option.icon"></i>
+          </template>
+        </SelectButton>
+        
+        <Button
+          v-if="showRefresh"
+          :loading="loading"
+          :disabled="loading"
+          icon="pi pi-refresh"
+          severity="secondary"
+          @click="handleRefresh"
+        />
+      </div>
+    </template>
   </div>
 </template>
 
@@ -149,270 +291,47 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
-// コンピューテッドクラス
-const controlsClass = computed(() => ({
-  [`layout-${props.layout}`]: true,
-  'compact': props.compact,
-  'loading': props.loading
-}));
+// PrimeVue v4のユーティリティクラスでレイアウト処理するため簡素化
+function handleSearchInput(value: string | undefined) {
+  emit('update:searchQuery', value || '');
+}
 
-// イベントハンドラー
-const handleSearchInput = (value: string) => {
-  emit('update:searchQuery', value);
-};
-
-const handleServiceChange = (value: GitServiceType | null) => {
+function handleServiceChange(value: GitServiceType | null) {
   emit('update:selectedService', value);
-};
+}
 
-const handleCustomFilterChange = (key: string, value: any) => {
+function handleCustomFilterChange(key: string, value: any) {
   emit('update:customFilter', key, value);
-};
+}
 
-const handleSortChange = (value: string) => {
-  emit('update:sortBy', value);
-};
+function handleSortChange(value: string | undefined) {
+  emit('update:sortBy', value || '');
+}
 
-const handleViewModeChange = (value: string) => {
+function handleViewModeChange(value: string) {
   emit('update:viewMode', value);
-};
+}
 
-const handleRefresh = () => {
+function handleRefresh() {
   emit('refresh');
-};
+}
 </script>
 
-<!-- ControlsContent子コンポーネント (standard SFC approach) -->
-<script setup lang="ts" generic="T">
-import { defineComponent } from 'vue';
+<style scoped>
+/*
+ * PrimeVue v4設計トークンベースアーキテクチャで最大最適化
+ * - PrimeVueレスポンシブフォームレイアウト使用
+ * - ユーティリティクラスでflex/grid/spacing処理
+ * - tablet:プレフィックスでレスポンシブ対応
+ * 
+ * CSS記述量: 129行 → 12行 (91%削減)
+ */
 
-const ControlsContent = defineComponent({
-  name: 'ControlsContent',
-  template: `
-    <div class="controls-grid">
-      <!-- 検索セクション -->
-      <div v-if="showSearch" class="search-section">
-        <IconField>
-          <InputIcon class="pi pi-search" />
-          <InputText 
-            :modelValue="searchQuery"
-            :placeholder="searchPlaceholder"
-            class="search-input"
-            @update:modelValue="handleSearchInput"
-          />
-        </IconField>
-      </div>
-      
-      <!-- フィルターセクション -->
-      <div class="filter-section">
-        <!-- サービスフィルター -->
-        <ServiceSelector
-          v-if="showServiceFilter"
-          :modelValue="selectedService"
-          :placeholder="'サービス'"
-          class="service-filter"
-          @update:modelValue="handleServiceChange"
-        />
-        
-        <!-- カスタムフィルター -->
-        <Dropdown
-          v-for="filter in customFilters"
-          :key="filter.key"
-          :modelValue="filter.value"
-          :options="filter.options"
-          :optionLabel="(option) => option.label"
-          :optionValue="(option) => option.value"
-          :placeholder="filter.label"
-          :showClear="filter.showClear !== false"
-          :class="[\`filter-\${filter.key}\`]"
-          @update:modelValue="(value) => handleCustomFilterChange(filter.key, value)"
-        />
-      </div>
-      
-      <!-- ソート・ビューモードセクション -->
-      <div class="actions-section">
-        <!-- ソート -->
-        <Dropdown
-          v-if="showSort && sortOptions?.length"
-          :modelValue="sortBy"
-          :options="sortOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="ソート"
-          class="sort-dropdown"
-          @update:modelValue="handleSortChange"
-        />
-        
-        <!-- ビューモード切り替え -->
-        <SelectButton
-          v-if="showViewMode && viewModeOptions?.length"
-          :modelValue="viewMode"
-          :options="viewModeOptions"
-          optionLabel="label"
-          optionValue="value"
-          class="view-mode-selector"
-          @update:modelValue="handleViewModeChange"
-        >
-          <template #option="{ option }">
-            <i :class="option.icon"></i>
-          </template>
-        </SelectButton>
-        
-        <!-- 更新ボタン -->
-        <Button
-          v-if="showRefresh"
-          :loading="loading"
-          :disabled="loading"
-          icon="pi pi-refresh"
-          class="refresh-button"
-          severity="secondary"
-          @click="handleRefresh"
-        />
-      </div>
-    </div>
-  `,
-  setup() {
-    return {
-      // 継承されたpropsとemitを使用
-      ...props,
-      handleSearchInput,
-      handleServiceChange,
-      handleCustomFilterChange,
-      handleSortChange,
-      handleViewModeChange,
-      handleRefresh
-    };
-  }
-});
-</script>
-
-<style scoped lang="scss">
-.list-controls {
-  margin-bottom: var(--app-spacing-lg);
-}
-
-.controls-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-spacing-md);
-}
-
-.controls-grid {
-  display: grid;
-  gap: var(--app-spacing-md);
-  grid-template-columns: 1fr;
-}
-
-// レイアウトバリエーション
-.layout-horizontal .controls-grid {
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  
-  @media (max-width: 992px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.layout-vertical .controls-grid {
-  grid-template-columns: 1fr;
-}
-
-.layout-grid .controls-grid {
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-
-// セクション
-.search-section,
-.filter-section,
-.actions-section {
-  display: flex;
-  gap: var(--app-spacing-sm);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.search-section {
-  flex: 1;
-}
-
-// コンパクトモード
-.compact {
-  .controls-content {
-    gap: var(--app-spacing-sm);
-  }
-  
-  .controls-grid {
-    gap: var(--app-spacing-sm);
-  }
-  
-  .search-section,
-  .filter-section,
-  .actions-section {
-    gap: var(--app-spacing-xs);
-  }
-}
-
-// ローディング状態
-.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-// 各コントロール
-.search-input {
-  min-width: 200px;
-  
-  .compact & {
-    min-width: 150px;
-  }
-}
-
-.service-filter,
-.sort-dropdown {
-  min-width: 120px;
-  
-  .compact & {
-    min-width: 100px;
-  }
-}
-
-.view-mode-selector :deep(.p-selectbutton) {
-  display: flex;
-}
-
-.view-mode-selector :deep(.p-button) {
-  padding: 0.5rem;
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.refresh-button {
-  aspect-ratio: 1;
-  padding: 0.5rem;
-}
-
-// レスポンシブ対応
+/* レスポンシブ対応のみ必要な場合の最小限スタイル */
 @media (max-width: 768px) {
-  .layout-horizontal .controls-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .layout-grid .controls-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .search-section,
-  .filter-section,
-  .actions-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .search-input {
-    min-width: unset;
-    width: 100%;
+  [style*="min-width"] {
+    min-width: unset !important;
+    width: 100% !important;
   }
 }
 </style>

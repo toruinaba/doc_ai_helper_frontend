@@ -10,8 +10,9 @@
     
     <!-- ローディング状態 -->
     <ListLoadingState
-      :show="isLoading"
-      :layout="'content'"
+      v-else-if="isLoading"
+      :show="true"
+      :layout="'cards'"
       :message="'ドキュメントを読み込み中...'"
     />
 
@@ -26,37 +27,43 @@
 
     <div v-else class="document-content">
       <!-- Breadcrumb行 -->
-      <DocumentBreadcrumb 
-        :repository-context="repositoryContext"
-        :current-path="currentPath"
-        :is-root-document="isRootDocument"
-        :navigate-to-root="navigateToRootDocument"
-      />
+      <template v-if="repositoryContext">
+        <DocumentBreadcrumb 
+          :repository-context="repositoryContext"
+          :current-path="currentPath"
+          :is-root-document="isRootDocument"
+          :navigate-to-root="navigateToRootDocument"
+        />
+      </template>
       
       <!-- メタ情報行 -->
-      <DocumentMetaInfo 
-        :repository-context="repositoryContext"
-        :document="document"
-      />
+      <template v-if="document && repositoryContext">
+        <DocumentMetaInfo 
+          :repository-context="repositoryContext"
+          :document="document"
+        />
+      </template>
       
-      <MetaDisplay v-if="frontmatter" :data="frontmatter" title="フロントマター" />
+      <template v-if="frontmatter && Object.keys(frontmatter).length > 0">
+        <MetaDisplay :data="frontmatter" title="フロントマター" />
+      </template>
       
-      <DocumentContent 
-        :document="document"
-        :current-path="currentPath"
-        :document-root="documentRoot"
-        :on-link-click="handleLinkClick"
-      />
+      <template v-if="document">
+        <DocumentContent 
+          :document="currentDocumentState"
+          :current-path="currentPath"
+          :document-root="documentRoot"
+          :onLinkClick="handleLinkClick"
+        />
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useDocumentStore } from '@/stores/document.store';
-import { useRepositoryStore } from '@/stores/repository.store';
-import { useDocumentRouter } from '@/composables/useDocumentRouter';
+import { computed, watch } from 'vue';
 import { extractFrontmatter } from '@/utils/markdown.util';
+import { getLogger } from '@/utils/logger.util';
 import MetaDisplay from '@/components/common/MetaDisplay.vue';
 import StatusMessage from '@/components/common/StatusMessage.vue';
 import ListLoadingState from '@/components/common/ListLoadingState.vue';
@@ -64,39 +71,83 @@ import ListEmptyState from '@/components/common/ListEmptyState.vue';
 import DocumentBreadcrumb from './DocumentBreadcrumb.vue';
 import DocumentMetaInfo from './DocumentMetaInfo.vue';
 import DocumentContent from './DocumentContent.vue';
+import { useDocumentNavigation } from '@/composables/useDocumentNavigation';
+
+const logger = getLogger('DocumentViewer');
 
 // Props definition for better component interface
 interface DocumentViewerProps {
   // Optional props for external control (when used in isolation)
   repositoryId?: string;
   documentPath?: string;
-  ref?: string;
+  refName?: string;  // 'ref' はVueの組み込み属性なので 'refName' に変更
 }
 
 // Optional props for external control
 const props = withDefaults(defineProps<DocumentViewerProps>(), {
   repositoryId: '',
   documentPath: '',
-  ref: 'main'
+  refName: 'main'
 });
 
-// Composables
-const {
-  document,
+// Document navigation composable with reactive props
+const { 
   isLoading,
-  error,
-  repositoryContext,
-  frontmatter,
-  currentPath,
-  documentRoot,
-  isRootDocument
-} = useDocumentViewerContext();
+  currentRepository,
+  navigateToDocument,
+  handleNavigationError,
+  currentDocumentState
+} = useDocumentNavigation({
+  repositoryId: computed(() => props.repositoryId),
+  documentPath: computed(() => props.documentPath),
+  ref: computed(() => props.refName)
+});
 
-const {
-  handleLinkClick,
-  navigateToRootDocument
-} = useDocumentViewerNavigation(props);
+// Unified document data from navigation state
+const document = computed(() => currentDocumentState.value?.content);
+const error = computed(() => currentDocumentState.value?.error);
+const repository = computed(() => currentDocumentState.value?.repository);
 
+// Fallback navigation to root document
+const navigateToRootDocument = async () => {
+  if (repository.value?.default_branch) {
+    await navigateToDocument({ 
+      documentPath: 'README.md',  // Default to README
+      ref: repository.value.default_branch 
+    });
+  }
+};
+
+// Template computed properties
+const isRootDocument = computed(() => {
+  return props.documentPath === 'README.md' || props.documentPath === '';
+});
+
+const repositoryContext = computed(() => ({
+  service: repository.value?.service_type || '',
+  owner: repository.value?.owner || '',
+  name: repository.value?.name || '',
+  path: props.documentPath || '',
+  ref: props.refName || ''
+}));
+
+const currentPath = computed(() => props.documentPath);
+const documentRoot = computed(() => '/');
+const frontmatter = computed(() => {
+  if (!document.value?.content) return {};
+  const { frontmatter } = extractFrontmatter(document.value.content);
+  return frontmatter || {};
+});
+
+// Simple link handler for DocumentContent
+const handleLinkClick = async (event: MouseEvent) => {
+  event.preventDefault();
+  const target = event.target as HTMLAnchorElement;
+  if (target && target.href) {
+    const href = target.getAttribute('href') || target.href;
+    await navigateToDocument({ documentPath: href });
+  }
+};
 
 // DocumentViewerは純粋なビューコンポーネントとして設計されています
 // composablesで状態管理とナビゲーションを分離し、コンポーネントをシンプルに保ちます

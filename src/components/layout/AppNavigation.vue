@@ -1,34 +1,34 @@
 <template>
-  <header class="app-header">
-    <div class="app-logo">
-      <router-link to="/" class="app-title-link">
+  <header class="app-header u-flex-between-center u-px-base u-py-sm">
+    <div class="app-logo u-flex-center u-gap-sm u-flex-1">
+      <router-link to="/" class="app-title-link u-flex-center u-gap-sm">
         <img src="@/assets/logo.svg" alt="Logo" class="logo-image" />
-        <h1 class="app-title">ドキュメントAIヘルパー</h1>
+        <h1 class="app-title u-m-0">ドキュメントAIヘルパー</h1>
       </router-link>
     </div>
     
-    <div class="app-center">
+    <div class="app-center u-flex-center u-flex-1">
       <!-- 選択されたリポジトリの情報表示 -->
       <div 
         v-if="selectedRepository" 
-        class="selected-repository clickable"
+        class="selected-repository clickable u-flex-center u-gap-sm u-px-sm u-py-xs u-rounded"
         @click="navigateToDocument"
         v-tooltip.bottom="'ドキュメント画面に戻る'"
       >
         <i class="pi pi-folder"></i>
-        <span class="repo-name">{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
+        <span class="repo-name u-font-medium">{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
         <Tag :value="selectedRepository.service_type" severity="info" size="small" />
       </div>
     </div>
     
     <!-- デスクトップ用メニュー -->
-    <div class="app-menu desktop-menu">
-      <nav class="navigation">
-        <router-link to="/admin/repositories" class="nav-link">
+    <div class="app-menu desktop-menu u-flex-1 u-flex">
+      <nav class="navigation u-flex u-gap-sm">
+        <router-link to="/admin/repositories" class="nav-link u-flex-center u-gap-xs u-px-sm u-py-xs u-rounded u-transition">
           <i class="pi pi-folder"></i>
           <span>ドキュメント管理</span>
         </router-link>
-        <router-link to="/settings" class="nav-link">
+        <router-link to="/settings" class="nav-link u-flex-center u-gap-xs u-px-sm u-py-xs u-rounded u-transition">
           <i class="pi pi-cog"></i>
           <span>設定</span>
         </router-link>
@@ -224,30 +224,17 @@ function navigateToDocument() {
 }
 
 .repo-name {
-  font-weight: 500;
   color: var(--app-surface-0);
 }
 
 .app-menu {
-  flex: 1;
-  display: flex;
   justify-content: flex-end;
 }
 
-.navigation {
-  display: flex;
-  gap: var(--app-spacing-base);
-}
-
 .nav-link {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-xs);
-  padding: var(--app-spacing-sm) var(--app-spacing-base);
   color: var(--app-surface-0);
   text-decoration: none;
   border-radius: var(--app-border-radius-sm);
-  transition: var(--app-transition-fast);
   font-size: var(--app-font-size-sm);
   font-weight: 400;
 }

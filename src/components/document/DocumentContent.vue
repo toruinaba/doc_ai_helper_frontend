@@ -1,5 +1,5 @@
 <template>
-  <div class="rendered-content" v-html="renderedContent" @click="handleLinkClick"></div>
+  <div class="rendered-content markdown-content" v-html="renderedContent" @click="handleLinkClick"></div>
 </template>
 
 <script setup lang="ts">
@@ -23,38 +23,52 @@ const props = defineProps<Props>();
 
 // ドキュメントタイプ別のレンダリング処理 - 責任分界アプローチ対応
 const renderedContent = computed(() => {
-  if (!props.document || !props.document.content.content) {
+  // currentDocumentStateが渡されている場合の対応
+  const documentData = props.document.content || props.document;
+  const documentContent = documentData?.content?.content || documentData?.content;
+  
+  // typeの取得を複数の箇所から試行
+  const documentType = props.document.type || 
+                      props.document?.content?.type || 
+                      documentData?.type;
+  
+  if (!documentContent) {
     return '';
   }
 
+  // ドキュメントタイプが取得できない場合はエラー処理
+  if (!documentType || documentType === 'unknown') {
+    console.error('Document type is undefined or unknown:', {
+      documentType,
+      documentData,
+      propsDocument: props.document
+    });
+    return `<div class="document-error">
+      <h3>ドキュメントタイプエラー</h3>
+      <p>ドキュメントのタイプが特定できません。</p>
+      <p>受信データ: <code>${JSON.stringify({ type: documentType, hasContent: !!documentContent })}</code></p>
+    </div>`;
+  }
+
   // トランスフォーム済みコンテンツがある場合はそれを使う
-  const content = props.document.transformed_content || props.document.content.content;
+  const content = documentData.transformed_content || documentContent;
   
   // ドキュメントタイプに応じてレンダリング方法を切り替え
-  switch (props.document.type) {
+  
+  switch (documentType) {
     case 'markdown':
-      // マークダウンの場合 - quartoと同様に常にDOM処理を使用
       const { content: bodyContent } = extractFrontmatter(content);
-      
-      // 既存のMarkdown変換を使用し、DOM後処理で強制的にリンク属性を修正
       const baseHtml = renderMarkdown(bodyContent);
-      
-      // 強制的なリンク属性修正を含むDOM処理
       return processHtmlLinksWithResponsibilityBoundary(baseHtml, props.currentPath, props.documentRoot);
       
     case 'quarto':
-      // Quartoの場合：HTMLかマークダウンかを判定
-      if (content.trim().startsWith('<!DOCTYPE html') || content.trim().startsWith('<html')) {
-        // レンダリング済みHTML → Quarto特有の処理でサニタイゼーション
+      const isHtml = content.trim().startsWith('<!DOCTYPE html') || content.trim().startsWith('<html');
+      
+      if (isHtml) {
         const sanitizedHtml = sanitizeQuartoHtml(content);
-        
-        // Quarto HTMLでは常にリンク処理を適用（レガシーモードでも）
         return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, props.currentPath, props.documentRoot);
       } else {
-        // QMD形式 → マークダウンとして処理
         const { content: qmdContent } = extractFrontmatter(content);
-        
-        // markdownと同じ方式でDOM後処理を適用
         const qmdHtml = renderMarkdown(qmdContent);
         return processHtmlLinksWithResponsibilityBoundary(qmdHtml, props.currentPath, props.documentRoot);
       }
@@ -62,13 +76,29 @@ const renderedContent = computed(() => {
     case 'html':
       // HTMLの場合はサニタイゼーション後に表示
       const sanitizedHtml = sanitizeHtml(content);
+      const processedHtml = processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, props.currentPath, props.documentRoot);
+      return processedHtml;
       
-      // HTMLでは常にリンク処理を適用（レガシーモードでも）
-      return processHtmlLinksWithResponsibilityBoundary(sanitizedHtml, props.currentPath, props.documentRoot);
+    case 'other':
+      // 'other'の場合、ファイル拡張子から判定
+      const filePath = props.currentPath || '';
+      if (filePath.endsWith('.md') || filePath.endsWith('.markdown') || filePath.endsWith('.qmd')) {
+        // マークダウンファイルの場合はマークダウンとして処理
+        const { content: bodyContent } = extractFrontmatter(content);
+        const baseHtml = renderMarkdown(bodyContent);
+        return processHtmlLinksWithResponsibilityBoundary(baseHtml, props.currentPath, props.documentRoot);
+      } else {
+        // その他はプレーンテキストとして表示
+        return `<pre><code>${escapeHtml(content)}</code></pre>`;
+      }
       
     default:
-      // その他の場合はプレーンテキストとして表示
-      return `<pre><code>${escapeHtml(content)}</code></pre>`;
+      // 予期しないdocumentTypeの場合はエラー処理
+      console.error('Unexpected document type:', documentType);
+      return `<div class="document-error">
+        <h3>未対応のドキュメントタイプ</h3>
+        <p>ドキュメントタイプ '<code>${documentType}</code>' は対応していません。</p>
+      </div>`;
   }
 });
 
@@ -99,65 +129,14 @@ watch(renderedContent, () => {
 
 <style scoped>
 /* レンダリング済みコンテンツのスタイル（マークダウン・HTML共通） */
-.rendered-content {
-  line-height: 1.6;
-}
+/* 基本的なマークダウンスタイルはmarkdown.cssから適用される */
 
-/* HTML表示用の基本スタイル */
-.rendered-content :deep(body) {
-  margin: 0;
-  padding: 0;
-  font-family: inherit;
-  line-height: inherit;
-  color: inherit;
-  background: transparent;
-}
-
-.rendered-content :deep(html) {
-  font-size: inherit;
-  color: inherit;
-  background: transparent;
-}
-
-.rendered-content :deep(h1),
-.rendered-content :deep(h2),
-.rendered-content :deep(h3),
-.rendered-content :deep(h4),
-.rendered-content :deep(h5),
-.rendered-content :deep(h6) {
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
-  color: var(--app-text-color);
-}
-
-.rendered-content :deep(h1) {
-  font-size: var(--app-font-size-2xl);
-  border-bottom: 1px solid var(--app-surface-border);
-  padding-bottom: 0.3em;
-}
-
-.rendered-content :deep(h2) {
-  font-size: var(--app-font-size-xl);
-  border-bottom: 1px solid var(--app-surface-border);
-  padding-bottom: 0.3em;
-}
-
-.rendered-content :deep(p) {
-  margin: 1em 0;
-}
-
-.rendered-content :deep(ul),
-.rendered-content :deep(ol) {
-  padding-left: 2em;
-  margin: 1em 0;
-}
-
+/* コンポーネント固有のオーバーライド */
 .rendered-content :deep(li) {
-  margin: 0.5em 0;
+  margin: 0.5em 0; /* markdown.cssより広めのマージン */
 }
 
 .rendered-content :deep(blockquote) {
-  margin: 1em 0;
   padding: 0 var(--app-spacing-base);
   color: var(--app-text-color-secondary);
   border-left: 0.25em solid var(--app-surface-border);
@@ -165,55 +144,14 @@ watch(renderedContent, () => {
 
 .rendered-content :deep(code) {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  padding: 0.2em 0.4em;
-  margin: 0;
   font-size: 85%;
   background-color: rgba(27, 31, 35, 0.05);
   border-radius: 3px;
 }
 
-.rendered-content :deep(pre) {
-  margin: 1em 0;
-  border-radius: 3px;
-}
-
-.rendered-content :deep(pre code) {
-  padding: 0;
-  background-color: transparent;
-}
-
-.rendered-content :deep(table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 1em 0;
-}
-
 .rendered-content :deep(table th),
 .rendered-content :deep(table td) {
   padding: var(--app-spacing-sm) var(--app-spacing-base);
-  border: 1px solid var(--app-surface-border);
-}
-
-.rendered-content :deep(table th) {
-  background-color: var(--app-surface-100);
-  font-weight: 600;
-  color: var(--app-text-color);
-}
-
-.rendered-content :deep(img) {
-  max-width: 100%;
-  height: auto;
-}
-
-.rendered-content :deep(a) {
-  color: var(--app-primary-color);
-  text-decoration: none;
-  transition: var(--app-transition-fast);
-}
-
-.rendered-content :deep(a:hover) {
-  text-decoration: underline;
-  color: var(--app-primary-600);
 }
 
 .rendered-content :deep(a.external-link::after) {
@@ -263,12 +201,6 @@ watch(renderedContent, () => {
 .rendered-content :deep(.quarto-title) h1 {
   font-size: var(--app-font-size-3xl);
   margin-bottom: 0.5rem;
-  color: var(--app-text-color);
-}
-
-.rendered-content :deep(.quarto-title-meta) {
-  color: var(--app-text-color-secondary);
-  font-size: var(--app-font-size-sm);
 }
 
 .rendered-content :deep(.quarto-alternate-formats) {
@@ -278,32 +210,15 @@ watch(renderedContent, () => {
   border-radius: var(--app-border-radius);
 }
 
-.rendered-content :deep(.quarto-alternate-formats) h2 {
-  font-size: var(--app-font-size-lg);
-  margin-bottom: 0.5rem;
-  color: var(--app-text-color);
-}
-
 .rendered-content :deep(.quarto-alternate-formats) ul {
   margin: 0;
   padding-left: 1.5rem;
 }
 
-.rendered-content :deep(.quarto-alternate-formats) a {
-  color: var(--app-primary-color);
-  text-decoration: none;
-}
-
-.rendered-content :deep(.quarto-alternate-formats) a:hover {
-  text-decoration: underline;
-}
-
-/* Quarto margin sidebar（サイドバー要素）の調整 */
 .rendered-content :deep(.quarto-margin-sidebar) {
-  display: none; /* フロントエンドでは非表示 */
+  display: none;
 }
 
-/* Quarto アンカーリンクの調整 */
 .rendered-content :deep(.anchored) {
   position: relative;
 }
@@ -316,24 +231,47 @@ watch(renderedContent, () => {
   font-size: 0.8em;
 }
 
-/* KaTeX数式のスタイル */
+/* KaTeX数式のスタイル - markdown.cssでカバー済み */
 .rendered-content :deep(.katex) {
-  font-size: 1.1em;
-}
-
-.rendered-content :deep(.katex-display) {
-  margin: 1em 0;
-  text-align: center;
+  font-size: 1.1em; /* コンポーネント固有のサイズ調整 */
 }
 
 /* Mermaidダイアグラムのスタイル */
 .rendered-content :deep(.mermaid-diagram) {
-  text-align: center;
   margin: 1.5em 0;
   padding: var(--app-spacing-base);
   background-color: var(--app-surface-0);
   border-radius: var(--app-border-radius);
   border: 1px solid var(--app-surface-border);
+}
+
+/* エラー表示のスタイル */
+.rendered-content :deep(.document-error) {
+  margin: 1.5em 0;
+  padding: var(--app-spacing-lg);
+  background-color: var(--app-surface-error, #f8d7da);
+  border: 1px solid var(--app-border-error, #f5c6cb);
+  border-radius: var(--app-border-radius);
+  color: var(--app-text-color-error, #721c24);
+}
+
+.rendered-content :deep(.document-error h3) {
+  margin: 0 0 0.5rem 0;
+  font-size: var(--app-font-size-lg);
+  font-weight: 600;
+  color: var(--app-text-color-error, #721c24);
+}
+
+.rendered-content :deep(.document-error p) {
+  margin: 0.25rem 0;
+  font-size: var(--app-font-size-sm);
+}
+
+.rendered-content :deep(.document-error code) {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 .rendered-content :deep(.mermaid-diagram svg) {

@@ -1,114 +1,116 @@
 <template>
-  <Card 
-    class="u-h-full u-transition repository-card" 
+  <Panel 
+    class="repository-card" 
     :class="{
       'u-opacity-70': isLoading,
       'repository-card--unhealthy': healthStatus === 'unhealthy',
-      'repository-card--healthy': healthStatus === 'healthy'
+      'repository-card--healthy': healthStatus === 'healthy',
+      'repository-card--simple': props.layout === 'simple'
     }"
+    :toggleable="false"
   >
-    <!-- カードヘッダー -->
+    <!-- パネルヘッダー -->
     <template #header>
-      <div class="u-flex u-flex-center u-gap-base u-w-full mobile:u-flex-wrap mobile:u-gap-sm">
-        <div class="u-flex u-flex-center u-gap-sm u-flex-1 u-min-w-0">
-          <i class="pi pi-folder u-text-primary" style="font-size: 1.1rem" />
-          <span class="u-font-semibold u-font-base u-text-overflow-ellipsis u-whitespace-nowrap u-overflow-hidden">{{ truncatedName }}</span>
-          <div class="u-ml-sm">
-            <i 
-              :class="statusIcon" 
-              :style="{ color: statusColor, fontSize: '0.9rem' }"
-              v-tooltip="statusTooltip"
-            />
-          </div>
-        </div>
-        <div class="u-flex-none">
-          <Tag :value="repository.service_type" :severity="getServiceSeverity(repository.service_type)" />
-        </div>
-        <div class="u-flex u-flex-center u-gap-xs u-flex-none u-ml-auto mobile:u-ml-0">
-          <Button 
-            icon="pi pi-cog"
-            size="small"
-            severity="secondary"
-            text
-            class="u-p-xs"
-            @click="$emit('edit', repository)"
-            v-tooltip="'設定'"
-          />
-          <Button 
-            icon="pi pi-ellipsis-v"
-            size="small"
-            severity="secondary"
-            text
-            class="u-p-xs"
-            @click="toggleMenu"
-            aria-haspopup="true"
-            aria-controls="repository-menu"
-            v-tooltip="'その他'"
-          />
-          
-          <!-- ドロップダウンメニュー -->
-          <Menu 
-            ref="menu" 
-            id="repository-menu"
-            :model="menuItems" 
-            :popup="true" 
+      <div class="flex items-center gap-2">
+        <Avatar icon="pi pi-folder" size="small" style="background-color: var(--p-primary-color); color: var(--p-primary-contrast)" />
+        <span class="font-semibold truncate">{{ truncatedName }}</span>
+        <div v-if="props.layout === 'detailed'">
+          <i 
+            :class="statusIcon" 
+            :style="{ color: statusColor, fontSize: '0.9rem' }"
+            v-tooltip="statusTooltip"
           />
         </div>
       </div>
     </template>
+    
+    <!-- 管理アクション -->
+    <template v-if="props.layout === 'detailed'" #icons>
+      <Button 
+        icon="pi pi-cog"
+        size="small"
+        severity="secondary"
+        text
+        @click="$emit('edit', repository)"
+        v-tooltip="'設定'"
+      />
+      <Button 
+        icon="pi pi-ellipsis-v"
+        size="small"
+        severity="secondary"
+        text
+        @click="toggleMenu"
+        aria-haspopup="true"
+        aria-controls="repository-menu"
+        v-tooltip="'その他'"
+      />
+      
+      <!-- ドロップダウンメニュー -->
+      <Menu 
+        ref="menu" 
+        id="repository-menu"
+        :model="menuItems" 
+        :popup="true" 
+      />
+    </template>
 
-    <!-- カードコンテンツ -->
-    <template #content>
-      <div class="u-flex u-flex-column u-gap-base u-h-full">
-        <!-- リポジトリ情報 -->
-        <div class="u-flex u-flex-column u-gap-sm">
-          <div class="u-flex u-flex-center u-gap-xs u-text-sm u-text-muted">
-            <i class="pi pi-user" />
-            <span>{{ repository.owner }}/{{ repository.name }}</span>
-          </div>
-          
-          <!-- 説明文 -->
-          <p v-if="repository.description" class="u-text-sm u-text-secondary u-line-height-relaxed u-m-0">
-            {{ truncatedDescription }}
-          </p>
+    <!-- パネルコンテンツ -->
+    <div class="flex flex-col gap-4">
+      <!-- リポジトリ基本情報 -->
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-surface-500 dark:text-surface-400">{{ repository.owner }}</span>
+        <Tag 
+          :value="repository.service_type" 
+          :severity="getServiceSeverity(repository.service_type)"
+          :size="props.layout === 'simple' ? 'small' : undefined" 
+        />
+      </div>
+      
+      <!-- 説明文 -->
+      <div v-if="repository.description">
+        <p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed m-0">
+          {{ truncatedDescription }}
+        </p>
+      </div>
+      
+      <!-- メタ情報 -->
+      <div class="flex flex-col gap-2 flex-1">
+        <div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+          <Avatar icon="pi pi-code-branch" size="small" style="background-color: var(--p-surface-200); color: var(--p-text-color); width: 16px; height: 16px; font-size: 0.75rem" />
+          <span>{{ repository.default_branch }}</span>
         </div>
-
-        <!-- リポジトリ統計 -->
-        <div class="u-flex u-flex-column u-gap-xs u-flex-1">
-          <div class="u-flex u-flex-center u-gap-xs u-text-xs u-text-muted">
-            <i class="pi pi-code-branch" />
-            <span>{{ repository.default_branch }}</span>
-          </div>
-          <div class="u-flex u-flex-center u-gap-xs u-text-xs u-text-muted">
-            <i class="pi pi-clock" />
-            <span>{{ formattedUpdatedAt }}</span>
-          </div>
-          <div v-if="repository.is_public !== undefined" class="u-flex u-flex-center u-gap-xs u-text-xs u-text-muted">
-            <i :class="repository.is_public ? 'pi pi-eye' : 'pi pi-eye-slash'" />
-            <span>{{ repository.is_public ? '公開' : '非公開' }}</span>
-          </div>
+        <div v-if="props.layout === 'detailed'" class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+          <Avatar icon="pi pi-clock" size="small" style="background-color: var(--p-surface-200); color: var(--p-text-color); width: 16px; height: 16px; font-size: 0.75rem" />
+          <span>{{ formattedUpdatedAt }}</span>
         </div>
-        
-        <!-- フッターアクション -->
-        <div class="u-mt-auto">
-          <Button 
-            label="開く" 
-            size="small"
-            @click="$emit('open', repository)"
-            :disabled="!isHealthy"
-            class="u-w-full"
-          />
+        <div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+          <Avatar :icon="repository.is_public ? 'pi pi-globe' : 'pi pi-lock'" size="small" :style="repository.is_public ? 'background-color: var(--p-green-200); color: var(--p-green-700); width: 16px; height: 16px; font-size: 0.75rem' : 'background-color: var(--p-orange-200); color: var(--p-orange-700); width: 16px; height: 16px; font-size: 0.75rem'" />
+          <span>{{ repository.is_public ? '公開' : '非公開' }}</span>
         </div>
       </div>
+    </div>
+    
+    <!-- パネルフッター -->
+    <template #footer>
+      <div class="flex justify-end">
+        <Button 
+          label="開く" 
+          size="small"
+          @click="$emit('open', repository)"
+          :disabled="!isHealthy"
+          :class="props.layout === 'detailed' ? 'w-full' : ''"
+        />
+      </div>
     </template>
-  </Card>
+  </Panel>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import Card from 'primevue/card'
+import Panel from 'primevue/panel'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
+import Avatar from 'primevue/avatar'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import type { components } from '@/services/api/types.auto'
@@ -119,6 +121,8 @@ interface Props {
   repository: RepositoryResponse
   isHealthy?: boolean
   isLoading?: boolean
+  /** レイアウトモード: 'detailed' (管理画面用) | 'simple' (ホーム画面用) */
+  layout?: 'detailed' | 'simple'
 }
 
 interface Emits {
@@ -132,7 +136,8 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   isHealthy: true,
-  isLoading: false
+  isLoading: false,
+  layout: 'detailed'
 })
 
 const emit = defineEmits<Emits>()
@@ -195,6 +200,16 @@ const healthStatus = computed(() => {
 })
 
 // メソッド
+function getServiceIcon(service: string): string {
+  const iconMap: Record<string, string> = {
+    'github': 'pi pi-github',
+    'gitlab': 'pi pi-code-branch', // GitLab specific icon not available, using code-branch
+    'bitbucket': 'pi pi-code', // Bitbucket specific icon not available, using code
+    'forgejo': 'pi pi-server' // Forgejo specific icon not available, using server
+  }
+  return iconMap[service.toLowerCase()] || 'pi pi-server'
+}
+
 function getServiceSeverity(service: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast' {
   const severityMap: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast'> = {
     'github': 'success',
@@ -247,18 +262,15 @@ const menuItems = computed<MenuItem[]>(() => [
 
 <style scoped>
 /*
- * PrimeVue v4 Cardコンポーネントで最大最適化
- * - Cardの#header, #content, #footerスロット使用
- * - ユーティリティクラスでflex/spacing/responsive処理
- * - mobile:プレフィックスでレスポンシブ対応
- * 
- * CSS記述量: 164行 → 20行 (88%削減)
+ * PrimeVue Panel ネイティブスタイル使用
+ * - デフォルトのPanelレイアウトとパディング保持
+ * - 必要最小限のカスタマイズのみ
  */
 
-/* ホバーアニメーション - PrimeVueの標準アニメーション使用 */
+/* ホバーアニメーション */
 .repository-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--app-shadow-lg);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* ヘルスステータスインジケーター */
@@ -268,5 +280,18 @@ const menuItems = computed<MenuItem[]>(() => [
 
 .repository-card--healthy {
   border-left: 4px solid var(--p-green-500);
+}
+
+/* レスポンシブ調整 - モバイル対応 */
+@media (max-width: 768px) {
+  .repository-card .p-panel-header .flex {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .repository-card--simple .p-panel-footer .p-button {
+    width: 100%;
+  }
 }
 </style>

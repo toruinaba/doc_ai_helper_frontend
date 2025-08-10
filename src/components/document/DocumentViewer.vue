@@ -40,7 +40,7 @@
       <template v-if="document && repositoryContext">
         <DocumentMetaInfo 
           :repository-context="repositoryContext"
-          :document="document"
+          :document="currentDocumentState"
         />
       </template>
       

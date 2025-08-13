@@ -1,104 +1,64 @@
 <template>
-  <Panel 
-    class="repository-card" 
-    :class="{
-      'u-opacity-70': isLoading,
-      'repository-card--unhealthy': healthStatus === 'unhealthy',
-      'repository-card--healthy': healthStatus === 'healthy',
-      'repository-card--simple': props.layout === 'simple'
-    }"
-    :toggleable="false"
-  >
-    <!-- パネルヘッダー -->
+  <Panel>
     <template #header>
-      <div class="flex items-center gap-2">
-        <Avatar icon="pi pi-folder" size="small" style="background-color: var(--p-primary-color); color: var(--p-primary-contrast)" />
-        <span class="font-semibold truncate">{{ truncatedName }}</span>
-        <div v-if="props.layout === 'detailed'">
-          <i 
-            :class="statusIcon" 
-            :style="{ color: statusColor, fontSize: '0.9rem' }"
-            v-tooltip="statusTooltip"
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <Avatar 
+            icon="pi pi-folder" 
+            size="small" 
+            style="background-color: var(--p-primary-color); color: var(--p-primary-contrast)" 
           />
+          <span style="font-weight: 600; font-size: 1.125rem;">{{ repository.name }}</span>
         </div>
       </div>
     </template>
     
-    <!-- 管理アクション -->
-    <template v-if="props.layout === 'detailed'" #icons>
-      <Button 
-        icon="pi pi-cog"
-        size="small"
-        severity="secondary"
-        text
-        @click="$emit('edit', repository)"
-        v-tooltip="'設定'"
-      />
-      <Button 
-        icon="pi pi-ellipsis-v"
-        size="small"
-        severity="secondary"
-        text
-        @click="toggleMenu"
-        aria-haspopup="true"
-        aria-controls="repository-menu"
-        v-tooltip="'その他'"
-      />
-      
-      <!-- ドロップダウンメニュー -->
-      <Menu 
-        ref="menu" 
-        id="repository-menu"
-        :model="menuItems" 
-        :popup="true" 
-      />
-    </template>
-
-    <!-- パネルコンテンツ -->
-    <div class="flex flex-col gap-4">
-      <!-- リポジトリ基本情報 -->
-      <div class="flex items-center justify-between">
-        <span class="text-sm text-surface-500 dark:text-surface-400">{{ repository.owner }}</span>
-        <Tag 
-          :value="repository.service_type" 
-          :severity="getServiceSeverity(repository.service_type)"
-          :size="props.layout === 'simple' ? 'small' : undefined" 
+    <template #icons>
+      <div v-if="props.layout === 'detailed'" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+        <Button 
+          icon="pi pi-cog"
+          size="small"
+          severity="secondary"
+          text
+          @click="$emit('edit', repository)"
+        />
+        <Button 
+          icon="pi pi-trash"
+          size="small"
+          severity="danger"
+          text
+          @click="$emit('delete', repository)"
         />
       </div>
-      
-      <!-- 説明文 -->
-      <div v-if="repository.description">
-        <p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed m-0">
-          {{ truncatedDescription }}
-        </p>
-      </div>
-      
-      <!-- メタ情報 -->
-      <div class="flex flex-col gap-2 flex-1">
-        <div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
-          <Avatar icon="pi pi-code-branch" size="small" style="background-color: var(--p-surface-200); color: var(--p-text-color); width: 16px; height: 16px; font-size: 0.75rem" />
-          <span>{{ repository.default_branch }}</span>
-        </div>
-        <div v-if="props.layout === 'detailed'" class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
-          <Avatar icon="pi pi-clock" size="small" style="background-color: var(--p-surface-200); color: var(--p-text-color); width: 16px; height: 16px; font-size: 0.75rem" />
-          <span>{{ formattedUpdatedAt }}</span>
-        </div>
-        <div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
-          <Avatar :icon="repository.is_public ? 'pi pi-globe' : 'pi pi-lock'" size="small" :style="repository.is_public ? 'background-color: var(--p-green-200); color: var(--p-green-700); width: 16px; height: 16px; font-size: 0.75rem' : 'background-color: var(--p-orange-200); color: var(--p-orange-700); width: 16px; height: 16px; font-size: 0.75rem'" />
-          <span>{{ repository.is_public ? '公開' : '非公開' }}</span>
-        </div>
-      </div>
+    </template>
+    
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+      <Tag 
+        :value="repository.service_type" 
+        :severity="getServiceSeverity(repository.service_type)"
+        size="small"
+      />
+      <span>{{ repository.owner }}</span>
+      <Badge 
+        v-if="props.layout === 'detailed'" 
+        :severity="'success'" 
+        value="✓" 
+        size="small"
+      />
     </div>
     
-    <!-- パネルフッター -->
+    <p v-if="repository.description"><strong>説明:</strong> {{ repository.description }}</p>
+    <p><strong>ブランチ:</strong> {{ repository.default_branch }}</p>
+    <p v-if="repository.updated_at"><strong>更新:</strong> {{ formattedUpdatedAt }}</p>
+    <p><strong>公開:</strong> {{ repository.is_public ? '公開リポジトリ' : '非公開リポジトリ' }}</p>
+    
     <template #footer>
-      <div class="flex justify-end">
+      <div style="display: flex; justify-content: center;">
         <Button 
-          label="開く" 
-          size="small"
-          @click="$emit('open', repository)"
-          :disabled="!isHealthy"
-          :class="props.layout === 'detailed' ? 'w-full' : ''"
+          icon="pi pi-file-text"
+          label="開く"
+          style="width: 80%;"
+          @click="navigateToDocument"
         />
       </div>
     </template>
@@ -106,192 +66,71 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import Panel from 'primevue/panel'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
 import Avatar from 'primevue/avatar'
-import Menu from 'primevue/menu'
-import type { MenuItem } from 'primevue/menuitem'
-import type { components } from '@/services/api/types.auto'
-
-type RepositoryResponse = components['schemas']['RepositoryResponse']
+import Tag from 'primevue/tag'
+import Badge from 'primevue/badge'
+import Button from 'primevue/button'
 
 interface Props {
-  repository: RepositoryResponse
-  isHealthy?: boolean
-  isLoading?: boolean
-  /** レイアウトモード: 'detailed' (管理画面用) | 'simple' (ホーム画面用) */
-  layout?: 'detailed' | 'simple'
-}
-
-interface Emits {
-  open: [repository: RepositoryResponse]
-  edit: [repository: RepositoryResponse]
-  delete: [repository: RepositoryResponse]
-  refresh: [repository: RepositoryResponse]
-  clone: [repository: RepositoryResponse]
-  viewDetails: [repository: RepositoryResponse]
+  repository: any
+  layout?: 'simple' | 'detailed'
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isHealthy: true,
-  isLoading: false,
   layout: 'detailed'
 })
 
-const emit = defineEmits<Emits>()
-
-// テンプレート参照
-const menu = ref<typeof Menu>()
-
-// コンピューテッド プロパティ
-const truncatedName = computed(() => {
-  const maxLength = 20
-  return props.repository.name.length > maxLength 
-    ? props.repository.name.substring(0, maxLength) + '...'
-    : props.repository.name
-})
-
-const truncatedDescription = computed(() => {
-  if (!props.repository.description) return ''
-  const maxLength = 100
-  return props.repository.description.length > maxLength
-    ? props.repository.description.substring(0, maxLength) + '...'
-    : props.repository.description
-})
+const router = useRouter()
 
 const formattedUpdatedAt = computed(() => {
-  const date = new Date(props.repository.updated_at)
-  const now = new Date()
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+  if (!props.repository.updated_at) return 'N/A'
+  return new Date(props.repository.updated_at).toLocaleDateString('ja-JP')
+})
+
+const getServiceSeverity = (serviceType: string) => {
+  switch (serviceType) {
+    case 'github': return 'secondary'
+    case 'gitlab': return 'warn'
+    default: return 'info'
+  }
+}
+
+const buildDocumentPath = (repository: any): string => {
+  // 新しいフィールド構造: document_root_directory + root_document_path
+  if (repository.document_root_directory && repository.root_document_path) {
+    const baseDir = repository.document_root_directory.endsWith('/') 
+      ? repository.document_root_directory 
+      : repository.document_root_directory + '/';
+    return baseDir + repository.root_document_path;
+  }
   
-  if (diffInHours < 1) {
-    return '1時間以内'
-  } else if (diffInHours < 24) {
-    return `${Math.floor(diffInHours)}時間前`
-  } else if (diffInHours < 168) { // 1週間
-    return `${Math.floor(diffInHours / 24)}日前`
-  } else {
-    return date.toLocaleDateString('ja-JP')
+  // root_document_pathのみが設定されている場合
+  if (repository.root_document_path) {
+    return repository.root_document_path;
   }
-})
-
-const statusIcon = computed(() => {
-  if (props.isLoading) return 'pi pi-spin pi-spinner'
-  return props.isHealthy ? 'pi pi-check-circle' : 'pi pi-times-circle'
-})
-
-const statusColor = computed(() => {
-  if (props.isLoading) return '#6366f1'
-  return props.isHealthy ? '#10b981' : '#ef4444'
-})
-
-const statusTooltip = computed(() => {
-  if (props.isLoading) return '同期中...'
-  return props.isHealthy ? '正常' : 'エラー: 接続できません'
-})
-
-// PrimeVue v4 Cardコンポーネントとユーティリティクラスでスタイリング処理するため簡素化
-// cardClassはテンプレートで直接使用
-const healthStatus = computed(() => {
-  if (props.isLoading) return 'loading'
-  return props.isHealthy ? 'healthy' : 'unhealthy'
-})
-
-// メソッド
-function getServiceIcon(service: string): string {
-  const iconMap: Record<string, string> = {
-    'github': 'pi pi-github',
-    'gitlab': 'pi pi-code-branch', // GitLab specific icon not available, using code-branch
-    'bitbucket': 'pi pi-code', // Bitbucket specific icon not available, using code
-    'forgejo': 'pi pi-server' // Forgejo specific icon not available, using server
+  
+  // レガシーフィールド: root_path
+  if (repository.root_path) {
+    return repository.root_path;
   }
-  return iconMap[service.toLowerCase()] || 'pi pi-server'
+  
+  // デフォルト
+  return 'README.md';
 }
 
-function getServiceSeverity(service: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast' {
-  const severityMap: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast'> = {
-    'github': 'success',
-    'gitlab': 'warning',
-    'bitbucket': 'info',
-    'forgejo': 'secondary'
-  }
-  return severityMap[service.toLowerCase()] || 'secondary'
+const navigateToDocument = () => {
+  const defaultPath = buildDocumentPath(props.repository);
+  
+  router.push({
+    name: 'DocumentView',
+    params: { repositoryId: props.repository.id.toString() },
+    query: { 
+      path: defaultPath,
+      ref: props.repository.default_branch 
+    }
+  });
 }
-
-function toggleMenu(event: Event) {
-  if (menu.value && typeof (menu.value as any).toggle === 'function') {
-    (menu.value as any).toggle(event);
-  }
-}
-
-// メニュー項目
-const menuItems = computed<MenuItem[]>(() => [
-  {
-    label: '再同期',
-    icon: 'pi pi-refresh',
-    command: () => emit('refresh', props.repository)
-  },
-  {
-    label: '詳細情報',
-    icon: 'pi pi-info-circle',
-    command: () => emit('viewDetails', props.repository)
-  },
-  {
-    label: 'ブランチ変更',
-    icon: 'pi pi-code-branch',
-    command: () => {} // TODO: ブランチ変更機能
-  },
-  {
-    separator: true
-  },
-  {
-    label: '複製',
-    icon: 'pi pi-copy',
-    command: () => emit('clone', props.repository)
-  },
-  {
-    label: '削除',
-    icon: 'pi pi-trash',
-    command: () => emit('delete', props.repository),
-    style: 'color: var(--red-500)'
-  }
-])
 </script>
-
-<style scoped>
-/*
- * PrimeVue Panel ネイティブスタイル使用
- * - デフォルトのPanelレイアウトとパディング保持
- * - 必要最小限のカスタマイズのみ
- */
-
-/* ホバーアニメーション */
-.repository-card:hover {
-  transform: translateY(-2px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-/* ヘルスステータスインジケーター */
-.repository-card--unhealthy {
-  border-left: 4px solid var(--p-red-500);
-}
-
-.repository-card--healthy {
-  border-left: 4px solid var(--p-green-500);
-}
-
-/* レスポンシブ調整 - モバイル対応 */
-@media (max-width: 768px) {
-  .repository-card .p-panel-header .flex {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-  
-  .repository-card--simple .p-panel-footer .p-button {
-    width: 100%;
-  }
-}
-</style>

@@ -1,4 +1,6 @@
-/* 最小限のアプリケーションスタイルのみ */
+@import './base.css';
+
+/* Application Root Styles */
 #app {
   width: 100%;
   height: 100vh;

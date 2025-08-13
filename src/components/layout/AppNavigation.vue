@@ -1,34 +1,34 @@
 <template>
-  <header class="app-header u-flex-between-center u-px-base u-py-sm">
-    <div class="app-logo u-flex-center u-gap-sm u-flex-1">
-      <router-link to="/" class="app-title-link u-flex-center u-gap-sm">
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+      <router-link to="/" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: inherit;">
         <img src="@/assets/logo.svg" alt="Logo" class="logo-image" />
-        <h1 class="app-title u-m-0">ドキュメントAIヘルパー</h1>
+        <h1 style="margin: 0; font-size: 1.25rem; font-weight: 600;">ドキュメントAIヘルパー</h1>
       </router-link>
     </div>
     
-    <div class="app-center u-flex-center u-flex-1">
+    <div style="display: flex; align-items: center; justify-content: center; flex: 1;">
       <!-- 選択されたリポジトリの情報表示 -->
       <div 
         v-if="selectedRepository" 
-        class="selected-repository clickable u-flex-center u-gap-sm u-px-sm u-py-xs u-rounded"
+        style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; cursor: pointer; background-color: var(--p-surface-100); border: 1px solid var(--p-surface-200);"
         @click="navigateToDocument"
         v-tooltip.bottom="'ドキュメント画面に戻る'"
       >
         <i class="pi pi-folder"></i>
-        <span class="repo-name u-font-medium">{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
+        <span style="font-weight: 500;">{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
         <Tag :value="selectedRepository.service_type" severity="info" size="small" />
       </div>
     </div>
     
     <!-- デスクトップ用メニュー -->
-    <div class="app-menu desktop-menu u-flex-1 u-flex">
-      <nav class="navigation u-flex u-gap-sm">
-        <router-link to="/admin/repositories" class="nav-link u-flex-center u-gap-xs u-px-sm u-py-xs u-rounded u-transition">
+    <div style="flex: 1; display: flex; justify-content: flex-end;">
+      <nav style="display: flex; gap: 0.5rem;">
+        <router-link to="/admin/repositories" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; text-decoration: none; color: inherit; transition: background-color 0.15s;">
           <i class="pi pi-folder"></i>
           <span>ドキュメント管理</span>
         </router-link>
-        <router-link to="/settings" class="nav-link u-flex-center u-gap-xs u-px-sm u-py-xs u-rounded u-transition">
+        <router-link to="/settings" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; text-decoration: none; color: inherit; transition: background-color 0.15s;">
           <i class="pi pi-cog"></i>
           <span>設定</span>
         </router-link>

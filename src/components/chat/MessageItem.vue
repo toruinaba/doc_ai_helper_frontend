@@ -1,13 +1,18 @@
 <template>
   <div 
-    class="flex mb-6 items-start gap-3"
-    :class="message.role === 'user' ? 'flex-row-reverse' : ''"
+    :style="{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '0.75rem',
+      marginBottom: '1.5rem',
+      flexDirection: message.role === 'user' ? 'row-reverse' : 'row'
+    }"
   >
     <!-- ユーザーアバター -->
     <Avatar 
       v-if="message.role === 'user'" 
       icon="pi pi-user"
-      class="bg-blue-500 text-white flex-shrink-0"
+      style="background-color: #3b82f6; color: white; flex-shrink: 0;"
       size="normal"
       shape="circle"
     />
@@ -15,7 +20,7 @@
     <Avatar 
       v-else-if="message.role === 'assistant'" 
       icon="pi pi-sparkles"
-      class="bg-green-500 text-white flex-shrink-0"
+      style="background-color: #10b981; color: white; flex-shrink: 0;"
       size="normal"  
       shape="circle"
     />
@@ -23,21 +28,28 @@
     <Avatar 
       v-else 
       icon="pi pi-info-circle"
-      class="bg-surface-400 text-white flex-shrink-0"
+      style="background-color: var(--p-surface-400); color: white; flex-shrink: 0;"
       size="normal"
       shape="circle"
     />
     
     <!-- メッセージバブル -->
     <div 
-      class="max-w-3xl min-w-48 rounded-2xl px-5 py-4 shadow-sm border"
-      :class="[
-        message.role === 'user' 
-          ? 'bg-primary text-primary-contrast border-primary rounded-br-sm' 
-          : 'bg-surface-0 text-surface-900 border-surface-200 rounded-bl-sm'
-      ]"
+      :style="{
+        maxWidth: '48rem',
+        minWidth: '12rem',
+        borderRadius: '1rem',
+        padding: '1rem 1.25rem',
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid',
+        backgroundColor: message.role === 'user' ? 'var(--p-primary-color)' : 'var(--p-surface-0)',
+        color: message.role === 'user' ? 'var(--p-primary-contrast)' : 'var(--p-surface-900)',
+        borderColor: message.role === 'user' ? 'var(--p-primary-color)' : 'var(--p-surface-200)',
+        borderBottomRightRadius: message.role === 'user' ? '0.125rem' : '1rem',
+        borderBottomLeftRadius: message.role === 'user' ? '1rem' : '0.125rem'
+      }"
     >
-      <div class="message-text mb-2" v-html="formatMessageContent(message.content)"></div>
+      <div style="margin-bottom: 0.5rem;" v-html="formatMessageContent(message.content)"></div>
       
       <!-- MCPツール実行情報の表示 -->
       <div v-if="message.toolCalls && message.toolCalls.length > 0" class="tool-calls-section">

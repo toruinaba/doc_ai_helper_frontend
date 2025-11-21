@@ -27,45 +27,15 @@
 
         <!-- ドキュメント一覧 -->
         <div class="repository-grid">
-          <div 
+          <RepositoryCard
             v-for="repository in repositoryStore.repositories" 
             :key="repository.id"
-            class="repository-card"
-            @click="selectRepository(repository)"
-          >
-            <div class="card-header">
-              <div class="repo-info">
-                <i class="pi pi-folder repo-icon"></i>
-                <div class="repo-details">
-                  <h3>{{ repository.name }}</h3>
-                  <span class="repo-owner">{{ repository.owner }}</span>
-                </div>
-              </div>
-              <Tag :value="repository.service_type" severity="info" size="small" />
-            </div>
-            
-            <div v-if="repository.description" class="card-description">
-              <p>{{ repository.description }}</p>
-            </div>
-            
-            <div class="card-footer">
-              <div class="repo-meta">
-                <span class="branch">
-                  <i class="pi pi-code-branch"></i>
-                  {{ repository.default_branch }}
-                </span>
-                <span class="access-type">
-                  <i :class="repository.is_public ? 'pi pi-globe' : 'pi pi-lock'"></i>
-                  {{ repository.is_public ? '公開' : '非公開' }}
-                </span>
-              </div>
-              <Button 
-                label="開く" 
-                size="small"
-                @click.stop="selectRepository(repository)"
-              />
-            </div>
-          </div>
+            :repository="repository"
+            :isHealthy="true"
+            :isLoading="false"
+            layout="simple"
+            @open="selectRepository"
+          />
         </div>
 
         <!-- 空状態 -->
@@ -100,9 +70,9 @@ import { useToast } from 'primevue/usetoast';
 import { useRepositoryStore } from '@/stores/repository.store';
 import { useDocumentStore } from '@/stores/document.store';
 import AppNavigation from '@/components/layout/AppNavigation.vue';
+import RepositoryCard from '@/components/repository/RepositoryCard.vue';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
-import Tag from 'primevue/tag';
 import ProgressSpinner from 'primevue/progressspinner';
 import Toast from 'primevue/toast';
 import type { components } from '@/services/api/types.auto';
@@ -132,23 +102,59 @@ function goToRepositoryManagement() {
   router.push('/admin/repositories');
 }
 
+/**
+ * リポジトリ設定からドキュメントパスを構築
+ */
+function buildDocumentPath(repository: RepositoryResponse): string {
+  // 新しいフィールド構造: document_root_directory + root_document_path
+  if (repository.document_root_directory && repository.root_document_path) {
+    const baseDir = repository.document_root_directory.endsWith('/') 
+      ? repository.document_root_directory 
+      : repository.document_root_directory + '/';
+    return baseDir + repository.root_document_path;
+  }
+  
+  // root_document_pathのみが設定されている場合
+  if (repository.root_document_path) {
+    return repository.root_document_path;
+  }
+  
+  // レガシーフィールド: root_path
+  if (repository.root_path) {
+    return repository.root_path;
+  }
+  
+  // デフォルト
+  return 'README.md';
+}
+
 async function selectRepository(repository: RepositoryResponse) {
   try {
-    // リポジトリを選択
+    // リポジトリを選択（メタデータのみ）
     repositoryStore.selectRepository(repository);
     
-    // ドキュメントストアを更新
-    documentStore.currentService = repository.service_type;
-    documentStore.currentOwner = repository.owner;
-    documentStore.currentRepo = repository.name;
-    documentStore.currentRef = repository.default_branch;
-    
     // デフォルトドキュメントパスを設定
-    // root_pathがファイルパスとして設定されている場合はそのまま使用
-    const defaultPath = repository.root_path || 'README.md';
+    // Phase 2実装: 新しいフィールド構造でパスを構築
+    const defaultPath = buildDocumentPath(repository);
     
-    // ドキュメント表示ページに遷移
-    router.push(`/documents/${repository.id}`);
+    console.log('Document path construction:', {
+      repository: {
+        document_root_directory: repository.document_root_directory,
+        root_document_path: repository.root_document_path,
+        root_path: repository.root_path
+      },
+      constructedPath: defaultPath
+    });
+    
+    // 新しい設計: router-driven navigation with query parameters
+    router.push({
+      name: 'DocumentView',
+      params: { repositoryId: repository.id.toString() },
+      query: { 
+        path: defaultPath,
+        ref: repository.default_branch 
+      }
+    });
     
     toast.add({
       severity: 'success',
@@ -247,105 +253,6 @@ async function selectRepository(repository: RepositoryResponse) {
   .welcome-content p {
     font-size: var(--app-font-size-base);
   }
-}
-
-.repository-card {
-  background: var(--app-surface-0);
-  border: 1px solid var(--app-surface-border);
-  border-radius: var(--app-border-radius-lg);
-  padding: var(--app-spacing-lg);
-  cursor: pointer;
-  transition: var(--app-transition-base);
-  box-shadow: var(--app-shadow-sm);
-}
-
-.repository-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--app-shadow-card);
-  border-color: var(--app-primary-color);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--app-spacing-base);
-}
-
-.repo-info {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-sm);
-}
-
-.repo-icon {
-  font-size: var(--app-font-size-xl);
-  color: var(--app-primary-color);
-}
-
-.repo-details h3 {
-  font-size: var(--app-font-size-lg);
-  font-weight: 600;
-  margin: 0;
-  color: var(--app-text-color);
-}
-
-.repo-owner {
-  font-size: var(--app-font-size-sm);
-  color: var(--app-text-color-secondary);
-}
-
-.card-description {
-  margin-bottom: var(--app-spacing-base);
-}
-
-.card-description p {
-  font-size: var(--app-font-size-sm);
-  color: var(--app-text-color-secondary);
-  margin: 0;
-  line-height: 1.5;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* カードのタッチフレンドリー調整 */
-@media (max-width: 992px) {
-  .repository-card {
-    padding: var(--app-spacing-base);
-    min-height: var(--app-touch-target-min);
-  }
-  
-  .card-footer {
-    flex-direction: column;
-    gap: var(--app-spacing-sm);
-    align-items: stretch;
-  }
-  
-  .card-footer .p-button {
-    width: 100%;
-    min-height: var(--app-touch-target-min);
-  }
-  
-  .repo-meta {
-    justify-content: center;
-  }
-}
-
-.repo-meta {
-  display: flex;
-  gap: var(--app-spacing-base);
-  font-size: var(--app-font-size-xs);
-  color: var(--app-text-color-muted);
-}
-
-.branch, .access-type {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-xs);
 }
 
 .empty-state {

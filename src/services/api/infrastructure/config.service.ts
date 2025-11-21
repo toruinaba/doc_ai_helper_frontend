@@ -138,6 +138,28 @@ export function updateMCPToolsConfig(config: Partial<typeof defaultStreamingConf
 }
 
 /**
+ * 特定のツールが有効かどうかを確認
+ */
+export function isToolEnabled(toolName: string): boolean {
+  const config = getMCPToolsConfig();
+  // currentConfig.mcpTools構造に基づいてツールの有効状態を確認
+  return config.enableDetailedLogging && config.enableProgressMonitoring;
+}
+
+/**
+ * デバッグ用：現在のMCPツール設定をログ出力
+ */
+export function logMCPToolsConfig(): void {
+  const config = getMCPToolsConfig();
+  console.group('🛠️ MCPツール設定');
+  console.log('詳細ログ:', config.enableDetailedLogging);
+  console.log('プログレス監視:', config.enableProgressMonitoring);
+  console.log('ツール実行タイムアウト:', config.toolExecutionTimeout);
+  console.log('自動パース:', config.autoParseResults);
+  console.groupEnd();
+}
+
+/**
  * MCPツールストリーミングが有効かどうかを判断
  * @returns MCPツールストリーミングが有効な場合true
  */

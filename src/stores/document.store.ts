@@ -6,8 +6,63 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import apiClient from '../services/api';
-import { types } from '../services/api';
-import { getDefaultRepositoryConfig, getApiConfig } from '../utils/config.util';
+// Note: Using API response type definitions for compatibility with actual API
+type DocumentResponse = {
+  path: string;
+  name: string;
+  type: 'markdown' | 'html' | 'other' | 'quarto';
+  metadata: {
+    size: number;
+    last_modified: string;
+    content_type: string;
+    sha?: string | null;
+    download_url?: string | null;
+    html_url?: string | null;
+    raw_url?: string | null;
+    extra?: { [key: string]: unknown } | null;
+  };
+  content: {
+    content?: string | null;
+    transformed_content?: string | null;
+    encoding?: string | null;
+  };
+  repository: string;
+  owner: string;
+  service: string;
+  ref?: string | null;
+  links?: Array<{
+    text: string;
+    url: string;
+    is_image: boolean;
+    position: [number, number];
+    is_external: boolean;
+  }> | null;
+};
+
+type FileTreeItem = {
+  path: string;
+  name: string;
+  type: string;
+  size?: number | null;
+  sha?: string | null;
+  download_url?: string | null;
+  html_url?: string | null;
+  git_url?: string | null;
+  children?: FileTreeItem[];
+};
+
+type LinkInfo = {
+  text: string;
+  url: string;
+  is_image: boolean;
+  position: [number, number];
+  is_external: boolean;
+};
+import { 
+  getDefaultRepositoryConfig, 
+  getApiConfig, 
+  getLinkProcessingConfig 
+} from '../utils/config.util';
 import { useAsyncOperation } from '../composables/useAsyncOperation';
 
 export const useDocumentStore = defineStore('document', () => {
@@ -16,8 +71,8 @@ export const useDocumentStore = defineStore('document', () => {
   const apiConfig = getApiConfig();
 
   // 状態
-  const currentDocument = ref<types.DocumentResponse | null>(null);
-  const repositoryStructure = ref<types.FileTreeItem[]>([]);
+  const currentDocument = ref<DocumentResponse | null>(null);
+  const repositoryStructure = ref<FileTreeItem[]>([]);
   
   // 非同期操作管理
   const asyncOp = useAsyncOperation({
@@ -49,7 +104,6 @@ export const useDocumentStore = defineStore('document', () => {
     error.value = null;
     
     console.log(`Fetching document: ${path}`, {
-      timestamp: new Date().toISOString(),
       service: currentService.value,
       owner: currentOwner.value,
       repo: currentRepo.value,
@@ -60,14 +114,25 @@ export const useDocumentStore = defineStore('document', () => {
       // 実際のAPIを使用
       console.log(`Using API for document fetch: ${currentService.value}/${currentOwner.value}/${currentRepo.value}/${path}`);
       
-      // バックエンドのURLを環境変数から取得
+      // リンク処理設定を取得
+      const linkProcessingConfig = getLinkProcessingConfig();
       const apiConfig = getApiConfig();
       const backendUrl = apiConfig.backendUrl;
       
       // バックエンドURLを完全にシンプルな形式にする
       // 例: http://localhost:8000/api/v1 → http://localhost:8000
       const baseUrlForLinks = backendUrl.replace(/\/api\/v1\/?.*$/, '');
-      console.log(`Using backend URL for links: ${baseUrlForLinks} (original: ${backendUrl})`);
+      
+      // transform_linksパラメータを設定に応じて決定
+      const transformLinks = linkProcessingConfig.transformMode;
+      
+      if (linkProcessingConfig.debugMode) {
+        console.log(`Link processing config:`, {
+          transformMode: transformLinks,
+          baseUrlForLinks,
+          originalBackendUrl: backendUrl,
+        });
+      }
       
       currentDocument.value = await apiClient.getDocument(
         currentService.value,
@@ -75,22 +140,21 @@ export const useDocumentStore = defineStore('document', () => {
         currentRepo.value,
         path,
         ref,
-        true,
+        transformLinks,
         baseUrlForLinks
       );
-      console.log('Document fetched successfully:', {
-        path,
-        name: currentDocument.value.name,
-        type: currentDocument.value.type,
-        contentLength: currentDocument.value.content.content.length,
-        hasLinks: currentDocument.value.links?.length || 0,
-        timestamp: new Date().toISOString()
-      });
       currentPath.value = path;
       
       return currentDocument.value;
     } catch (err) {
-      console.error('Failed to fetch document:', err);
+      console.error('Failed to fetch document:', {
+        path,
+        service: currentService.value,
+        owner: currentOwner.value,
+        repo: currentRepo.value,
+        error: (err as Error).message || 'Unknown error',
+        statusCode: (err as any)?.response?.status
+      });
       error.value = err instanceof Error ? err.message : 'Failed to fetch document';
       throw err;
     } finally {
@@ -138,7 +202,7 @@ export const useDocumentStore = defineStore('document', () => {
   }
 
   // ドキュメントのリンクをクリックしたときの処理
-  async function navigateToLink(link: types.LinkInfo) {
+  async function navigateToLink(link: LinkInfo) {
     if (link.is_external) {
       // 外部リンクは新しいタブで開く
       window.open(link.url, '_blank');

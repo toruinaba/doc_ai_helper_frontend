@@ -7,7 +7,11 @@
       <div class="desktop-layout">
         <Splitter :style="{ height: 'calc(100vh - var(--app-header-height))' }" class="main-splitter">
           <SplitterPanel :size="60" :minSize="40" class="document-panel">
-            <DocumentViewer />
+            <DocumentViewer 
+              :repository-id="documentViewerProps.repositoryId"
+              :document-path="documentViewerProps.documentPath"
+              :ref-name="documentViewerProps.ref"
+            />
           </SplitterPanel>
           <SplitterPanel :size="40" :minSize="30" class="chat-panel">
             <DocumentAssistantInterface />
@@ -17,7 +21,11 @@
 
       <!-- タブレット・モバイル用レイアウト (ドキュメント単体表示 + モーダルチャット) -->
       <div class="mobile-layout">
-        <DocumentViewer />
+        <DocumentViewer 
+          :repository-id="documentViewerProps.repositoryId"
+          :document-path="documentViewerProps.documentPath"
+          :ref-name="documentViewerProps.ref"
+        />
         
         <!-- フローティングチャットボタン -->
         <Button 
@@ -62,93 +70,41 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useDocumentStore } from '@/stores/document.store';
-import { useRepositoryStore } from '@/stores/repository.store';
-import { getDefaultRepositoryConfig } from '@/utils/config.util';
-import AppNavigation from '@/components/layout/AppNavigation.vue';
-import DocumentViewer from '@/components/document/DocumentViewer.vue';
-import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue';
-import ChatModal from '@/components/assistant/ChatModal.vue';
-import Splitter from 'primevue/splitter';
-import SplitterPanel from 'primevue/splitterpanel';
-import Button from 'primevue/button';
-import Dialog from 'primevue/dialog';
-import type { components } from '@/services/api/types.auto';
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import AppNavigation from '@/components/layout/AppNavigation.vue'
+import DocumentViewer from '@/components/document/DocumentViewer.vue'
+import DocumentAssistantInterface from '@/components/assistant/DocumentAssistantInterface.vue'
+import Splitter from 'primevue/splitter'
+import SplitterPanel from 'primevue/splitterpanel'
+import Button from 'primevue/button'
+import Dialog from 'primevue/dialog'
+import type { DocumentViewProps } from '@/types/router'
 
-type RepositoryResponse = components['schemas']['RepositoryResponse'];
+// Get route information directly instead of props
+const route = useRoute()
 
-const route = useRoute();
-const router = useRouter();
-const documentStore = useDocumentStore();
-const repositoryStore = useRepositoryStore();
+// Extract route data
+const repositoryId = computed(() => route.params.repositoryId as string)
+const documentPath = computed(() => route.query.path as string || '')
+const documentRef = computed(() => route.query.ref as string || '')
+
+// Create props object for DocumentViewer
+const documentViewerProps = computed(() => ({
+  repositoryId: repositoryId.value,
+  documentPath: documentPath.value,
+  ref: documentRef.value
+}))
 
 // チャットモーダルの表示状態
-const showChatDialog = ref(false);
-
-// Template refs
-
-// イベントハンドラー
-function onBranchChange(branch: string) {
-  console.log('Branch changed:', branch);
-  // ブランチが変更された場合、currentRefを更新してwatcherに任せる
-  documentStore.currentRef = branch;
-}
+const showChatDialog = ref(false)
 
 /**
  * チャットダイアログを開く
  */
 function openChatDialog() {
-  showChatDialog.value = true;
+  showChatDialog.value = true
 }
-
-
-// コンポーネントマウント時の処理
-onMounted(async () => {
-  const repositoryId = route.params.repositoryId as string;
-  
-  if (repositoryId) {
-    // リポジトリIDが指定されている場合、そのリポジトリを読み込む
-    try {
-      // まず、リポジトリ一覧を取得（キャッシュされていない場合）
-      if (repositoryStore.repositories.length === 0) {
-        await repositoryStore.fetchRepositories();
-      }
-      
-      // 指定されたリポジトリを検索
-      const repository = repositoryStore.repositories.find(r => r.id === parseInt(repositoryId));
-      if (repository) {
-        // リポジトリを選択
-        repositoryStore.selectRepository(repository);
-        
-        // ドキュメントストアにリポジトリ情報を設定
-        documentStore.currentService = repository.service_type;
-        documentStore.currentOwner = repository.owner;
-        documentStore.currentRepo = repository.name;
-        documentStore.currentRef = repository.default_branch;
-        
-        // デフォルトドキュメントを設定（watcherが自動的に取得）
-        // root_pathがファイルパスとして設定されている場合はそのまま使用
-        const defaultPath = repository.root_path || 'README.md';
-        documentStore.currentPath = defaultPath;
-      } else {
-        // リポジトリが見つからない場合はホームに戻る
-        console.warn(`Repository with ID ${repositoryId} not found`);
-        router.push('/');
-      }
-    } catch (error) {
-      console.error('Failed to load repository:', error);
-      router.push('/');
-    }
-  } else {
-    // デフォルトのパスを設定（環境変数から取得、watcherが自動的に取得）
-    const defaultConfig = getDefaultRepositoryConfig();
-    if (!documentStore.currentPath) {
-      documentStore.currentPath = defaultConfig.path;
-    }
-  }
-});
 </script>
 
 

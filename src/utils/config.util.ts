@@ -78,6 +78,18 @@ export interface DocumentContextConfig {
 }
 
 /**
+ * リンク処理設定 - 簡素化版
+ */
+export interface LinkProcessingConfig {
+  /** バックエンドのtransform_linksパラメータ */
+  transformMode: boolean;
+  /** CDN最適化を有効にするか */
+  enableCdnOptimization: boolean;
+  /** デバッグモード */
+  debugMode: boolean;
+}
+
+/**
  * 環境変数からリポジトリのデフォルト設定を取得
  * @returns リポジトリのデフォルト設定
  */
@@ -131,9 +143,9 @@ export function getLLMConfig(): LLMConfig {
  */
 export function getDefaultsConfig(): DefaultsConfig {
   return {
-    encoding: import.meta.env.VITE_DEFAULT_ENCODING || 'utf-8',
-    documentType: import.meta.env.VITE_DEFAULT_DOCUMENT_TYPE || 'markdown',
-    branch: import.meta.env.VITE_DEFAULT_BRANCH || 'main'
+    encoding: 'utf-8',
+    documentType: 'markdown', 
+    branch: 'main'
   };
 }
 
@@ -177,5 +189,57 @@ export function getDefaultDocumentContextConfig(): DocumentContextConfig {
     enableRepositoryContext: true,
     enableDocumentMetadata: true,
     completeToolFlow: true
+  };
+}
+
+/**
+ * リンク処理設定を取得 - 簡素化版
+ */
+export function getLinkProcessingConfig(): LinkProcessingConfig {
+  return {
+    transformMode: import.meta.env.VITE_TRANSFORM_LINKS !== 'false',
+    enableCdnOptimization: import.meta.env.VITE_ENABLE_CDN_OPTIMIZATION !== 'false',
+    debugMode: import.meta.env.VITE_LINK_PROCESSING_DEBUG === 'true'
+  };
+}
+
+// Legacy link processing functions removed - simplified configuration
+
+/**
+ * 本番環境かどうかを判定
+ */
+export function isProductionEnvironment(): boolean {
+  return import.meta.env.PROD;
+}
+
+// Experimental features function removed - simplified configuration
+
+/**
+ * 統合アプリケーション設定
+ */
+export interface AppConfig {
+  repository: RepositoryConfig;
+  api: ApiConfig;
+  llm: LLMConfig;
+  defaults: DefaultsConfig;
+  ui: UIConfig;
+  appDefaults: AppDefaultsConfig;
+  documentContext: DocumentContextConfig;
+  linkProcessing: LinkProcessingConfig;
+}
+
+/**
+ * 全ての設定を統合したアプリケーション設定を取得
+ */
+export function getAppConfig(): AppConfig {
+  return {
+    repository: getDefaultRepositoryConfig(),
+    api: getApiConfig(),
+    llm: getLLMConfig(),
+    defaults: getDefaultsConfig(),
+    ui: getUIConfig(),
+    appDefaults: getAppDefaultsConfig(),
+    documentContext: getDefaultDocumentContextConfig(),
+    linkProcessing: getLinkProcessingConfig()
   };
 }

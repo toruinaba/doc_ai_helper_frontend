@@ -1,3 +1,4 @@
+import './assets/styles/markdown.css'
 import './assets/main.css'
 
 import { createApp } from 'vue'
@@ -56,7 +57,7 @@ app.use(PrimeVue, {
   theme: {
     preset: Aura,
     options: {
-      darkModeSelector: '.p-dark', // 明示的にダークモードクラスが必要
+      darkModeSelector: '.p-dark',
       cssLayer: false
     }
   }

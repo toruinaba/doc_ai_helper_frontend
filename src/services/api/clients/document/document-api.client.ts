@@ -5,6 +5,7 @@
  */
 import { BaseHttpClient } from '../base'
 import type { components } from '../../types.auto'
+// TransformLinksMode removed - now using boolean
 
 type DocumentResponse = components['schemas']['DocumentResponse']
 type RepositoryStructureResponse = components['schemas']['RepositoryStructureResponse']
@@ -17,7 +18,7 @@ export class DocumentApiClient extends BaseHttpClient {
    * @param repo リポジトリ名
    * @param path ドキュメントパス
    * @param ref ブランチまたはタグ名（デフォルト: main）
-   * @param transformLinks 相対リンクを絶対リンクに変換するかどうか（デフォルト: true）
+   * @param transformLinks リンク変換モード - 'true'(画像CDNのみ変換), 'false'(変換なし) - バックエンド仕様変更対応
    * @param baseUrl リンク変換のベースURL
    * @returns ドキュメントレスポンス
    */
@@ -30,9 +31,12 @@ export class DocumentApiClient extends BaseHttpClient {
     transformLinks: boolean = true,
     baseUrl?: string
   ): Promise<DocumentResponse> {
+    // バックエンド仕様変更対応: transform_links=true は実質的に images-only
+    const transformLinksParam = transformLinks;
+    
     const params: Record<string, string | boolean | undefined> = {
       ref,
-      transform_links: transformLinks,
+      transform_links: transformLinksParam,
     }
 
     if (baseUrl) {

@@ -1,11 +1,11 @@
 <template>
-  <div v-if="frontmatter && hasEntries" class="frontmatter-container p-mb-3">
+  <div v-if="data && hasEntries" class="meta-display-container p-mb-3">
     <div class="p-card p-component p-shadow-2">
       <div class="p-card-body">
-        <div class="p-card-title">メタデータ</div>
+        <div class="p-card-title">{{ title }}</div>
         <div class="p-card-content">
-          <ul class="frontmatter-list">
-            <li v-for="(value, key) in frontmatter" :key="key" class="frontmatter-item">
+          <ul class="meta-list">
+            <li v-for="(value, key) in data" :key="key" class="meta-item">
               <strong>{{ formatKey(key) }}:</strong> {{ formatValue(value) }}
             </li>
           </ul>
@@ -19,14 +19,19 @@
 import { computed } from 'vue';
 
 interface Props {
-  frontmatter: Record<string, any> | null;
+  /** メタデータオブジェクト */
+  data: Record<string, any> | null;
+  /** 表示タイトル */
+  title?: string;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  title: 'メタデータ'
+});
 
-// フロントマターにエントリがあるかチェック
+// データにエントリがあるかチェック
 const hasEntries = computed(() => {
-  return props.frontmatter && Object.keys(props.frontmatter).length > 0;
+  return props.data && Object.keys(props.data).length > 0;
 });
 
 /**
@@ -60,23 +65,23 @@ function formatValue(value: any): string {
 </script>
 
 <style scoped>
-.frontmatter-container {
+.meta-display-container {
   margin-bottom: 1.5rem;
 }
 
-.frontmatter-list {
+.meta-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.frontmatter-item {
+.meta-item {
   margin-bottom: 0.5rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--surface-border);
 }
 
-.frontmatter-item:last-child {
+.meta-item:last-child {
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;

@@ -33,7 +33,8 @@ export function useLLMOperations() {
   const { 
     getConversationHistory,
     replaceWithOptimizedHistory,
-    saveOptimizedHistory
+    saveOptimizedHistory,
+    addSystemMessage
   } = useMessageManagement();
   
   const { 

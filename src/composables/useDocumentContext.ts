@@ -6,6 +6,7 @@
 import { computed } from 'vue';
 import { useDocumentStore } from '@/stores/document.store';
 import { useRepositoryStore } from '@/stores/repository.store';
+import { useDocumentRouter } from '@/composables/useDocumentRouter';
 import { getDefaultRepositoryConfig, type DocumentContextConfig } from '@/utils/config.util';
 
 export function useDocumentContext() {
@@ -15,6 +16,9 @@ export function useDocumentContext() {
   // 関連ストア
   const documentStore = useDocumentStore();
   const repositoryStore = useRepositoryStore();
+  
+  // 新しい設計: router-driven navigation
+  const { currentDocumentState } = useDocumentRouter();
 
   /**
    * 現在のドキュメント情報を取得
@@ -36,12 +40,15 @@ export function useDocumentContext() {
         owner: context?.owner || selectedRepo.owner,
         repo: context?.repo || selectedRepo.name,
         ref: context?.ref || selectedRepo.default_branch,
-        path: context?.current_path || documentStore.currentPath || defaultConfig.path,
+        path: context?.current_path || currentDocumentState.value.path || documentStore.currentPath || defaultConfig.path,
         // 追加のメタデータ
         repositoryId: selectedRepo.id,
         isPublic: selectedRepo.is_public,
         description: selectedRepo.description,
-        rootPath: selectedRepo.root_path
+        // Phase 2実装: 新しいフィールドを優先、フォールバック付き
+        rootDocumentPath: selectedRepo.root_document_path || selectedRepo.root_path,
+        documentRootDirectory: selectedRepo.document_root_directory,
+        rootPath: selectedRepo.root_path  // レガシーサポート
       };
     }
     
@@ -51,7 +58,7 @@ export function useDocumentContext() {
       owner: documentStore.currentOwner || defaultConfig.owner,
       repo: documentStore.currentRepo || defaultConfig.repo,
       ref: documentStore.currentRef || defaultConfig.ref,
-      path: documentStore.currentPath || defaultConfig.path,
+      path: currentDocumentState.value.path || documentStore.currentPath || defaultConfig.path,
       repositoryId: null,
       isPublic: true,
       description: null,
@@ -76,8 +83,11 @@ export function useDocumentContext() {
       repositoryMetadata += `\n説明: ${repo.description}`;
     }
     repositoryMetadata += `\nアクセス: ${repo.isPublic ? '公開' : '非公開'}`;
-    if (repo.rootPath) {
-      repositoryMetadata += `\nドキュメントルート: ${repo.rootPath}`;
+    if (repo.rootDocumentPath) {
+      repositoryMetadata += `\nメインドキュメント: ${repo.rootDocumentPath}`;
+    }
+    if (repo.documentRootDirectory) {
+      repositoryMetadata += `\nドキュメントディレクトリ: ${repo.documentRootDirectory}`;
     }
 
     return `以下のドキュメントに関する質問に答えてください：

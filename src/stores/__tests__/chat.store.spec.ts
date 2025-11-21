@@ -6,7 +6,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useDocumentAssistantStore } from '@/stores/document-assistant.store';
 import { useDocumentStore } from '@/stores/document.store';
-import type { DocumentResponse, LLMQueryRequest } from '@/services/api/types';
+import type { components } from '@/services/api/types.auto';
+
+// 自動生成型の型エイリアス
+type DocumentResponse = components['schemas']['DocumentResponse'];
+type LLMQueryRequest = components['schemas']['LLMQueryRequest'];
 
 // モックデータ
 const mockDocument: DocumentResponse = {

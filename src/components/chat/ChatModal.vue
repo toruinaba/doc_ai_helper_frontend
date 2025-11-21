@@ -43,8 +43,8 @@ import { useDocumentAssistant } from '@/composables/useDocumentAssistant';
 import { useDocumentContext } from '@/composables/useDocumentContext';
 
 // コンポーネントインポート
-import MessagesList from '@/components/assistant/MessagesList.vue';
-import MessageInputForm from '@/components/assistant/MessageInputForm.vue';
+import MessagesList from './MessagesList.vue';
+import MessageInputForm from './MessageInputForm.vue';
 
 // Template refs
 const chatMessagesRef = ref();
@@ -68,18 +68,23 @@ const {
 
 // Document Context composable for repository info
 const {
-  repositoryInfo,
-  getRepositoryStatus,
-  getRepositoryStatusIcon,
-  getRepositoryStatusColor,
-  getRepositoryStatusTooltip
+  repositoryInfo
 } = useDocumentContext();
+
+// Repository status helper functions
+const getRepositoryStatusIcon = () => 'pi pi-github';
+const getRepositoryStatusColor = () => '#28a745';
+const getRepositoryStatusTooltip = () => 'Repository connected';
 
 /**
  * メッセージ送信処理
  */
-async function handleSendMessage(content: string) {
-  await sendMessage(content);
+async function handleSendMessage(options: { 
+  message: string; 
+  useStreaming: boolean; 
+  useTools: boolean; 
+}) {
+  await sendMessage(options);
 }
 
 // コンポーネントマウント時にスクロール

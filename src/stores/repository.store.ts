@@ -9,6 +9,7 @@ import { ref, computed } from 'vue';
 import { repositoryService } from '../services/api/repository.service';
 import type { components } from '../services/api/types.auto';
 import { getDefaultRepositoryConfig } from '../utils/config.util';
+import apiClient from '../services/api';
 
 // OpenAPIから自動生成された型を使用
 type RepositoryResponse = components['schemas']['RepositoryResponse'];
@@ -29,8 +30,8 @@ export const useRepositoryStore = defineStore('repository', () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const healthStatus = ref<Record<number, boolean>>({});
-  
-  // レガシー対応：既存の環境変数ベース設定
+
+  // デフォルト値（レガシー互換性用）
   const currentService = ref<string>(defaultConfig.service);
   const currentOwner = ref<string>(defaultConfig.owner);
   const currentRepo = ref<string>(defaultConfig.repo);
@@ -75,7 +76,7 @@ export const useRepositoryStore = defineStore('repository', () => {
   
   // リポジトリ検索
   async function searchRepository(
-    query: types.SearchQuery,
+    query: components['schemas']['SearchQuery'],
     service: string = currentService.value,
     owner: string = currentOwner.value,
     repo: string = currentRepo.value
@@ -118,7 +119,29 @@ export const useRepositoryStore = defineStore('repository', () => {
     error.value = null;
     
     try {
+      // デバッグログ：ストアレベルでのデータ確認
+      console.log('Repository Store - Update Request:', {
+        id,
+        data,
+        newFields: {
+          document_root_directory: data.document_root_directory,
+          root_document_path: data.root_document_path,
+          repository_root: data.repository_root
+        }
+      });
+      
       const updatedRepository = await repositoryService.updateRepository(id, data);
+      
+      // デバッグログ：レスポンスデータ確認
+      console.log('Repository Store - Update Response:', {
+        updatedRepository,
+        newFieldsInResponse: {
+          document_root_directory: updatedRepository.document_root_directory,
+          root_document_path: updatedRepository.root_document_path,
+          repository_root: updatedRepository.repository_root
+        }
+      });
+      
       const index = repositories.value.findIndex((repo) => repo.id === id);
       if (index !== -1) {
         repositories.value[index] = updatedRepository;

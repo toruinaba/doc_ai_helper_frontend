@@ -3,6 +3,7 @@
  * 
  * アプリケーション全体で使用される日付フォーマット機能を統一
  */
+import { getLogger } from './logger.util';
 
 export interface DateFormatOptions {
   /** ロケール設定 */
@@ -16,6 +17,8 @@ export interface DateFormatOptions {
 /**
  * 日付フォーマットのプリセット
  */
+const logger = getLogger('DateFormatter');
+
 export const DateFormatter = {
   /**
    * チャットメッセージの時刻フォーマット (HH:MM)
@@ -34,7 +37,7 @@ export const DateFormatter = {
         minute: '2-digit' 
       });
     } catch (e) {
-      console.warn('Failed to format message time:', e);
+      logger.warn('Failed to format message time:', e);
       return fallback;
     }
   },
@@ -57,7 +60,7 @@ export const DateFormatter = {
         second: '2-digit' 
       });
     } catch (e) {
-      console.warn('Failed to format history time:', e);
+      logger.warn('Failed to format history time:', e);
       return fallback;
     }
   },
@@ -82,7 +85,7 @@ export const DateFormatter = {
         minute: '2-digit'
       });
     } catch (e) {
-      console.warn('Failed to format document date:', e);
+      logger.warn('Failed to format document date:', e);
       return fallback;
     }
   },
@@ -106,7 +109,7 @@ export const DateFormatter = {
         minute: '2-digit'
       });
     } catch (e) {
-      console.warn('Failed to format short date:', e);
+      logger.warn('Failed to format short date:', e);
       return fallback;
     }
   },
@@ -132,7 +135,7 @@ export const DateFormatter = {
         second: '2-digit'
       });
     } catch (e) {
-      console.warn('Failed to format full date time:', e);
+      logger.warn('Failed to format full date time:', e);
       return fallback;
     }
   },
@@ -169,7 +172,7 @@ export const DateFormatter = {
         return DateFormatter.shortDate(date, options);
       }
     } catch (e) {
-      console.warn('Failed to format relative time:', e);
+      logger.warn('Failed to format relative time:', e);
       return fallback;
     }
   },
@@ -188,7 +191,7 @@ export const DateFormatter = {
       
       return date.toLocaleString(locale);
     } catch (e) {
-      console.warn('Failed to format ISO string:', e);
+      logger.warn('Failed to format ISO string:', e);
       return fallback;
     }
   }
@@ -215,7 +218,7 @@ export function createDateFormatter(defaultOptions: DateFormatOptions = {}) {
         
         return date.toLocaleString(locale, formatOptions);
       } catch (e) {
-        console.warn('Failed to format date with custom options:', e);
+        logger.warn('Failed to format date with custom options:', e);
         return fallback;
       }
     }

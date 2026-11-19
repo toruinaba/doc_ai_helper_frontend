@@ -12,6 +12,16 @@ const router = createRouter({
       path: '/documents/:repositoryId',
       name: 'DocumentView',
       component: () => import('../views/DocumentView.vue'),
+      props: (route) => ({
+        repositoryId: route.params.repositoryId,
+        documentPath: route.query.path || 'README.md',
+        ref: route.query.ref || 'main'
+      }),
+      // URLの例: /documents/123?path=docs/guide.md&ref=main
+      meta: {
+        requiresRepository: true,
+        description: 'ドキュメント表示ページ（クエリパラメータでドキュメントパスを指定）'
+      }
     },
     {
       path: '/admin/repositories',

@@ -1,13 +1,34 @@
 /**
  * API型定義
  * 
- * 自動生成された型定義（types.auto.ts）を基に、段階的に移行中
+ * 手動定義の型のみ含む。自動生成された型は types.auto.ts を直接使用すること。
+ * 
+ * 使用例:
+ * import type { components } from '@/services/api/types.auto';
+ * type Repository = components["schemas"]["RepositoryResponse"];
  */
 
-// 自動生成された型定義をインポート
+// 自動生成された型定義をインポート（手動型でのみ使用）
 import type { components } from './types.auto';
 
-// ドキュメント関連の型定義
+// リポジトリ関連の手動型定義（フロントエンド固有）
+/**
+ * access_tokenフィールドを含む拡張リポジトリ型（フロントエンドでのみ使用）
+ * 
+ * 使用場面:
+ * - リポジトリフォームコンポーネント（入力時）
+ * - リポジトリ詳細表示コンポーネント（表示時、プライベートリポジトリでのマスク表示など）
+ * - フロントエンド内での一時的なリポジトリデータ管理
+ * 
+ * 注意: 
+ * - API レスポンス（RepositoryResponse）には通常 access_token は含まれません（セキュリティ上）
+ * - この型は主にフォーム入力やローカル状態管理で使用します
+ */
+export type RepositoryWithToken = components['schemas']['RepositoryResponse'] & {
+  access_token?: string | null;
+};
+
+// ドキュメント関連の手動型定義（フロントエンド固有）
 export interface DocumentContent {
   content: string;
   encoding?: string;
@@ -39,88 +60,7 @@ export interface LinkInfo {
   is_external?: boolean;
 }
 
-// DocumentResponse: 自動生成版を使用
-export type DocumentResponse = components["schemas"]["DocumentResponse"];
-
-// リポジトリ構造関連の型定義
-// FileTreeItem: 自動生成版を使用
-export type FileTreeItem = components["schemas"]["FileTreeItem"];
-
-// RepositoryStructureResponse: 自動生成版を使用
-export type RepositoryStructureResponse = components["schemas"]["RepositoryStructureResponse"];
-
-// リポジトリ関連の型定義 - Fallback definitions
-export type GitServiceType = 'github' | 'gitlab' | 'bitbucket' | 'mock';
-
-export interface RepositoryCreate {
-  name: string;
-  owner: string;
-  service: GitServiceType;
-  description?: string;
-}
-
-export interface RepositoryResponse {
-  id: number;
-  name: string;
-  owner: string;
-  service: GitServiceType;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface RepositoryUpdate {
-  name?: string;
-  description?: string;
-}
-
-// 検索関連の型定義
-// SearchQuery: 自動生成版を使用
-export type SearchQuery = components["schemas"]["SearchQuery"];
-
-// SearchResultItem: 自動生成版を使用
-export type SearchResultItem = components["schemas"]["SearchResultItem"];
-
-// SearchResponse: 自動生成版を使用
-export type SearchResponse = components["schemas"]["SearchResponse"];
-
-// バリデーションエラー関連の型定義
-// ValidationError: 自動生成版を使用
-export type ValidationError = components["schemas"]["ValidationError"];
-
-// HTTPValidationError: 自動生成版を使用
-export type HTTPValidationError = components["schemas"]["HTTPValidationError"];
-
-// LLMクエリ関連の型定義
-// MessageItem: 自動生成版を使用
-export type MessageItem = components["schemas"]["MessageItem"];
-
-// RepositoryContext: 自動生成版を使用
-export type RepositoryContext = components["schemas"]["RepositoryContext"];
-
-// GitService: 自動生成版を使用  
-export type GitService = components["schemas"]["GitService"];
-
-// DocumentMetadataInput: 自動生成版を使用
-export type DocumentMetadataInput = components["schemas"]["DocumentMetadata-Input"];
-
-// DocumentTypeInput: 自動生成版を使用
-export type DocumentTypeInput = components["schemas"]["DocumentType-Input"];
-
-// MCPツール関連の型定義
-// FunctionCall: 自動生成版を使用
-export type FunctionCall = components["schemas"]["FunctionCall"];
-
-// ToolCall: 自動生成版を使用
-export type ToolCall = components["schemas"]["ToolCall"];
-
-// LLMQueryRequest: 自動生成版を使用
-export type LLMQueryRequest = components["schemas"]["LLMQueryRequest"];
-
-// LLMResponse: 自動生成版を使用
-export type LLMResponse = components["schemas"]["LLMResponse"];
-
-// SSEストリーミング関連の型定義
+// SSEストリーミング関連の手動型定義（フロントエンド固有）
 export interface StreamingLLMResponse {
   event: 'start' | 'token' | 'error' | 'end';  // イベントタイプ
   data?: {
@@ -129,18 +69,26 @@ export interface StreamingLLMResponse {
     model?: string;                // 開始イベントの場合、使用されるモデル
     provider?: string;             // 開始イベントの場合、プロバイダー
     usage?: components["schemas"]["LLMUsage"]; // 終了イベントの場合、トークン使用情報
-    optimized_conversation_history?: MessageItem[]; // 終了イベントの場合、最適化された会話履歴
-    tool_calls?: ToolCall[];       // ツール呼び出し情報（MCPツール機能）
+    optimized_conversation_history?: components["schemas"]["MessageItem"][]; // 終了イベントの場合、最適化された会話履歴
+    tool_calls?: components["schemas"]["ToolCall"][];       // ツール呼び出し情報（MCPツール機能）
     tool_execution_results?: Record<string, any>[]; // ツール実行結果（MCPツール機能）
   };
   id?: string;                     // イベントID（任意）
 }
 
-export interface LLMStreamingRequest extends LLMQueryRequest {
+// LLMクエリリクエストにストリーミングフラグを追加したインターフェース
+export interface LLMStreamingRequest {
+  // LLMQueryRequestの全プロパティを含む
+  query: string;
+  conversation_history?: components["schemas"]["MessageItem"][];
+  repository_context?: components["schemas"]["RepositoryContext"];
+  document_metadata?: components["schemas"]["DocumentMetadata-Input"];
+  max_tokens?: number;
+  temperature?: number;
   stream?: boolean;                // ストリーミングモードを有効にするフラグ
 }
 
-// ストリーミングコールバック関数の型定義
+// ストリーミングコールバック関数の型定義（フロントエンド固有）
 export interface StreamingCallbacks {
   onStart?: (data?: any) => void;
   onToken?: (token: string) => void;
@@ -150,11 +98,11 @@ export interface StreamingCallbacks {
 
 // MCPツール機能のコールバック関数の型定義（ストリーミング用）
 export interface MCPStreamingCallbacks extends StreamingCallbacks {
-  onToolCall?: (toolCall: ToolCall) => void;           // ツール呼び出し開始時
+  onToolCall?: (toolCall: components["schemas"]["ToolCall"]) => void;           // ツール呼び出し開始時
   onToolResult?: (result: Record<string, any>) => void; // ツール実行結果受信時
 }
 
-// MCPツール実行状態管理用の型定義
+// MCPツール実行状態管理用の型定義（フロントエンド固有）
 export interface ToolExecution {
   id: string;
   toolCallId: string;
@@ -169,7 +117,7 @@ export interface ToolExecution {
   error?: string;
 }
 
-// MCPツール設定の型定義
+// MCPツール設定の型定義（フロントエンド固有）
 export interface MCPToolConfig {
   name: string;
   description: string;
@@ -180,7 +128,7 @@ export interface MCPToolConfig {
 // MCPツール実行モードの型定義
 export type ToolExecutionMode = 'auto' | 'none' | 'required';
 
-// MCPツール管理状態の型定義
+// MCPツール管理状態の型定義（フロントエンド固有）
 export interface MCPToolsState {
   enabled: boolean;
   executionMode: ToolExecutionMode;
@@ -189,15 +137,40 @@ export interface MCPToolsState {
   executionHistory: ToolExecution[];
 }
 
-// バックエンドから取得するMCPツール情報の型定義（OpenAPI仕様に基づく）
-// ToolParameter: 自動生成版を使用
-export type ToolParameter = components["schemas"]["ToolParameter"];
-
-// MCPToolInfo: 自動生成版を使用
-export type MCPToolInfo = components["schemas"]["MCPToolInfo"];
-
-// MCPToolsResponse: 自動生成版を使用
-export type MCPToolsResponse = components["schemas"]["MCPToolsResponse"];
-
 // MCPツール選択の型定義（tool_choiceで使用）
 export type MCPToolChoice = 'auto' | 'none' | 'required' | string; // 特定のツール名も可能
+
+// =============================================================================
+// MIGRATION NOTICE: 自動生成型への移行方法
+// =============================================================================
+// 
+// 以下の型は types.auto.ts から直接参照してください：
+//
+// OLD (削除済み):
+// import { DocumentResponse } from '@/services/api/types';
+//
+// NEW (推奨):
+// import type { components } from '@/services/api/types.auto';
+// type DocumentResponse = components["schemas"]["DocumentResponse"];
+//
+// よく使われる型:
+// - components["schemas"]["DocumentResponse"]
+// - components["schemas"]["RepositoryResponse"] 
+// - components["schemas"]["RepositoryCreate"]
+// - components["schemas"]["RepositoryUpdate"]
+// - components["schemas"]["GitServiceType"]
+// - components["schemas"]["MessageItem"]
+// - components["schemas"]["RepositoryContext"]
+// - components["schemas"]["LLMQueryRequest"]
+// - components["schemas"]["LLMResponse"]
+// - components["schemas"]["ToolCall"]
+// - components["schemas"]["FunctionCall"]
+// - components["schemas"]["MCPToolInfo"]
+// - components["schemas"]["MCPToolsResponse"]
+// - components["schemas"]["ValidationError"]
+// - components["schemas"]["HTTPValidationError"]
+//
+// フロントエンド拡張型:
+// - RepositoryWithToken (access_token フィールド付きリポジトリ型)
+//
+// =============================================================================

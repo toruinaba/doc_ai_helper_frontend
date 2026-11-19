@@ -2,7 +2,12 @@
  * MCP ツール管理ユーティリティ
  */
 import { getMCPTools, getMCPToolInfo } from '@/services/api/llm';
-import type { MCPToolsResponse, MCPToolInfo, MCPToolConfig } from '@/services/api/types';
+import type { components } from '@/services/api/types.auto';
+import type { MCPToolConfig } from '@/services/api/types';
+
+// 自動生成型の型エイリアス
+type MCPToolsResponse = components['schemas']['MCPToolsResponse'];
+type MCPToolInfo = components['schemas']['MCPToolInfo'];
 
 /**
  * バックエンドからMCPツールリストを取得し、MCPToolConfig形式に変換

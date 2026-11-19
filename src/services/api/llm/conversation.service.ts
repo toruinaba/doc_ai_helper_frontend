@@ -3,7 +3,10 @@
  * 
  * 会話履歴の管理機能を提供
  */
-import type { MessageItem } from '../types';
+import type { components } from '../types.auto';
+
+// 型エイリアスを定義
+type MessageItem = components['schemas']['MessageItem'];
 
 /**
  * システムプロンプトを含む会話履歴を生成

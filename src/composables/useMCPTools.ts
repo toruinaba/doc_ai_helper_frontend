@@ -34,6 +34,7 @@ export interface MCPToolsConfig {
   executionMode: ToolExecutionMode;
   enableProgressMonitoring: boolean;
   enableDetailedLogging: boolean;
+  completeToolFlow: boolean;
 }
 
 export function useMCPTools() {
@@ -48,7 +49,8 @@ export function useMCPTools() {
     toolChoice: appDefaults.executionMode, // デフォルトは設定から取得
     executionMode: appDefaults.executionMode as ToolExecutionMode,
     enableProgressMonitoring: true,
-    enableDetailedLogging: true
+    enableDetailedLogging: true,
+    completeToolFlow: true
   });
 
   const activeToolExecutions = ref<MCPToolExecution[]>([]);

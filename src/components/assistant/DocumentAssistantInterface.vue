@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useDocumentStore } from '@/stores/document.store';
 import { useDocumentAssistant } from '@/composables/useDocumentAssistant';
 import { useDocumentContext } from '@/composables/useDocumentContext';
@@ -54,8 +55,8 @@ import { getUIConfig, getAppDefaultsConfig } from '@/utils/config.util';
 
 // コンポーネントインポート
 import DocumentContextPanel from '@/components/assistant/DocumentContextPanel.vue';
-import MessagesList from '@/components/assistant/MessagesList.vue';
-import MessageInputForm from '@/components/assistant/MessageInputForm.vue';
+import MessagesList from '@/components/chat/MessagesList.vue';
+import MessageInputForm from '@/components/chat/MessageInputForm.vue';
 
 // Type definitions
 type ToolExecutionMode = 'auto' | 'manual' | 'required' | 'none';
@@ -137,8 +138,12 @@ watch(() => messages.value.length, async (newLength, oldLength) => {
   }
 });
 
-// ドキュメントが変更されたら会話をクリア
-watch(() => documentStore.currentPath, () => {
+// ドキュメントが変更されたら会話をクリア（新しい設計: router-driven）
+watch(() => {
+  // router状態またはstore状態の変更を監視
+  const route = useRoute();
+  return route.query.path || documentStore.currentPath;
+}, () => {
   clearMessages();
 });
 

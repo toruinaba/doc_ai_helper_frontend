@@ -3,13 +3,14 @@
  * 
  * ドキュメント関連のユーティリティ機能を提供
  */
-import type { 
-  DocumentResponse,
-  DocumentMetadataInput,
-  RepositoryContext,
-  DocumentTypeInput,
-  GitService
-} from '../types';
+import type { components } from '../types.auto';
+
+// 型エイリアスを定義
+type DocumentResponse = components['schemas']['DocumentResponse'];
+type DocumentMetadataInput = components['schemas']['DocumentMetadata-Input'];
+type RepositoryContext = components['schemas']['RepositoryContext'];
+type DocumentTypeInput = components['schemas']['DocumentType-Input'];
+type GitService = components['schemas']['GitService'];
 
 /**
  * ドキュメント情報からDocumentMetadataInputを生成する

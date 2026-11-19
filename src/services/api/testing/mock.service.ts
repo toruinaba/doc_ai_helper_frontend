@@ -3,19 +3,20 @@
  * 
  * バックエンドサーバーが利用できない場合のモックデータを提供
  */
-import type { 
-  DocumentResponse, 
-  RepositoryStructureResponse, 
-  FileTreeItem,
-  DocumentType
-} from '../types';
+import type { components } from '../types.auto';
+
+// 型エイリアスを定義
+type DocumentResponse = components['schemas']['DocumentResponse'];
+type RepositoryStructureResponse = components['schemas']['RepositoryStructureResponse'];
+type FileTreeItem = components['schemas']['FileTreeItem'];
+type DocumentType = 'markdown' | 'html' | 'text' | 'python' | 'javascript' | 'typescript' | 'json' | 'yaml' | 'xml' | 'other';
 
 // モックドキュメントデータ
 const mockDocuments: Record<string, DocumentResponse> = {
   'index.md': {
     path: 'index.md',
     name: 'index.md',
-    type: 'markdown' as DocumentType,
+    type: 'markdown' as const,
     metadata: {
       size: 1024,
       last_modified: new Date().toISOString(),
@@ -75,7 +76,7 @@ function hello() {
   'sample.md': {
     path: 'sample.md',
     name: 'sample.md',
-    type: 'markdown' as DocumentType,
+    type: 'markdown' as const,
     metadata: {
       size: 512,
       last_modified: new Date().toISOString(),

@@ -91,4 +91,13 @@ export class RepositoryApiClient extends BaseHttpClient {
       query
     )
   }
+
+  /**
+   * リポジトリコンテキストを取得
+   * @param url リクエストURL
+   * @returns リポジトリコンテキスト
+   */
+  async getRepositoryContext<T>(url: string): Promise<T> {
+    return this.get<T>(url)
+  }
 }

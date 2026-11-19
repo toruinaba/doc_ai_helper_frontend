@@ -144,9 +144,8 @@ function onBranchChange() {
   
   // ブランチ変更時にリポジトリストアのコンテキストを更新
   if (selectedRepository.value) {
-    repositoryStore.updateRepositoryContext({
-      ref: selectedBranch.value
-    })
+    // Note: updateRepositoryContext method removed, using direct property update
+    repositoryStore.currentRef = selectedBranch.value;
   }
 }
 </script>

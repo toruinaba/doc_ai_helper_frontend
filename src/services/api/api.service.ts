@@ -6,6 +6,7 @@
  */
 import { ApiClientFactory } from './api-client.factory'
 import type { components } from './types.auto'
+// TransformLinksMode removed - now using boolean
 
 type DocumentResponse = components['schemas']['DocumentResponse']
 type RepositoryStructureResponse = components['schemas']['RepositoryStructureResponse']
@@ -14,54 +15,15 @@ type LLMResponse = components['schemas']['LLMResponse']
 type MCPToolsResponse = components['schemas']['MCPToolsResponse']
 type MCPToolInfo = components['schemas']['MCPToolInfo']
 
-// Fallback types for missing schemas
-interface RepositoryResponse {
-  id: number
-  name: string
-  owner: string
-  service: string
-  created_at: string
-  updated_at: string
-}
+// Use auto-generated types consistently
+type RepositoryResponse = components['schemas']['RepositoryResponse']
+type RepositoryCreate = components['schemas']['RepositoryCreate']  
+type RepositoryUpdate = components['schemas']['RepositoryUpdate']
 
-interface RepositoryCreate {
-  name: string
-  owner: string
-  service: string
-  description?: string
-}
+type SearchQuery = components['schemas']['SearchQuery']
+type SearchResponse = components['schemas']['SearchResponse']
 
-interface RepositoryUpdate {
-  name?: string
-  description?: string
-}
-
-interface SearchQuery {
-  query: string
-  limit: number
-  offset: number
-}
-
-interface SearchResponse {
-  results: any[]
-  total: number
-}
-
-interface LLMStreamingRequest {
-  prompt: string
-  provider: string
-  model?: string
-  conversation_history?: components['schemas']['MessageItem'][]
-  stream?: boolean
-}
-
-interface StreamingLLMResponse {
-  data: {
-    content?: string
-    error?: string
-    [key: string]: any
-  }
-}
+import type { LLMStreamingRequest, StreamingLLMResponse } from './types';
 
 export class ApiService {
   private factory: ApiClientFactory
@@ -93,7 +55,7 @@ export class ApiService {
    * @param repo リポジトリ名
    * @param path ドキュメントパス
    * @param ref ブランチまたはタグ名（デフォルト: main）
-   * @param transformLinks 相対リンクを絶対リンクに変換するかどうか（デフォルト: true）
+   * @param transformLinks リンク変換モード - 'true'(画像CDNのみ変換), 'false'(変換なし) またはboolean(後方互換性) - バックエンド仕様変更対応
    * @param baseUrl リンク変換のベースURL
    * @returns ドキュメントレスポンス
    */

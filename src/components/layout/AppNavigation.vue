@@ -1,34 +1,34 @@
 <template>
-  <header class="app-header">
-    <div class="app-logo">
-      <router-link to="/" class="app-title-link">
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+      <router-link to="/" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: inherit;">
         <img src="@/assets/logo.svg" alt="Logo" class="logo-image" />
-        <h1 class="app-title">ドキュメントAIヘルパー</h1>
+        <h1 style="margin: 0; font-size: 1.25rem; font-weight: 600;">ドキュメントAIヘルパー</h1>
       </router-link>
     </div>
     
-    <div class="app-center">
+    <div style="display: flex; align-items: center; justify-content: center; flex: 1;">
       <!-- 選択されたリポジトリの情報表示 -->
       <div 
         v-if="selectedRepository" 
-        class="selected-repository clickable"
+        style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; cursor: pointer; background-color: var(--p-surface-100); border: 1px solid var(--p-surface-200);"
         @click="navigateToDocument"
         v-tooltip.bottom="'ドキュメント画面に戻る'"
       >
         <i class="pi pi-folder"></i>
-        <span class="repo-name">{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
+        <span style="font-weight: 500;">{{ selectedRepository.owner }}/{{ selectedRepository.name }}</span>
         <Tag :value="selectedRepository.service_type" severity="info" size="small" />
       </div>
     </div>
     
     <!-- デスクトップ用メニュー -->
-    <div class="app-menu desktop-menu">
-      <nav class="navigation">
-        <router-link to="/admin/repositories" class="nav-link">
+    <div style="flex: 1; display: flex; justify-content: flex-end;">
+      <nav style="display: flex; gap: 0.5rem;">
+        <router-link to="/admin/repositories" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; text-decoration: none; color: inherit; transition: background-color 0.15s;">
           <i class="pi pi-folder"></i>
           <span>ドキュメント管理</span>
         </router-link>
-        <router-link to="/settings" class="nav-link">
+        <router-link to="/settings" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; text-decoration: none; color: inherit; transition: background-color 0.15s;">
           <i class="pi pi-cog"></i>
           <span>設定</span>
         </router-link>
@@ -224,30 +224,17 @@ function navigateToDocument() {
 }
 
 .repo-name {
-  font-weight: 500;
   color: var(--app-surface-0);
 }
 
 .app-menu {
-  flex: 1;
-  display: flex;
   justify-content: flex-end;
 }
 
-.navigation {
-  display: flex;
-  gap: var(--app-spacing-base);
-}
-
 .nav-link {
-  display: flex;
-  align-items: center;
-  gap: var(--app-spacing-xs);
-  padding: var(--app-spacing-sm) var(--app-spacing-base);
   color: var(--app-surface-0);
   text-decoration: none;
   border-radius: var(--app-border-radius-sm);
-  transition: var(--app-transition-fast);
   font-size: var(--app-font-size-sm);
   font-weight: 400;
 }

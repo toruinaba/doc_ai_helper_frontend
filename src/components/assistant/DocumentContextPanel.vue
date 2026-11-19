@@ -87,14 +87,14 @@
       </div>
       
       <div class="config-section">
-        <div class="p-field-checkbox">
+        <!-- <div class="p-field-checkbox">
           <Checkbox 
             v-model="config.completeToolFlow" 
             :binary="true" 
             inputId="completeToolFlow" 
           />
           <label for="completeToolFlow">完全なツールフローを使用</label>
-        </div>
+        </div> -->
       </div>
       
       <!-- 現在のコンテキスト情報表示 -->
@@ -146,6 +146,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 import Select from 'primevue/select';
+import Card from 'primevue/card';
 import { usePersistedConfig } from '@/composables/usePersistedConfig';
 import { loadSettings, saveDocumentSettings, type DocumentSettings } from '@/utils/settings.util';
 
@@ -256,8 +257,8 @@ const resetConfig = () => {
     includeDocumentInSystemPrompt: true,
     systemPromptTemplate: 'contextual_document_assistant_ja',
     enableRepositoryContext: true,
-    enableDocumentMetadata: true,
-    completeToolFlow: true
+    enableDocumentMetadata: true
+    // completeToolFlow: true  // Temporarily disabled due to type mismatch
   };
   console.log('ドキュメントコンテキスト設定をリセットしました');
 };
@@ -279,7 +280,7 @@ onMounted(() => {
   loadCurrentSettings();
   
   // 設定変更イベントをリッスン
-  window.addEventListener('document-settings-changed', handleExternalSettingsChange);
+  window.addEventListener('document-settings-changed', handleExternalSettingsChange as EventListener);
 });
 
 // 現在の設定を読み込み
@@ -299,7 +300,7 @@ function handleExternalSettingsChange(event: CustomEvent) {
 
 // クリーンアップ
 onUnmounted(() => {
-  window.removeEventListener('document-settings-changed', handleExternalSettingsChange);
+  window.removeEventListener('document-settings-changed', handleExternalSettingsChange as EventListener);
 });
 </script>
 

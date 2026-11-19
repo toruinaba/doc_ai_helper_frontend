@@ -2,6 +2,7 @@
  * HTML処理ユーティリティ
  * HTMLドキュメントの表示とセキュリティ対策のための関数群
  */
+import { resolveRelativePath } from './link-processing.util';
 
 /**
  * HTMLエスケープ
@@ -86,3 +87,92 @@ export function sanitizeQuartoHtml(html: string): string {
   
   return sanitized;
 }
+
+/**
+ * HTMLドキュメント内のリンクを処理する
+ * 責任分界アプローチで内部リンクにdata-document-path属性を追加
+ * @param html HTML文字列
+ * @param currentPath 現在のドキュメントパス
+ * @returns リンク処理済みHTML
+ */
+export function processHtmlLinksWithResponsibilityBoundary(html: string, currentPath: string = '', documentRoot: string = ''): string {
+  if (!html) return html;
+  
+  // HTMLをDOMとして解析
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const links = doc.querySelectorAll('a[href]');
+  
+  links.forEach(link => {
+    const href = link.getAttribute('href');
+    if (!href) return;
+    
+    
+    // 外部リンク
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      link.setAttribute('target', '_blank');
+      link.setAttribute('rel', 'noopener noreferrer');
+      link.classList.add('external-link');
+      link.setAttribute('data-link-type', 'external');
+      return;
+    }
+    
+    // アンカーリンク
+    if (href.startsWith('#')) {
+      link.classList.add('anchor-link');
+      link.setAttribute('data-link-type', 'anchor');
+      return;
+    }
+    
+    // API URL
+    if (href.includes('/api/v1/documents/contents/')) {
+      const pathMatch = href.match(/\/api\/v1\/documents\/contents\/[^/]+\/[^/]+\/[^/]+\/(.+?)(\?|$)/);
+      const documentPath = pathMatch && pathMatch[1] ? decodeURIComponent(pathMatch[1]) : href;
+      
+      link.setAttribute('href', '#');
+      link.setAttribute('data-document-path', documentPath);
+      link.classList.add('internal-link');
+      link.setAttribute('data-link-type', 'internal');
+      link.setAttribute('data-original-href', href);
+      return;
+    }
+    
+    // 内部リンク（相対パス・絶対パス）
+    // Quartoでよく使われるパターンを含む判定
+    const isRelative = href.startsWith('./') || href.startsWith('../') || 
+                      (!href.startsWith('/') && !href.includes('/api/v1/') && !href.startsWith('http'));
+    const isAbsolute = href.startsWith('/') && !href.includes('/api/v1/');
+    
+    
+    if (isRelative || isAbsolute) {
+      let documentPath = href;
+      
+      // 相対パスを解決
+      if (isRelative) {
+        documentPath = resolveRelativePath(href, currentPath, documentRoot);
+      } else if (isAbsolute) {
+        documentPath = resolveRelativePath(href, currentPath, documentRoot);
+      }
+      
+      // Quartoの拡張子なしリンクに .html を追加
+      if (!documentPath.includes('.') && !documentPath.endsWith('/')) {
+        documentPath = documentPath + '.html';
+      }
+      
+      // 既存の属性とクラスを強制的にクリア
+      link.className = '';
+      link.removeAttribute('data-link-type');
+      
+      // 正しい属性を設定
+      link.setAttribute('href', '#');
+      link.setAttribute('data-document-path', documentPath);
+      link.classList.add('internal-link');
+      link.setAttribute('data-link-type', 'internal');
+      link.setAttribute('data-original-href', href);
+    }
+  });
+  
+  // bodyの内容のみを返す
+  return doc.body.innerHTML;
+}
+

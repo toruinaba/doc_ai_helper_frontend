@@ -3,13 +3,14 @@
  * 
  * Model Context Protocol (MCP) ツールの管理と使用機能を提供
  */
-import type { 
-  MCPToolsResponse,
-  MCPToolInfo,
-  MessageItem,
-  LLMQueryRequest,
-  LLMResponse
-} from '../types';
+import type { components } from '../types.auto';
+
+// 自動生成型のエイリアス
+type MCPToolsResponse = components['schemas']['MCPToolsResponse'];
+type MCPToolInfo = components['schemas']['MCPToolInfo'];
+type MessageItem = components['schemas']['MessageItem'];
+type LLMQueryRequest = components['schemas']['LLMQueryRequest'];
+type LLMResponse = components['schemas']['LLMResponse'];
 import { shouldUseMockApi } from '../../../utils/config.util';
 import apiClient from '..';
 

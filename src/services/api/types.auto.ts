@@ -1087,8 +1087,24 @@ export interface components {
              */
             default_branch: string;
             /**
+             * Repository Root
+             * @description Repository base directory
+             * @default /
+             */
+            repository_root: string;
+            /**
+             * Document Root Directory
+             * @description Document root directory (e.g., 'docs')
+             */
+            document_root_directory?: string | null;
+            /**
+             * Root Document Path
+             * @description Main document file path (e.g., 'docs/README.md')
+             */
+            root_document_path?: string | null;
+            /**
              * Root Path
-             * @description Documentation root directory path
+             * @description DEPRECATED: Use root_document_path instead
              */
             root_path?: string | null;
             /**
@@ -1151,8 +1167,24 @@ export interface components {
              */
             default_branch: string;
             /**
+             * Repository Root
+             * @description Repository base directory
+             * @default /
+             */
+            repository_root: string;
+            /**
+             * Document Root Directory
+             * @description Document root directory (e.g., 'docs')
+             */
+            document_root_directory?: string | null;
+            /**
+             * Root Document Path
+             * @description Main document file path (e.g., 'docs/README.md')
+             */
+            root_document_path?: string | null;
+            /**
              * Root Path
-             * @description Documentation root directory path
+             * @description DEPRECATED: Use root_document_path instead
              */
             root_path?: string | null;
             /**
@@ -1271,8 +1303,23 @@ export interface components {
              */
             default_branch?: string | null;
             /**
+             * Repository Root
+             * @description Repository base directory
+             */
+            repository_root?: string | null;
+            /**
+             * Document Root Directory
+             * @description Document root directory (e.g., 'docs')
+             */
+            document_root_directory?: string | null;
+            /**
+             * Root Document Path
+             * @description Main document file path (e.g., 'docs/README.md')
+             */
+            root_document_path?: string | null;
+            /**
              * Root Path
-             * @description Documentation root directory path
+             * @description DEPRECATED: Use root_document_path instead
              */
             root_path?: string | null;
             /**
@@ -1554,10 +1601,12 @@ export interface operations {
             query?: {
                 /** @description Branch or tag name */
                 ref?: string | null;
-                /** @description Transform relative links to absolute */
+                /** @description Transform image and static resource links to CDN URLs */
                 transform_links?: boolean;
                 /** @description Base URL for link transformation */
                 base_url?: string | null;
+                /** @description Root directory path for link resolution */
+                root_path?: string | null;
             };
             header?: never;
             path: {

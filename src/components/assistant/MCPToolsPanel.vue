@@ -228,147 +228,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mcp-tools-panel {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  background-color: #f0f8ff;
-  border: 1px solid #b3d9ff;
-  border-radius: 6px;
-  font-size: 0.9rem;
+/*
+ * PrimeVue v4 Cardコンポーネントとユーティリティクラスで最大最適化
+ * - Card #header, #content スロット使用
+ * - ユーティリティクラスでレイアウト/色/spacing処理
+ * - プライマリテーマ色での統一感のあるデザイン
+ * 
+ * CSS記述量: 124行 → 8行 (94%削減)
+ */
+
+/* カーソルポインター適用 */
+label {
+  cursor: pointer;
 }
 
-.mcp-tools-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.mcp-config-toggle {
-  margin-left: auto;
-}
-
-.mcp-history-toggle {
-  margin-left: 0.25rem;
-}
-
-.mcp-tools-config {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #b3d9ff;
-}
-
-.config-section {
-  margin-bottom: 1rem;
-}
-
-.config-label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
-}
-
-.available-tools {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 150px;
-  overflow-y: auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 0.5rem;
-  background-color: white;
-}
-
-.tool-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
-.tool-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.tool-description {
-  color: #666;
-  font-size: 0.8rem;
-  font-style: italic;
-}
-
-.execution-mode-options {
-  display: flex;
-  gap: 1rem;
-}
-
-.p-field-radiobutton {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.tool-history {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #b3d9ff;
-}
-
-.tool-history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.tool-history-header h4 {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #2c3e50;
-}
-
-.no-history {
-  text-align: center;
-  color: #6c757d;
-  padding: 1rem;
-  font-style: italic;
-}
-
-.history-list {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: white;
-}
-
-.history-item {
-  padding: 0.5rem;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.history-item:last-child {
-  border-bottom: none;
-}
-
-.history-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.25rem;
-}
-
-.history-tool-name {
-  font-family: monospace;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.history-item-time {
-  font-size: 0.75rem;
-  color: #6c757d;
-}
 </style>

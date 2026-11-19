@@ -5,10 +5,11 @@
  */
 import { shouldUseMockApi } from '../../../utils/config.util';
 import { normalizeUrl } from '../infrastructure';
-import type { 
-  LLMQueryRequest,
-  LLMResponse
-} from '../types';
+import type { components } from '../types.auto';
+
+// 自動生成型のエイリアス
+type LLMQueryRequest = components['schemas']['LLMQueryRequest'];
+type LLMResponse = components['schemas']['LLMResponse'];
 
 /**
  * Unicode文字列をデコードする関数
